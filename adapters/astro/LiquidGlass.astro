@@ -1,0 +1,76 @@
+---
+// Astro adapter for @amir-abushanab/liquid-glass.
+//
+// Thin wrapper: it renders the `.ps-glass` shell (+ optional `refract` slot and
+// the default content slot) and writes the options to data-* attributes; the
+// hoisted <script> hands each element to the framework-agnostic `mountGlass`,
+// which selects the renderer and lazily code-splits WebGL. All the actual glass
+// logic lives in the package core — this file is just the Astro binding.
+import '@amir-abushanab/liquid-glass/css';
+
+interface Props {
+  radius?: number;
+  depth?: number;
+  dome?: number;
+  strength?: number;
+  edge?: number;
+  glow?: number;
+  chroma?: number;
+  blur?: number;
+  tint?: number;
+  spec?: number;
+  vibrancy?: number;
+  backdrop?: string; // CSS background (SVG path). Default reads --glass-backdrop.
+  source?: string; // selector to a canvas/video/img (WebGL path)
+  mode?: 'auto' | 'svg' | 'webgl' | 'frost';
+  class?: string;
+}
+const {
+  radius = 22, depth = 20, dome = 14, strength = 16, edge = 0.8, glow = 0.2,
+  chroma = 0.3, blur = 2, tint = 12, spec = 0.9, vibrancy = 0.15,
+  backdrop = 'var(--glass-backdrop, transparent)', source = '', mode = 'auto', class: cls,
+} = Astro.props;
+const uid = 'ps-glass-' + Math.random().toString(36).slice(2, 9);
+const hasRefract = Astro.slots.has('refract');
+const MARGIN = 28; // bleed so the displacement doesn't sample past the lens rim
+---
+
+<div
+  class:list={['ps-glass', cls]}
+  style={`--g-radius:${radius}px; --g-tint:${tint}; --g-margin:${MARGIN}px;`}
+  data-glass
+  data-uid={uid}
+  data-mode={mode}
+  data-backdrop={backdrop}
+  data-source={source}
+  data-radius={radius}
+  data-depth={depth}
+  data-dome={dome}
+  data-strength={strength}
+  data-edge={edge}
+  data-glow={glow}
+  data-chroma={chroma}
+  data-blur={blur}
+  data-spec={spec}
+  data-vibrancy={vibrancy}
+>
+  {hasRefract && (
+    <div class="ps-glass__refract">
+      <div class="ps-glass__refract-inner"><slot name="refract" /></div>
+    </div>
+  )}
+  <div class="ps-glass__surface"></div>
+  <div class="ps-glass__tint"></div>
+  <div class="ps-glass__rim"></div>
+  <div class="ps-glass__content"><slot /></div>
+</div>
+
+<script>
+  import { mountGlassFromData } from '@amir-abushanab/liquid-glass';
+
+  document.querySelectorAll<HTMLElement>('[data-glass]').forEach((el) => {
+    if (el.dataset.glassMounted) return;
+    el.dataset.glassMounted = '1';
+    mountGlassFromData(el);
+  });
+</script>

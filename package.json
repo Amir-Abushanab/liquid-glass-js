@@ -1,0 +1,84 @@
+{
+  "name": "@amir-abushanab/liquid-glass",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "SVG-first liquid glass for the web (feDisplacementMap on live DOM), with WebGL + QR escape hatches. Reverse-engineered from Aave's \"Building Glass for the Web\".",
+  "license": "MIT",
+  "author": "Amir Abushanab",
+  "keywords": [
+    "liquid-glass",
+    "glass",
+    "glassmorphism",
+    "svg-filter",
+    "fedisplacementmap",
+    "displacement-map",
+    "webgl",
+    "refraction",
+    "astro"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amir-abushanab/liquid-glass.git"
+  },
+  "homepage": "https://github.com/amir-abushanab/liquid-glass#readme",
+  "bugs": "https://github.com/amir-abushanab/liquid-glass/issues",
+  "packageManager": "pnpm@8.7.1",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./webgl": {
+      "types": "./dist/webgl.d.ts",
+      "import": "./dist/webgl.js"
+    },
+    "./qr": {
+      "types": "./dist/qr/index.d.ts",
+      "import": "./dist/qr/index.js"
+    },
+    "./css": "./src/css/glass.css",
+    "./astro/LiquidGlass.astro": {
+      "types": "./adapters/astro/LiquidGlass.astro.d.ts",
+      "default": "./adapters/astro/LiquidGlass.astro"
+    },
+    "./astro/LiquidGlassFont.astro": {
+      "types": "./adapters/astro/LiquidGlassFont.astro.d.ts",
+      "default": "./adapters/astro/LiquidGlassFont.astro"
+    }
+  },
+  "files": [
+    "dist",
+    "adapters",
+    "src/css",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "prepack": "pnpm build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4"
+  },
+  "peerDependencies": {
+    "astro": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "astro": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.6",
+    "tsup": "^8.3.0",
+    "typescript": "^5.3.3"
+  }
+}
