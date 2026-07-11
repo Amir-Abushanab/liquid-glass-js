@@ -1,0 +1,52 @@
+{
+  "name": "@liquidglassjs/element",
+  "version": "0.1.0",
+  "description": "The <liquid-glass> custom element — drop-in liquid glass for Vue, Svelte, Angular, plain HTML, or Astro, over @liquidglassjs/core.",
+  "keywords": [
+    "custom-elements",
+    "glass",
+    "glassmorphism",
+    "liquid-glass",
+    "refraction",
+    "svelte",
+    "vue",
+    "web-components"
+  ],
+  "homepage": "https://github.com/amir-abushanab/liquid-glass/tree/main/packages/element#readme",
+  "bugs": "https://github.com/amir-abushanab/liquid-glass/issues",
+  "license": "MIT",
+  "author": "Amir Abushanab",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amir-abushanab/liquid-glass.git",
+    "directory": "packages/element"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "./src/index.ts",
+    "./dist/index.js"
+  ],
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    },
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@liquidglassjs/core": "workspace:^"
+  }
+}

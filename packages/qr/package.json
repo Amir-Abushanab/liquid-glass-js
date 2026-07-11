@@ -1,0 +1,52 @@
+{
+  "name": "@liquidglassjs/qr",
+  "version": "0.1.0",
+  "description": "Procedural liquid-glass QR code — a WebGL escape hatch built on @liquidglassjs/core. Recreated from the technique in Aave's \"Building Glass for the Web\".",
+  "keywords": [
+    "glass",
+    "liquid-glass",
+    "qr",
+    "qrcode",
+    "refraction",
+    "webgl"
+  ],
+  "homepage": "https://github.com/amir-abushanab/liquid-glass/tree/main/packages/qr#readme",
+  "bugs": "https://github.com/amir-abushanab/liquid-glass/issues",
+  "license": "MIT",
+  "author": "Amir Abushanab",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amir-abushanab/liquid-glass.git",
+    "directory": "packages/qr"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    },
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@liquidglassjs/core": "workspace:^",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.6"
+  },
+  "comment:exports": "Dev resolves raw src/*.ts; publishConfig.exports swaps to built dist at publish. Mirrors @liquidglassjs/core."
+}

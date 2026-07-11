@@ -1,0 +1,54 @@
+{
+  "name": "@liquidglassjs/react",
+  "version": "0.1.0",
+  "description": "React wrapper for liquid glass — the <LiquidGlass> component + useLiquidGlass hook, over @liquidglassjs/core.",
+  "keywords": [
+    "component",
+    "glass",
+    "glassmorphism",
+    "liquid-glass",
+    "react",
+    "refraction"
+  ],
+  "homepage": "https://github.com/amir-abushanab/liquid-glass/tree/main/packages/react#readme",
+  "bugs": "https://github.com/amir-abushanab/liquid-glass/issues",
+  "license": "MIT",
+  "author": "Amir Abushanab",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amir-abushanab/liquid-glass.git",
+    "directory": "packages/react"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.tsx"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    },
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@liquidglassjs/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "react": "^19.0.0"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  }
+}

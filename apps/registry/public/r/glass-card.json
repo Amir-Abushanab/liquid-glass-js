@@ -1,0 +1,21 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "glass-card",
+  "type": "registry:component",
+  "title": "Glass Card",
+  "description": "A liquid-glass card: glass-surface plus card padding, a hairline border, and a shadow.",
+  "dependencies": [
+    "@liquidglassjs/react",
+    "@liquidglassjs/core"
+  ],
+  "registryDependencies": [
+    "glass-surface"
+  ],
+  "files": [
+    {
+      "path": "components/liquid-glass/glass-card.tsx",
+      "content": "import * as React from \"react\";\nimport {\n  GlassSurface,\n  type GlassSurfaceProps,\n} from \"@/components/liquid-glass/glass-surface\";\nimport { cn } from \"@/lib/utils\";\n\nexport type GlassCardProps = GlassSurfaceProps;\n\n/**\n * A liquid-glass card: <GlassSurface> plus card padding, a hairline border, and\n * a shadow. Built on the glass-surface primitive (installed automatically as a\n * registry dependency). Restyle the className freely.\n */\nexport function GlassCard({ className, children, ...props }: GlassCardProps) {\n  return (\n    <GlassSurface\n      className={cn(\n        \"border border-white/15 p-6 text-foreground shadow-xl\",\n        className,\n      )}\n      {...props}\n    >\n      {children}\n    </GlassSurface>\n  );\n}\n",
+      "type": "registry:component"
+    }
+  ]
+}

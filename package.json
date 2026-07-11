@@ -1,84 +1,41 @@
 {
-  "name": "@amir-abushanab/liquid-glass",
-  "version": "0.1.0",
+  "name": "liquidglassjs-workspace",
+  "version": "0.0.0",
+  "private": true,
   "type": "module",
-  "description": "SVG-first liquid glass for the web (feDisplacementMap on live DOM), with WebGL + QR escape hatches. Reverse-engineered from Aave's \"Building Glass for the Web\".",
+  "description": "Liquid Glass — the @liquidglassjs packages that power it, plus the showcase.",
   "license": "MIT",
   "author": "Amir Abushanab",
-  "keywords": [
-    "liquid-glass",
-    "glass",
-    "glassmorphism",
-    "svg-filter",
-    "fedisplacementmap",
-    "displacement-map",
-    "webgl",
-    "refraction",
-    "astro"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/amir-abushanab/liquid-glass.git"
-  },
-  "homepage": "https://github.com/amir-abushanab/liquid-glass#readme",
-  "bugs": "https://github.com/amir-abushanab/liquid-glass/issues",
-  "packageManager": "pnpm@8.7.1",
-  "sideEffects": [
-    "**/*.css"
-  ],
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./webgl": {
-      "types": "./dist/webgl.d.ts",
-      "import": "./dist/webgl.js"
-    },
-    "./qr": {
-      "types": "./dist/qr/index.d.ts",
-      "import": "./dist/qr/index.js"
-    },
-    "./css": "./src/css/glass.css",
-    "./astro/LiquidGlass.astro": {
-      "types": "./adapters/astro/LiquidGlass.astro.d.ts",
-      "default": "./adapters/astro/LiquidGlass.astro"
-    },
-    "./astro/LiquidGlassFont.astro": {
-      "types": "./adapters/astro/LiquidGlassFont.astro.d.ts",
-      "default": "./adapters/astro/LiquidGlassFont.astro"
-    }
-  },
-  "files": [
-    "dist",
-    "adapters",
-    "src/css",
-    "README.md",
-    "LICENSE"
-  ],
+  "packageManager": "pnpm@11.10.0",
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit",
-    "prepack": "pnpm build"
+    "dev": "pnpm --filter showcase dev",
+    "play": "pnpm --filter showcase dev",
+    "build": "pnpm -r build",
+    "build:packages": "pnpm -r --filter \"@liquidglassjs/*\" build",
+    "pack:all": "pnpm -r --filter \"@liquidglassjs/*\" exec pnpm pack",
+    "release": "pnpm build:packages && changeset publish",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "oxlint packages",
+    "format": "oxfmt packages",
+    "knip": "knip",
+    "depcruise": "depcruise packages apps",
+    "check": "oxfmt --check packages && oxlint packages && pnpm -r typecheck && knip && depcruise packages apps",
+    "changeset": "changeset",
+    "ncu": "pnpm dlx npm-check-updates",
+    "prepare": "simple-git-hooks"
   },
-  "publishConfig": {
-    "access": "public"
-  },
-  "dependencies": {
-    "qrcode": "^1.5.4"
-  },
-  "peerDependencies": {
-    "astro": "^4.0.0"
-  },
-  "peerDependenciesMeta": {
-    "astro": {
-      "optional": true
-    }
+  "simple-git-hooks": {
+    "pre-commit": "pnpm check"
   },
   "devDependencies": {
-    "@types/qrcode": "^1.5.6",
-    "tsup": "^8.3.0",
-    "typescript": "^5.3.3"
+    "@changesets/changelog-github": "^0.7.0",
+    "@changesets/cli": "^2.31.0",
+    "dependency-cruiser": "^18.0.0",
+    "knip": "^6.24.0",
+    "oxfmt": "^0.57.0",
+    "oxlint": "^1.72.0",
+    "simple-git-hooks": "^2.13.1",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3"
   }
 }

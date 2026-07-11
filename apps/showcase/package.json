@@ -1,0 +1,17 @@
+{
+  "name": "showcase",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@liquidglassjs/core": "workspace:*",
+    "@liquidglassjs/qr": "workspace:*",
+    "astro": "^7.0.3",
+    "geist": "^1.7.2"
+  }
+}

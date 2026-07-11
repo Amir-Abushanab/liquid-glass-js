@@ -1,0 +1,10 @@
+{
+  "name": "registry",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "shadcn-compatible registry for liquid glass — ownable shell components over @liquidglassjs/*.",
+  "scripts": {
+    "build": "node build.mjs"
+  }
+}

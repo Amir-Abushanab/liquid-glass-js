@@ -1,0 +1,77 @@
+{
+  "name": "@liquidglassjs/core",
+  "version": "0.1.0",
+  "description": "SVG-first liquid glass for the web (feDisplacementMap on live DOM), with WebGL + QR escape hatches. Recreated from the technique described in Aave's \"Building Glass for the Web\".",
+  "keywords": [
+    "astro",
+    "displacement-map",
+    "fedisplacementmap",
+    "glass",
+    "glassmorphism",
+    "liquid-glass",
+    "refraction",
+    "svg-filter",
+    "webgl"
+  ],
+  "homepage": "https://github.com/amir-abushanab/liquid-glass/tree/main/packages/core#readme",
+  "bugs": "https://github.com/amir-abushanab/liquid-glass/issues",
+  "license": "MIT",
+  "author": "Amir Abushanab",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amir-abushanab/liquid-glass.git",
+    "directory": "packages/core"
+  },
+  "files": [
+    "dist",
+    "src/css",
+    "adapters"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./webgl": "./src/webgl.ts",
+    "./css": "./src/css/glass.css",
+    "./astro/LiquidGlass.astro": "./adapters/astro/LiquidGlass.astro",
+    "./astro/LiquidGlassFont.astro": "./adapters/astro/LiquidGlassFont.astro"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      },
+      "./webgl": {
+        "types": "./dist/webgl.d.ts",
+        "import": "./dist/webgl.js"
+      },
+      "./css": "./src/css/glass.css",
+      "./astro/LiquidGlass.astro": {
+        "types": "./adapters/astro/LiquidGlass.astro.d.ts",
+        "default": "./adapters/astro/LiquidGlass.astro"
+      },
+      "./astro/LiquidGlassFont.astro": {
+        "types": "./adapters/astro/LiquidGlassFont.astro.d.ts",
+        "default": "./adapters/astro/LiquidGlassFont.astro"
+      }
+    },
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "astro": ">=4"
+  },
+  "peerDependenciesMeta": {
+    "astro": {
+      "optional": true
+    }
+  },
+  "comment:exports": "Dev (workspace) resolves raw src/*.ts — no build needed to consume core. publishConfig.exports swaps `.`/webgl/qr to built dist at publish; css + .astro ship as source either way."
+}

@@ -1,5 +1,11 @@
 node_modules/
 dist/
+.astro/
 *.log
 *.tsbuildinfo
 .DS_Store
+
+# Local env overrides (e.g. PUBLIC_APP_ENV favicon tint). .env.example is tracked.
+.env
+.env.*
+!.env.example

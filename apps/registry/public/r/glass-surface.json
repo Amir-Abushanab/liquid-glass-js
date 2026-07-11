@@ -1,0 +1,18 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "glass-surface",
+  "type": "registry:component",
+  "title": "Glass Surface",
+  "description": "Base liquid-glass surface — a thin, restyleable wrapper over @liquidglassjs/react's <LiquidGlass>.",
+  "dependencies": [
+    "@liquidglassjs/react",
+    "@liquidglassjs/core"
+  ],
+  "files": [
+    {
+      "path": "components/liquid-glass/glass-surface.tsx",
+      "content": "import * as React from \"react\";\nimport { LiquidGlass, type LiquidGlassProps } from \"@liquidglassjs/react\";\nimport { cn } from \"@/lib/utils\";\nimport \"@liquidglassjs/core/css\";\n\nexport type GlassSurfaceProps = LiquidGlassProps;\n\n/**\n * Base liquid-glass surface — a thin, restyleable wrapper over\n * @liquidglassjs/react's <LiquidGlass>. Children are wrapped in the\n * `.ps-glass__refract` layer so the SVG refraction bends your real content.\n *\n * You own this file: change the radius, the border, the content wrapper — it's\n * yours now. The refraction engine stays a versioned dependency.\n */\nexport function GlassSurface({\n  className,\n  children,\n  radius = 22,\n  style,\n  ...props\n}: GlassSurfaceProps) {\n  return (\n    <LiquidGlass\n      radius={radius}\n      className={cn(\"relative isolate overflow-hidden\", className)}\n      style={{ borderRadius: radius, ...style }}\n      {...props}\n    >\n      <div className=\"ps-glass__refract\">{children}</div>\n    </LiquidGlass>\n  );\n}\n",
+      "type": "registry:component"
+    }
+  ]
+}

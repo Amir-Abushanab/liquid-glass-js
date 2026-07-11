@@ -1,0 +1,33 @@
+# pnpm workspace. Published packages live in packages/* (@liquidglassjs/*);
+# apps/* are private consumers (the showcase). Settings below apply workspace-wide.
+packages:
+  - "packages/*"
+  - "apps/*"
+
+# Don't auto-install peer dependencies into the dev tree. @liquidglassjs/core
+# declares `astro` as an OPTIONAL peer; the showcase (apps/showcase) depends on
+# astro directly instead. Without this, pnpm's default would pull astro's whole
+# toolchain (sharp, tsconfck, …) into core's own tree.
+autoInstallPeers: false
+
+# Supply-chain defense: skip dependency versions younger than N minutes
+# (7 days = 10080). Applies to every install, including transitive deps — not
+# just `ncu` upgrades. Defense-in-depth alongside `cooldown: "7d"` in .ncurc.cjs.
+# Requires pnpm >= 10.16.0 (we pin 11.9.0 via packageManager).
+minimumReleaseAge: 10080
+# Some registry packages omit publish-time metadata; bypass the cooldown for
+# those rather than failing the install. (Defaults to true; explicit here.)
+minimumReleaseAgeIgnoreMissingTime: true
+
+# pnpm 11 requires explicit per-package approval to run install scripts. tsup
+# bundles with esbuild, whose postinstall downloads its native binary; without
+# this, that build is skipped and `pnpm build` breaks.
+allowBuilds:
+  esbuild: true
+  # sharp is astro's default image backend; the showcase ships no optimized
+  # images and astro.config sets passthroughImageService(), so we decline it.
+  sharp: false
+  # simple-git-hooks: declined here — we install the hook explicitly via the
+  # root `prepare` script (it reads the `simple-git-hooks` config in the root
+  # package.json), which doesn't depend on this postinstall.
+  simple-git-hooks: false

@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  // Category severities. `error` fails `oxlint` (and therefore `pnpm check` / the
+  // pre-commit hook), so it blocks commits.
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  // Rules turned off below, each with the reason it doesn't fit this codebase.
+  // An explicit rule setting overrides its category severity above.
+  "rules": {
+    // `toSorted()` — this rule's only suggested fix — is ES2023, but this library
+    // targets es2020 (see tsup.config.ts) and esbuild downlevels *syntax*, not runtime
+    // methods, so `toSorted()` would throw on older browsers. The single `.sort()`
+    // (GlassQR.ts) runs on a freshly-built local array that's discarded right after, so
+    // the in-place sort is safe.
+    "unicorn/no-array-sort": "off",
+
+    // The cubic-bézier coefficient helpers (A/B/C) and easing closures are small, pure
+    // functions kept next to their only call site. Hoisting them to module scope for a
+    // negligible "don't recreate per call" win would hurt cohesion and readability.
+    "unicorn/consistent-function-scoping": "off",
+
+    // Leading-underscore identifiers (`_webgl2OK`, `_el`) are an intentional convention
+    // here for internal / cached module state — not accidental "dangles".
+    "eslint/no-underscore-dangle": "off"
+  },
+  "ignorePatterns": ["dist", "node_modules"]
+}

@@ -1,0 +1,70 @@
+---
+// Carbon copy of the original Principle Stash `/showcase` page, adapted to the
+// package: the exact saved markup (src/body.html) + its CSS (reset/uno/component
+// tokens), with the client scripts rewired from /src/lib/glass/* to
+// @liquidglassjs/core (aliased to ../src in astro.config.mjs).
+import '../styles/fonts.css';
+import '../styles/reset.css';
+import '../styles/showcase.css';
+import bodyHtml from '../body.html?raw';
+import faviconSvg from '../../public/favicon.svg?raw';
+
+// Environment-tinted favicon — makes multiple running instances easy to tell
+// apart at a glance (dev/staging/prod tabs, or several dev servers at once).
+// Prod keeps the original aurora; dev/staging hue-shift the whole icon. Detection
+// is build-time: `astro dev` auto-selects 'dev' and a build defaults to 'prod';
+// set PUBLIC_APP_ENV=staging in the environment (.env / CI) for the staging tint.
+// Tune the hue map to taste — degrees around the color wheel, 0 = untouched.
+const APP_ENV = String(
+  import.meta.env.PUBLIC_APP_ENV ?? (import.meta.env.DEV ? 'dev' : 'prod'),
+).toLowerCase();
+// Degrees around the color wheel; long-form aliases match Astro's own MODE values.
+const FAVICON_HUE: Record<string, number> = {
+  prod: 0,
+  production: 0,
+  staging: 120,
+  dev: 240,
+  development: 240,
+};
+const faviconHue = FAVICON_HUE[APP_ENV] ?? 0;
+// Prod links the static asset; other envs inline a hue-shifted copy, since a
+// favicon renders in isolation and can't read the page's CSS variables — the
+// tint has to be baked into the SVG the browser actually loads.
+const faviconHref =
+  faviconHue === 0
+    ? `${import.meta.env.BASE_URL}/favicon.svg`.replace(/\/{2,}/g, '/')
+    : `data:image/svg+xml,${encodeURIComponent(
+        faviconSvg.replace('<svg', `<svg style="--env-hue: ${faviconHue}deg"`),
+      )}`;
+---
+
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <meta
+      name="description"
+      content="A liquid-glass component for the web. Real SVG refraction, with WebGL as the escape hatch."
+    />
+    <link rel="icon" href={faviconHref} type="image/svg+xml" />
+    <title>Liquid Glass — showcase</title>
+    <script is:inline>
+      // Apply a pinned theme before paint to avoid a flash.
+      try {
+        const t = localStorage.getItem('ps-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+      } catch {}
+    </script>
+  </head>
+  <body set:html={bodyHtml}></body>
+</html>
+
+<script>
+  // The original page's client scripts, rewired to the package. Order matters:
+  // mount the glass surfaces/typeface first, then wire the showcase + Tuner.
+  import '../scripts/theme-toggle.js';
+  import '../scripts/liquid-glass.js';
+  import '../scripts/liquid-glass-font.js';
+  import '../scripts/showcase.js';
+</script>

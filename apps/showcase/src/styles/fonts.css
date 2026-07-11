@@ -1,0 +1,18 @@
+/* Self-hosted Geist (the showcase's --font-sans / --font-mono), copied from the
+   `geist` package into src/fonts. Variable weight axis 100–900. Referenced from
+   src (not public) so Astro/Vite bundle + hash them with base-aware URLs — needed
+   for the project sub-path on GitHub Pages. */
+@font-face {
+  font-family: 'Geist';
+  src: url('../fonts/geist-sans-var.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('../fonts/geist-mono-var.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}

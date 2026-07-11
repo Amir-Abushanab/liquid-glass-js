@@ -1,0 +1,36 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "liquidglassjs",
+  "homepage": "https://github.com/amir-abushanab/liquid-glass",
+  "items": [
+    {
+      "name": "glass-surface",
+      "type": "registry:component",
+      "title": "Glass Surface",
+      "description": "Base liquid-glass surface — a thin, restyleable wrapper over @liquidglassjs/react's <LiquidGlass>.",
+      "dependencies": ["@liquidglassjs/react", "@liquidglassjs/core"],
+      "files": [
+        {
+          "path": "registry/liquid-glass/glass-surface.tsx",
+          "type": "registry:component",
+          "target": "components/liquid-glass/glass-surface.tsx"
+        }
+      ]
+    },
+    {
+      "name": "glass-card",
+      "type": "registry:component",
+      "title": "Glass Card",
+      "description": "A liquid-glass card: glass-surface plus card padding, a hairline border, and a shadow.",
+      "dependencies": ["@liquidglassjs/react", "@liquidglassjs/core"],
+      "registryDependencies": ["glass-surface"],
+      "files": [
+        {
+          "path": "registry/liquid-glass/glass-card.tsx",
+          "type": "registry:component",
+          "target": "components/liquid-glass/glass-card.tsx"
+        }
+      ]
+    }
+  ]
+}

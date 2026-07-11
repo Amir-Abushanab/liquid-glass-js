@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/knip/schema.json",
+  "ignoreWorkspaces": ["apps/showcase", "apps/registry"],
+  "ignore": [".ncurc.cjs"],
+  "workspaces": {
+    "packages/core": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/qr": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/react": {
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "packages/element": {
+      "project": ["src/**/*.ts"]
+    }
+  },
+  "include": [
+    "files",
+    "dependencies",
+    "devDependencies",
+    "optionalPeerDependencies",
+    "unlisted",
+    "binaries",
+    "unresolved"
+  ]
+}

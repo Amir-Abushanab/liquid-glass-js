@@ -1,0 +1,160 @@
+/* @liquidglassjs/core — the .ps-glass* chrome styles.
+ *
+ * Import once per app: `import '@liquidglassjs/core/css'`.
+ *
+ * De-themed: instead of app tokens, this reads namespaced vars with sane
+ * fallbacks, so it works standalone. Override per surface or globally:
+ *   --glass-paper : base "paper" colour behind tint + SVG-clone   (default #fff)
+ *   --glass-ink   : rim ink colour                                (default #000)
+ *   --glass-frost-bg : frosted-fallback background (set in JS)    (default rgb(255 255 255/55%))
+ *   --glass-backdrop : default CSS background for the SVG-clone path (consumer-supplied)
+ * e.g.  .ps-glass { --glass-paper: var(--paper); --glass-ink: var(--ink); }
+ */
+
+.ps-glass {
+  position: relative;
+  border-radius: var(--g-radius);
+  overflow: hidden;
+  isolation: isolate;
+}
+.ps-glass__surface,
+.ps-glass__tint,
+.ps-glass__rim {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.ps-glass__tint {
+  background: color-mix(in srgb, var(--glass-paper, #fff) calc(var(--g-tint) * 1%), transparent);
+}
+.ps-glass__rim {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--glass-ink, #000) 10%, transparent),
+    inset 0 1px 1px color-mix(in srgb, white 55%, transparent),
+    inset 0 -1px 1px color-mix(in srgb, var(--glass-ink, #000) 12%, transparent),
+    0 14px 38px -14px rgb(0 0 0 / 30%);
+}
+/* refract layer: the live DOM the filter bends. Outer is inset by the bleed
+   margin (filter region + map size); inner sits back at the glass rect so the
+   content lands where the lens does. Stays interactive — the glass chrome above
+   is pointer-transparent, matching Aave (selectable text, clickable links). */
+.ps-glass__refract {
+  position: absolute;
+  inset: calc(-1 * var(--g-margin, 28px));
+  border-radius: inherit;
+}
+.ps-glass__refract-inner {
+  position: absolute;
+  inset: var(--g-margin, 28px);
+}
+.ps-glass__content {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ── Morphing surfaces: mountGlassButton (.gm-btn) + mountGlassDropdown (.gm-dd).
+   Only the structure the JS depends on and the label crossfade travel here;
+   sizing, colour, and the refracted scene are the consumer's. See README. ── */
+.gm-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  isolation: isolate;
+}
+/* the refracted pane — the JS applies filter:url() here and sets its background */
+.gm-btn__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+}
+/* the crisp label; in-flow so it drives the button width the JS animates */
+.gm-btn__label {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  pointer-events: none;
+}
+/* Held invisible (delay + `both` fill) until the outgoing label has cleared, so
+   the two never cross-dissolve on top of each other — the old lifts out, then
+   the new rises in. */
+.gm-btn__label--in {
+  animation: gm-label-in 300ms cubic-bezier(0.165, 0.84, 0.44, 1) 130ms both;
+}
+/* the outgoing label clone, overlaid + centered while it lifts away first */
+.gm-btn__label--out {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.gm-btn__label--out.is-gone {
+  opacity: 0;
+  transform: translateY(-62%);
+  transition:
+    opacity 130ms ease,
+    transform 240ms cubic-bezier(0.4, 0, 1, 1);
+}
+@keyframes gm-label-in {
+  from {
+    opacity: 0;
+    transform: translateY(60%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.gm-dd {
+  position: relative;
+  display: inline-block;
+}
+/* The menu carries the shadow + opacity; keep it UN-clipped so its box-shadow
+   isn't clipped by the open reveal. mountGlassDropdown auto-wraps the content in
+   .gm-dd__panel and runs the clip-path reveal there instead. */
+.gm-dd__menu {
+  position: absolute;
+  isolation: isolate;
+}
+.gm-dd__menu[hidden] {
+  display: none;
+}
+.gm-dd__panel {
+  position: relative;
+  border-radius: inherit;
+  overflow: hidden;
+  isolation: isolate;
+}
+/* the refracted pane; point its background at a fixed-attachment clone of the
+   scene behind the menu and the panel bends the real page */
+.gm-dd__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+}
+.gm-dd__items {
+  position: relative;
+  z-index: 2;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gm-btn__label--in {
+    animation: none;
+  }
+  .gm-btn__label--out.is-gone {
+    transition: none;
+  }
+}

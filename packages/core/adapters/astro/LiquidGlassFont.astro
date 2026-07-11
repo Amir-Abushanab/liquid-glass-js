@@ -1,0 +1,68 @@
+---
+// Astro adapter for @liquidglassjs/core — liquid-glass text.
+//
+// Renders its text with a flowing aurora gradient fill (the SSR / no-JS look).
+// On mount, glass-text.ts rasterizes the letterforms into a displacement map
+// (same encoding as the lens) and applies the shared SVG filter chain, so the
+// letters themselves bend whatever fills them. Pure SVG on live DOM: works in
+// every browser, text stays selectable, and without JS it degrades to the plain
+// gradient text. Drive every mounted instance via reconfigureAllGlassText().
+// Contract: single-line, plain-text content.
+---
+
+<span class="lgf"><span class="lgf__text"><slot /></span></span>
+
+<style>
+  .lgf {
+    display: inline-block;
+  }
+  .lgf__text {
+    display: inline-block;
+    white-space: nowrap;
+    font-family: var(--font-mono, ui-monospace, monospace);
+    background: linear-gradient(115deg, #a897ff 0%, #56d3ff 30%, #7cf0c8 52%, #ffd36b 72%, #ff7bb0 100%);
+    background-size: 240% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: lgf-flow 16s ease-in-out infinite;
+    transition: opacity 220ms ease-out;
+  }
+  /* Only ever added by JS (item 5), so the no-JS fallback stays full opacity. */
+  .lgf__text.is-pending {
+    opacity: 0.72;
+  }
+  @keyframes lgf-flow {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .lgf__text {
+      animation: none;
+      transition: none;
+    }
+  }
+</style>
+
+<script>
+  import { mountGlassText } from '@liquidglassjs/core';
+
+  document.querySelectorAll<HTMLElement>('.lgf__text').forEach((el) => {
+    if (el.dataset.lgfMounted) return;
+    el.dataset.lgfMounted = '1';
+    // Soften the filter pop-in (item 5): dim now (JS-only, so the no-JS fallback
+    // never dims), then ease to full when the glass lands; safety-clear in case
+    // fonts.ready never resolves.
+    el.classList.add('is-pending');
+    const clear = () => el.classList.remove('is-pending');
+    const safety = setTimeout(clear, 1500);
+    mountGlassText({
+      target: el,
+      host: el.closest<HTMLElement>('.lgf') ?? el,
+      onReady: () => {
+        clearTimeout(safety);
+        clear();
+      },
+    });
+  });
+</script>
