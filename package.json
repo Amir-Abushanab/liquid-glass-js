@@ -10,7 +10,6 @@
   "scripts": {
     "dev": "pnpm --filter showcase dev",
     "play": "pnpm --filter showcase dev",
-    "preview": "pnpm --filter @liquidglassjs/preview dev",
     "build": "pnpm -r build",
     "build:packages": "pnpm -r --filter \"@liquidglassjs/*\" build",
     "pack:all": "pnpm -r --filter \"@liquidglassjs/*\" exec pnpm pack",
