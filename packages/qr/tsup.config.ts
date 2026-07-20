@@ -4,7 +4,7 @@ import { defineConfig } from 'tsup';
 // external, so this package ships only its own code and resolves both at runtime
 // from the consumer's tree (core stays a single shared instance).
 export default defineConfig({
-  entry: { index: 'src/index.ts' },
+  entry: { index: 'src/index.ts', react: 'src/react.tsx' },
   format: ['esm'],
   target: 'es2020',
   dts: true,
@@ -12,5 +12,5 @@ export default defineConfig({
   treeshake: true,
   sourcemap: true,
   clean: true,
-  external: ['qrcode', '@liquidglassjs/core'],
+  external: ['react', 'react-dom', 'react/jsx-runtime', 'qrcode', '@liquidglassjs/core'],
 });

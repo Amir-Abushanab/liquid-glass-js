@@ -42,6 +42,7 @@
     "access": "public"
   },
   "scripts": {
+    "prepack": "node ../../scripts/sync-license.mjs",
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit"

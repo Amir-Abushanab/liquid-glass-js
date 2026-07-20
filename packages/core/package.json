@@ -34,7 +34,10 @@
   "exports": {
     ".": "./src/index.ts",
     "./webgl": "./src/webgl.ts",
-    "./css": "./src/css/glass.css",
+    "./css": {
+      "types": "./src/css/glass.css.d.ts",
+      "default": "./src/css/glass.css"
+    },
     "./astro/LiquidGlass.astro": "./adapters/astro/LiquidGlass.astro",
     "./astro/LiquidGlassFont.astro": "./adapters/astro/LiquidGlassFont.astro"
   },
@@ -48,7 +51,10 @@
         "types": "./dist/webgl.d.ts",
         "import": "./dist/webgl.js"
       },
-      "./css": "./src/css/glass.css",
+      "./css": {
+        "types": "./src/css/glass.css.d.ts",
+        "default": "./src/css/glass.css"
+      },
       "./astro/LiquidGlass.astro": {
         "types": "./adapters/astro/LiquidGlass.astro.d.ts",
         "default": "./adapters/astro/LiquidGlass.astro"
@@ -61,6 +67,7 @@
     "access": "public"
   },
   "scripts": {
+    "prepack": "node ../../scripts/sync-license.mjs",
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit"

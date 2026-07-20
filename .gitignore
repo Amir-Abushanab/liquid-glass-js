@@ -5,7 +5,14 @@ dist/
 *.tsbuildinfo
 .DS_Store
 
+# Per-package LICENSE is copied from the root LICENSE at prepack
+# (scripts/sync-license.mjs); the root file is the single source of truth.
+/packages/*/LICENSE
+
 # Local env overrides (e.g. PUBLIC_APP_ENV favicon tint). .env.example is tracked.
 .env
 .env.*
 !.env.example
+
+# Registry JSON is generated into the showcase's public dir at build time.
+apps/showcase/public/r/

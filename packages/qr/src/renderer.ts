@@ -236,6 +236,9 @@ export class QRGlassRenderer {
   private u_eyeScale: WebGLUniformLocation[] = [];
   private u_eyeRefractionScale: WebGLUniformLocation;
 
+  /** Cached 1×1 2D context used to normalize any CSS colour to sRGB bytes. */
+  private colorProbe: CanvasRenderingContext2D | null = null;
+
   constructor(o: QRRendererOptions) {
     this.canvas = o.canvas;
     const dpr = 1.25 * Math.min(window.devicePixelRatio || 1, 3);
@@ -344,13 +347,27 @@ export class QRGlassRenderer {
   }
 
   resolveCssColor(value: string): [number, number, number] {
+    // Resolve var()/light-dark()/currentColor against the live canvas, then let a
+    // 2D canvas read the result back as sRGB bytes. That covers every CSS colour
+    // syntax — rgb(), oklch(), oklab(), hsl(), lab(), hwb(), color(), named — and
+    // gamut-maps wide-gamut colours into the renderer's sRGB WebGL canvas. (The
+    // old `/\d+/g` scrape only understood rgb() and mis-read an oklch() lightness
+    // like `.985` as a colour channel, which is why unstyled QRs rendered green.)
     const computed = this.resolveCssColorString(value);
-    const p3 = computed.match(/color\(display-p3\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/);
-    if (p3) return [parseFloat(p3[1]), parseFloat(p3[2]), parseFloat(p3[3])];
-    const rgb = computed.match(/\d+/g);
-    return rgb
-      ? [parseInt(rgb[0], 10) / 255, parseInt(rgb[1], 10) / 255, parseInt(rgb[2], 10) / 255]
-      : [1, 1, 1];
+    if (!this.colorProbe) {
+      const probe = document.createElement('canvas');
+      probe.width = probe.height = 1;
+      this.colorProbe = probe.getContext('2d', { willReadFrequently: true });
+      // `copy` replaces the pixel outright, so alpha never blends with the prior read.
+      if (this.colorProbe) this.colorProbe.globalCompositeOperation = 'copy';
+    }
+    const ctx = this.colorProbe;
+    if (!ctx) return [1, 1, 1];
+    ctx.fillStyle = '#000'; // deterministic fallback if `computed` is unparseable
+    ctx.fillStyle = computed;
+    ctx.fillRect(0, 0, 1, 1);
+    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+    return [r / 255, g / 255, b / 255];
   }
 
   /** The computed CSS color string for a value (resolves var()/light-dark() against the live canvas). */
