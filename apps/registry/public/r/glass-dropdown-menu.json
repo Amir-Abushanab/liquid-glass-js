@@ -1,0 +1,19 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "glass-dropdown-menu",
+  "type": "registry:component",
+  "title": "Glass Dropdown Menu",
+  "description": "A dropdown menu: Base UI's Menu (anchored positioning, roving focus, typeahead, ARIA) with a frosted glass popup panel.",
+  "dependencies": [
+    "@base-ui/react",
+    "@liquidglassjs/react",
+    "@liquidglassjs/core"
+  ],
+  "files": [
+    {
+      "path": "components/liquid-glass/glass-dropdown-menu.tsx",
+      "content": "\"use client\";\n\nimport * as React from \"react\";\nimport { Menu as BaseMenu } from \"@base-ui/react/menu\";\nimport { LiquidGlass } from \"@liquidglassjs/react\";\nimport { cn } from \"@/lib/utils\";\nimport \"@liquidglassjs/core/css\";\n\n/**\n * Liquid-glass Dropdown Menu — Base UI's Menu (anchored positioning, roving focus,\n * typeahead, ARIA) with a frosted glass popup panel. Behavior is Base UI's; the\n * glass is the skin. Same frost recipe as GlassDialog, anchored to the trigger.\n *\n *   <GlassDropdownMenu>\n *     <GlassDropdownMenuTrigger>Actions</GlassDropdownMenuTrigger>\n *     <GlassDropdownMenuContent>\n *       <GlassDropdownMenuItem>Profile</GlassDropdownMenuItem>\n *       <GlassDropdownMenuSeparator />\n *       <GlassDropdownMenuItem>Sign out</GlassDropdownMenuItem>\n *     </GlassDropdownMenuContent>\n *   </GlassDropdownMenu>\n */\n\nconst GlassDropdownMenu = BaseMenu.Root;\nconst GlassDropdownMenuTrigger = BaseMenu.Trigger;\n\nfunction GlassDropdownMenuContent({\n  className,\n  children,\n  sideOffset = 8,\n  ...props\n}: React.ComponentProps<typeof BaseMenu.Popup> & { sideOffset?: number }) {\n  return (\n    <BaseMenu.Portal>\n      <BaseMenu.Positioner sideOffset={sideOffset} className=\"z-50 outline-none\">\n        <BaseMenu.Popup\n          className={cn(\n            \"relative min-w-44 origin-[var(--transform-origin)] overflow-hidden rounded-2xl p-1.5 shadow-2xl outline-none\",\n            \"transition-[transform,opacity] duration-150 ease-out\",\n            \"data-[starting-style]:scale-95 data-[starting-style]:opacity-0\",\n            \"data-[ending-style]:scale-95 data-[ending-style]:opacity-0\",\n            className,\n          )}\n          {...props}\n        >\n          {/* frosted glass panel — refracts the page behind the menu on Chromium */}\n          <LiquidGlass mode=\"frost\" radius={16} className=\"pointer-events-none absolute inset-0\" />\n          <div className=\"relative z-10\">{children}</div>\n        </BaseMenu.Popup>\n      </BaseMenu.Positioner>\n    </BaseMenu.Portal>\n  );\n}\n\nfunction GlassDropdownMenuItem({ className, ...props }: React.ComponentProps<typeof BaseMenu.Item>) {\n  return (\n    <BaseMenu.Item\n      className={cn(\n        \"relative flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground outline-none select-none\",\n        \"data-[highlighted]:bg-white/15 data-[disabled]:pointer-events-none data-[disabled]:opacity-50\",\n        className,\n      )}\n      {...props}\n    />\n  );\n}\n\nfunction GlassDropdownMenuSeparator({\n  className,\n  ...props\n}: React.ComponentProps<typeof BaseMenu.Separator>) {\n  return <BaseMenu.Separator className={cn(\"mx-1 my-1 h-px bg-white/15\", className)} {...props} />;\n}\n\nexport {\n  GlassDropdownMenu,\n  GlassDropdownMenuTrigger,\n  GlassDropdownMenuContent,\n  GlassDropdownMenuItem,\n  GlassDropdownMenuSeparator,\n};\n",
+      "type": "registry:component"
+    }
+  ]
+}

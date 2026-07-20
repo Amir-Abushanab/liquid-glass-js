@@ -34,7 +34,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build showcase
-        # Project Pages serve at /liquid-glass/, so build with that base.
+        # One build for the whole site: the marketing pages, the component-registry
+        # docs (/components), and the shadcn registry JSON (/r/*.json, emitted by the
+        # showcase build script). Project Pages serve at /liquid-glass/ — build with
+        # that base so links and the registry URLs resolve.
         env:
           SHOWCASE_BASE: /liquid-glass
         run: pnpm --filter showcase build

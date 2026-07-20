@@ -11,7 +11,7 @@
       "dependencies": ["@liquidglassjs/react", "@liquidglassjs/core"],
       "files": [
         {
-          "path": "registry/liquid-glass/glass-surface.tsx",
+          "path": "../showcase/src/components/liquid-glass/glass-surface.tsx",
           "type": "registry:component",
           "target": "components/liquid-glass/glass-surface.tsx"
         }
@@ -26,9 +26,79 @@
       "registryDependencies": ["glass-surface"],
       "files": [
         {
-          "path": "registry/liquid-glass/glass-card.tsx",
+          "path": "../showcase/src/components/liquid-glass/glass-card.tsx",
           "type": "registry:component",
           "target": "components/liquid-glass/glass-card.tsx"
+        }
+      ]
+    },
+    {
+      "name": "glass-dialog",
+      "type": "registry:component",
+      "title": "Glass Dialog",
+      "description": "A modal dialog: Base UI's Dialog (focus trap, scroll lock, dismissal, ARIA) with a frosted liquid-glass panel and an animated backdrop.",
+      "dependencies": ["@base-ui/react", "@liquidglassjs/react", "@liquidglassjs/core"],
+      "files": [
+        {
+          "path": "../showcase/src/components/liquid-glass/glass-dialog.tsx",
+          "type": "registry:component",
+          "target": "components/liquid-glass/glass-dialog.tsx"
+        }
+      ]
+    },
+    {
+      "name": "glass-tabs",
+      "type": "registry:component",
+      "title": "Glass Tabs",
+      "description": "A segmented tabs control: Base UI's Tabs (roving focus, keyboard nav, ARIA) with a glass pill that slides under the active tab.",
+      "dependencies": ["@base-ui/react", "@liquidglassjs/react", "@liquidglassjs/core"],
+      "files": [
+        {
+          "path": "../showcase/src/components/liquid-glass/glass-tabs.tsx",
+          "type": "registry:component",
+          "target": "components/liquid-glass/glass-tabs.tsx"
+        }
+      ]
+    },
+    {
+      "name": "glass-switch",
+      "type": "registry:component",
+      "title": "Glass Switch",
+      "description": "A toggle switch: Base UI's Switch (a11y, keyboard) with a real glass thumb — press it and the track refracts through the glass (a live SVG feDisplacementMap lens, so it works in every browser).",
+      "dependencies": ["@base-ui/react", "@liquidglassjs/core"],
+      "files": [
+        {
+          "path": "../showcase/src/components/liquid-glass/glass-switch.tsx",
+          "type": "registry:component",
+          "target": "components/liquid-glass/glass-switch.tsx"
+        }
+      ]
+    },
+    {
+      "name": "glass-slider",
+      "type": "registry:component",
+      "title": "Glass Slider",
+      "description": "A slider: Base UI's Slider (drag, keyboard, ARIA) with a real glass thumb — drag it and the rail refracts through the glass (a live SVG feDisplacementMap lens, so it works in every browser).",
+      "dependencies": ["@base-ui/react", "@liquidglassjs/core"],
+      "files": [
+        {
+          "path": "../showcase/src/components/liquid-glass/glass-slider.tsx",
+          "type": "registry:component",
+          "target": "components/liquid-glass/glass-slider.tsx"
+        }
+      ]
+    },
+    {
+      "name": "glass-dropdown-menu",
+      "type": "registry:component",
+      "title": "Glass Dropdown Menu",
+      "description": "A dropdown menu: Base UI's Menu (anchored positioning, roving focus, typeahead, ARIA) with a frosted glass popup panel.",
+      "dependencies": ["@base-ui/react", "@liquidglassjs/react", "@liquidglassjs/core"],
+      "files": [
+        {
+          "path": "../showcase/src/components/liquid-glass/glass-dropdown-menu.tsx",
+          "type": "registry:component",
+          "target": "components/liquid-glass/glass-dropdown-menu.tsx"
         }
       ]
     }

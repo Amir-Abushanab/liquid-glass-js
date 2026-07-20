@@ -7,11 +7,13 @@ export type GlassSurfaceProps = LiquidGlassProps;
 
 /**
  * Base liquid-glass surface — a thin, restyleable wrapper over
- * @liquidglassjs/react's <LiquidGlass>. Children are wrapped in the
- * `.ps-glass__refract` layer so the SVG refraction bends your real content.
+ * @liquidglassjs/react's <LiquidGlass>. Your content sits crisply in the
+ * `.ps-glass__content` layer, on top of a glass surface that frosts — and, on
+ * Chromium, refracts — whatever is behind it. Because the content is in-flow, the
+ * surface sizes to it, so a card needs no explicit width/height.
  *
- * You own this file: change the radius, the border, the content wrapper — it's
- * yours now. The refraction engine stays a versioned dependency.
+ * You own this file: change the radius, border, or padding — it's yours now. The
+ * engine stays a versioned dependency.
  */
 export function GlassSurface({
   className,
@@ -27,7 +29,7 @@ export function GlassSurface({
       style={{ borderRadius: radius, ...style }}
       {...props}
     >
-      <div className="ps-glass__refract">{children}</div>
+      <div className="ps-glass__content pointer-events-auto">{children}</div>
     </LiquidGlass>
   );
 }

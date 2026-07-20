@@ -1,0 +1,17 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "glass-switch",
+  "type": "registry:component",
+  "title": "Glass Switch",
+  "description": "A toggle switch: Base UI's Switch (a11y, keyboard) with a glass bead that slides across a translucent track.",
+  "dependencies": [
+    "@base-ui/react"
+  ],
+  "files": [
+    {
+      "path": "components/liquid-glass/glass-switch.tsx",
+      "content": "\"use client\";\n\nimport * as React from \"react\";\nimport { Switch as BaseSwitch } from \"@base-ui/react/switch\";\nimport { cn } from \"@/lib/utils\";\n\n/**\n * Liquid-glass Switch — Base UI's Switch (a11y, keyboard) with a glass bead that\n * slides across a translucent track. Behavior is Base UI's; the glass is the skin.\n */\nfunction GlassSwitch({ className, ...props }: React.ComponentProps<typeof BaseSwitch.Root>) {\n  return (\n    <BaseSwitch.Root\n      className={cn(\n        \"group relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full p-0.5 outline-none transition-colors\",\n        \"bg-white/15 ring-1 ring-white/15 data-[checked]:bg-white/30\",\n        \"focus-visible:ring-2 focus-visible:ring-white/50 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50\",\n        className,\n      )}\n      {...props}\n    >\n      <BaseSwitch.Thumb\n        className={cn(\n          \"size-5 rounded-full bg-gradient-to-b from-white to-white/85 transition-transform\",\n          \"shadow-[inset_0_1px_1px_rgb(255_255_255/70%),0_1px_3px_rgb(0_0_0/35%)]\",\n          \"data-[checked]:translate-x-5\",\n        )}\n      />\n    </BaseSwitch.Root>\n  );\n}\n\nexport { GlassSwitch };\n",
+      "type": "registry:component"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "glass-slider",
+  "type": "registry:component",
+  "title": "Glass Slider",
+  "description": "A slider: Base UI's Slider (drag, keyboard, ARIA) with a glass-bead thumb over a translucent track and a gradient fill.",
+  "dependencies": [
+    "@base-ui/react"
+  ],
+  "files": [
+    {
+      "path": "components/liquid-glass/glass-slider.tsx",
+      "content": "\"use client\";\n\nimport * as React from \"react\";\nimport { Slider as BaseSlider } from \"@base-ui/react/slider\";\nimport { cn } from \"@/lib/utils\";\n\n/**\n * Liquid-glass Slider — Base UI's Slider (drag, keyboard, ARIA) with a glass-bead\n * thumb over a translucent track and a gradient fill. Behavior is Base UI's; the\n * glass is the skin. Forwards all Slider.Root props (value/defaultValue/min/max/step…).\n */\nfunction GlassSlider({ className, ...props }: React.ComponentProps<typeof BaseSlider.Root>) {\n  return (\n    <BaseSlider.Root className={cn(\"w-full\", className)} {...props}>\n      <BaseSlider.Control className=\"flex w-full touch-none items-center py-3 select-none\">\n        <BaseSlider.Track className=\"relative h-2 w-full rounded-full bg-white/15 ring-1 ring-white/10\">\n          <BaseSlider.Indicator className=\"rounded-full bg-gradient-to-r from-[#12d3ff] to-[#ff5db1]\" />\n          <BaseSlider.Thumb\n            className={cn(\n              \"size-5 rounded-full bg-gradient-to-b from-white to-white/85 outline-none transition-transform\",\n              \"shadow-[inset_0_1px_1px_rgb(255_255_255/70%),0_2px_6px_-1px_rgb(0_0_0/40%)]\",\n              \"focus-visible:ring-2 focus-visible:ring-white/60 data-[dragging]:scale-110\",\n            )}\n          />\n        </BaseSlider.Track>\n      </BaseSlider.Control>\n    </BaseSlider.Root>\n  );\n}\n\nexport { GlassSlider };\n",
+      "type": "registry:component"
+    }
+  ]
+}

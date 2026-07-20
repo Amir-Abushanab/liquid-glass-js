@@ -47,8 +47,8 @@ module.exports = {
       dependencyTypes: ['npm', 'npm-dev', 'npm-optional', 'npm-peer', 'npm-bundled', 'npm-no-pkg'],
     },
     // Never cruise build output (bundled dist chunks are legitimately circular),
-    // nor the registry — its shell templates import consumer-side aliases
-    // (`@/lib/utils`, `@/components/…`) that only resolve in the destination app.
+    // nor apps/registry — it's just the shadcn manifest + a zero-dep build script;
+    // the component sources it ships live in apps/showcase, which IS cruised.
     exclude: { path: '(?:^|/)dist/|^apps/registry/' },
     includeOnly: ['^(?:apps|packages)/'],
     moduleSystems: ['es6'],

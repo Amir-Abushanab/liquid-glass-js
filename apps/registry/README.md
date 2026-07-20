@@ -24,13 +24,15 @@ CSS once in your app: `import "@liquidglassjs/core/css"` (the shells already do)
 
 | Item | Source | Notes |
 |---|---|---|
-| `glass-surface` | `registry/liquid-glass/glass-surface.tsx` | Base restyleable surface over `<LiquidGlass>`. |
-| `glass-card` | `registry/liquid-glass/glass-card.tsx` | Card chrome on top of `glass-surface`. |
+| `glass-surface` | `../showcase/src/components/liquid-glass/glass-surface.tsx` | Base restyleable surface over `<LiquidGlass>`. |
+| `glass-card` | `../showcase/src/components/liquid-glass/glass-card.tsx` | Card chrome on top of `glass-surface`. |
+| `glass-dialog` | `../showcase/src/components/liquid-glass/glass-dialog.tsx` | Modal dialog — [Base UI](https://base-ui.com) `Dialog` (focus trap, scroll lock, ARIA, dismissal) with a frosted glass panel. Adds `@base-ui/react` as a dependency. |
 
 ## Build
 
-`registry.json` + the sources under `registry/` are the source of truth. The
-installable items in `public/r/*.json` are generated:
+`registry.json` + the component sources it points at (in
+`apps/showcase/src/components/liquid-glass/` — the one copy the demos also render)
+are the source of truth. The installable items in `public/r/*.json` are generated:
 
 ```sh
 pnpm --filter registry build   # node build.mjs → public/r/*.json

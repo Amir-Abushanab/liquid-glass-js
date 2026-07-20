@@ -1,0 +1,19 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "glass-tabs",
+  "type": "registry:component",
+  "title": "Glass Tabs",
+  "description": "A segmented tabs control: Base UI's Tabs (roving focus, keyboard nav, ARIA) with a glass pill that slides under the active tab.",
+  "dependencies": [
+    "@base-ui/react",
+    "@liquidglassjs/react",
+    "@liquidglassjs/core"
+  ],
+  "files": [
+    {
+      "path": "components/liquid-glass/glass-tabs.tsx",
+      "content": "\"use client\";\n\nimport * as React from \"react\";\nimport { Tabs as BaseTabs } from \"@base-ui/react/tabs\";\nimport { LiquidGlass } from \"@liquidglassjs/react\";\nimport { cn } from \"@/lib/utils\";\nimport \"@liquidglassjs/core/css\";\n\n/**\n * Liquid-glass Tabs — Base UI's Tabs (roving focus, keyboard nav, ARIA) with a\n * glass pill that slides under the active tab, frosting (and, on Chromium,\n * refracting) the scene behind it. Behavior is Base UI's; the glass is the skin.\n *\n * The pill is positioned by Base UI's `Tabs.Indicator` CSS variables. The tabs are\n * equal-width (grid auto-cols-fr), so the pill only *slides* — it never resizes —\n * which keeps the glass smooth (no per-frame filter rebuild).\n *\n *   <GlassTabs defaultValue=\"overview\">\n *     <GlassTabsList>\n *       <GlassTabsTab value=\"overview\">Overview</GlassTabsTab>\n *       <GlassTabsTab value=\"activity\">Activity</GlassTabsTab>\n *     </GlassTabsList>\n *     <GlassTabsPanel value=\"overview\">…</GlassTabsPanel>\n *   </GlassTabs>\n */\n\nconst GlassTabs = BaseTabs.Root;\n\nfunction GlassTabsList({\n  className,\n  children,\n  ...props\n}: React.ComponentProps<typeof BaseTabs.List>) {\n  return (\n    <BaseTabs.List\n      className={cn(\n        \"relative isolate inline-grid auto-cols-fr grid-flow-col gap-1 rounded-full p-1 ring-1 ring-white/15\",\n        className,\n      )}\n      {...props}\n    >\n      {children}\n      <BaseTabs.Indicator\n        className={cn(\n          \"pointer-events-none absolute z-0 overflow-hidden rounded-full\",\n          \"left-[var(--active-tab-left)] top-[var(--active-tab-top)]\",\n          \"h-[var(--active-tab-height)] w-[var(--active-tab-width)]\",\n          \"transition-[left,width] duration-300 ease-[cubic-bezier(0.34,1.4,0.5,1)]\",\n          \"shadow-[inset_0_1px_0_rgb(255_255_255/40%),0_2px_10px_-2px_rgb(0_0_0/35%)]\",\n        )}\n      >\n        <LiquidGlass mode=\"frost\" radius={999} className=\"pointer-events-none absolute inset-0\" />\n      </BaseTabs.Indicator>\n    </BaseTabs.List>\n  );\n}\n\nfunction GlassTabsTab({ className, ...props }: React.ComponentProps<typeof BaseTabs.Tab>) {\n  return (\n    <BaseTabs.Tab\n      className={cn(\n        \"relative z-10 cursor-pointer rounded-full px-4 py-1.5 text-center text-sm font-medium outline-none transition-colors\",\n        \"text-white/65 select-none data-[active]:text-white\",\n        \"focus-visible:ring-2 focus-visible:ring-white/50\",\n        className,\n      )}\n      {...props}\n    />\n  );\n}\n\nfunction GlassTabsPanel({ className, ...props }: React.ComponentProps<typeof BaseTabs.Panel>) {\n  return <BaseTabs.Panel className={cn(\"mt-4 outline-none\", className)} {...props} />;\n}\n\nexport { GlassTabs, GlassTabsList, GlassTabsTab, GlassTabsPanel };\n",
+      "type": "registry:component"
+    }
+  ]
+}

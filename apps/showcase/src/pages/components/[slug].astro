@@ -1,0 +1,16 @@
+---
+import DocsLayout from '@/layouts/DocsLayout.astro';
+import { ComponentDoc } from '@/components/docs';
+import { registry } from '@/lib/registry';
+
+export function getStaticPaths() {
+  return registry.map((item) => ({ params: { slug: item.slug }, props: { title: item.title } }));
+}
+
+const slug = Astro.params.slug as string;
+const { title } = Astro.props;
+---
+
+<DocsLayout title={`${title} — Liquid Glass`} currentSlug={slug}>
+  <ComponentDoc slug={slug} client:load />
+</DocsLayout>

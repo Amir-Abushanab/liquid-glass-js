@@ -455,31 +455,51 @@ if (lstage && lcard && lensEl) {
   const LENS_OPTS = { radius: 60, depth: 6, dome: 10, edge: 0.9, glow: 0.32, strength: 18, chroma: 0.14, blur: 0, shade: 0 };
   // glint (item 6): a warm specular tint on the draggable lens
   const lens = mountGlassLens({ target: lcard, host: lstage, lensW: LW, lensH: LH, glint: "#ffd9a0", ...LENS_OPTS });
-  cfgSections.push({ id: "lens", label: "Draggable lens", icon: CFG_ICONS.lens, params: LENS_PARAMS, opts: { ...LENS_OPTS }, apply: (patch) => lens.reconfigure(patch) });
-  let lx = 30, ly = 65, dragging = false, offX = 0, offY = 0;
+  cfgSections.push({ id: "lens", label: "Lens", icon: CFG_ICONS.lens, params: LENS_PARAMS, opts: { ...LENS_OPTS }, apply: (patch) => lens.reconfigure(patch) });
+  // The lens drifts on its own — DVD-style, bouncing off the stage edges — and
+  // snaps to the cursor while the pointer is over the stage, no press needed.
+  let lx = 30, ly = 65, vx = 0.6, vy = 0.4, hovering = false, mx = lx, my = ly, plx = NaN, ply = NaN, maxX = 0, maxY = 0;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const place = () => {
     lensEl.style.transform = `translate(${lx}px, ${ly}px)`;
     lens.setPos(lx, ly);
   };
-  lensEl.addEventListener("pointerdown", (e) => {
-    dragging = true;
-    lensEl.setPointerCapture(e.pointerId);
-    const r = lensEl.getBoundingClientRect();
-    offX = e.clientX - r.left;
-    offY = e.clientY - r.top;
-  });
-  lensEl.addEventListener("pointermove", (e) => {
-    if (!dragging)
-      return;
+  const measure = () => {
     const r = lstage.getBoundingClientRect();
-    lx = Math.max(0, Math.min(r.width - LW, e.clientX - r.left - offX));
-    ly = Math.max(0, Math.min(r.height - LH, e.clientY - r.top - offY));
-    place();
+    maxX = Math.max(0, r.width - LW);
+    maxY = Math.max(0, r.height - LH);
+  };
+  measure();
+  addEventListener("resize", measure);
+  lstage.addEventListener("pointermove", (e) => {
+    hovering = true;
+    const r = lstage.getBoundingClientRect();
+    mx = Math.max(0, Math.min(maxX, e.clientX - r.left - LW / 2));
+    my = Math.max(0, Math.min(maxY, e.clientY - r.top - LH / 2));
   });
-  lensEl.addEventListener("pointerup", () => {
-    dragging = false;
+  lstage.addEventListener("pointerleave", () => {
+    hovering = false;
   });
+  const tick = () => {
+    if (hovering) {
+      // stick to the cursor with a touch of lag — a magnetic "grab"
+      lx += (mx - lx) * 0.15;
+      ly += (my - ly) * 0.15;
+      if (Math.abs(mx - lx) < 0.1) lx = mx;
+      if (Math.abs(my - ly) < 0.1) ly = my;
+    } else if (!reduce) {
+      lx += vx;
+      ly += vy;
+      if (lx <= 0) { lx = 0; vx = Math.abs(vx); }
+      else if (lx >= maxX) { lx = maxX; vx = -Math.abs(vx); }
+      if (ly <= 0) { ly = 0; vy = Math.abs(vy); }
+      else if (ly >= maxY) { ly = maxY; vy = -Math.abs(vy); }
+    }
+    if (lx !== plx || ly !== ply) { place(); plx = lx; ply = ly; }
+    requestAnimationFrame(tick);
+  };
   place();
+  tick();
 }
 import { mountSvgRipple } from "@liquidglassjs/core";
 const svgBtn = document.querySelector("[data-wbtn-svg]");

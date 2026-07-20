@@ -36,6 +36,14 @@ const faviconHref =
     : `data:image/svg+xml,${encodeURIComponent(
         faviconSvg.replace('<svg', `<svg style="--env-hue: ${faviconHue}deg"`),
       )}`;
+
+// The Registry nav link now points at the in-site registry docs (/components) —
+// the marketing page and docs share one build/deploy. base-aware for GitHub Pages.
+const registryUrl = import.meta.env.BASE_URL.replace(/\/$/, '') + '/components';
+const body = bodyHtml.replaceAll(
+  '<a href="https://registry.liquidglassjs.dev" target="_blank" rel="noreferrer">Registry</a>',
+  `<a href="${registryUrl}">Registry</a>`,
+);
 ---
 
 <html lang="en" data-theme="dark">
@@ -57,7 +65,7 @@ const faviconHref =
       } catch {}
     </script>
   </head>
-  <body set:html={bodyHtml}></body>
+  <body set:html={body}></body>
 </html>
 
 <script>
