@@ -1,7 +1,7 @@
 {
   "name": "@liquidglassjs/qr",
   "version": "0.1.0",
-  "description": "Procedural liquid-glass QR code: a WebGL escape hatch built on @liquidglassjs/core. Recreated from the technique in Aave's \"Building Glass for the Web\".",
+  "description": "Procedural liquid-glass QR code: a WebGL escape hatch built on @liquidglassjs/core.",
   "keywords": [
     "glass",
     "liquid-glass",
@@ -10,13 +10,13 @@
     "refraction",
     "webgl"
   ],
-  "homepage": "https://github.com/amir-abushanab/liquid-glass/tree/main/packages/qr#readme",
-  "bugs": "https://github.com/amir-abushanab/liquid-glass/issues",
+  "homepage": "https://github.com/amir-abushanab/liquid-glass-js/tree/main/packages/qr#readme",
+  "bugs": "https://github.com/amir-abushanab/liquid-glass-js/issues",
   "license": "MIT",
   "author": "Amir Abushanab",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/amir-abushanab/liquid-glass.git",
+    "url": "git+https://github.com/amir-abushanab/liquid-glass-js.git",
     "directory": "packages/qr"
   },
   "files": [

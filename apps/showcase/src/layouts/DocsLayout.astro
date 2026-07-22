@@ -9,7 +9,7 @@ interface Props {
   currentSlug?: string;
 }
 const { title = 'Liquid Glass · Registry', currentSlug } = Astro.props;
-const base = import.meta.env.BASE_URL; // '/' in dev, '/liquid-glass/' on Pages
+const base = import.meta.env.BASE_URL; // '/' in dev, '/liquid-glass-js/' on Pages
 const docsHome = base.replace(/\/$/, '') + '/components';
 ---
 
@@ -46,7 +46,7 @@ const docsHome = base.replace(/\/$/, '') + '/components';
             Showcase
           </a>
           <a
-            href="https://github.com/amir-abushanab/liquid-glass"
+            href="https://github.com/amir-abushanab/liquid-glass-js"
             class="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             GitHub

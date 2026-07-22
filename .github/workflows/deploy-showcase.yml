@@ -36,10 +36,10 @@ jobs:
       - name: Build showcase
         # One build for the whole site: the marketing pages, the component-registry
         # docs (/components), and the shadcn registry JSON (/r/*.json, emitted by the
-        # showcase build script). Project Pages serve at /liquid-glass/ — build with
+        # showcase build script). Project Pages serve at /liquid-glass-js/ — build with
         # that base so links and the registry URLs resolve.
         env:
-          SHOWCASE_BASE: /liquid-glass
+          SHOWCASE_BASE: /liquid-glass-js
         run: pnpm --filter showcase build
 
       - uses: actions/upload-pages-artifact@v3

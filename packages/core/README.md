@@ -6,10 +6,11 @@ browser (Chrome, Safari, Firefox) with no flags, while the content underneath
 stays selectable, scrollable, and clickable. WebGL and a procedural QR are
 optional, code-split escape hatches for the two cases an SVG filter can't cover.
 
-> **Credit.** The technique and several of the constants here are recreated
-> from Aave's [_Building Glass for the Web_](https://aave.com/design/building-glass-for-the-web).
-> Please read it; it is the source of this approach. If you use this package,
-> keep the attribution to Aave intact.
+<p align="center">
+  <a href="https://amir-abushanab.github.io/liquid-glass-js/">
+    <img src="https://raw.githubusercontent.com/Amir-Abushanab/liquid-glass-js/main/docs/media/hero-dark.png" alt="The Liquid Glass showcase: a glass nav bar and a refractive glass typeface over an aurora background" width="830">
+  </a>
+</p>
 
 ## Install
 
@@ -61,10 +62,12 @@ client-side only (never during SSR).
 
 ## Links
 
-- **Showcase & docs**: <https://amir-abushanab.github.io/liquid-glass/>
-- **Full README**: <https://github.com/amir-abushanab/liquid-glass#readme>
+- **Showcase & docs**: <https://amir-abushanab.github.io/liquid-glass-js/>
+- **Full README**: <https://github.com/amir-abushanab/liquid-glass-js#readme>
 
 ## License
 
-[MIT](./LICENSE) © Amir Abushanab. An independent implementation recreated from
-Aave's _Building Glass for the Web_; please keep the Aave attribution intact.
+[MIT](./LICENSE) © Amir Abushanab. The filter-on-content technique was
+popularized by Aave's
+[_Building Glass for the Web_](https://aave.com/design/building-glass-for-the-web)
+— worth a read.

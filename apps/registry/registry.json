@@ -1,7 +1,7 @@
 {
   "$schema": "https://ui.shadcn.com/schema/registry.json",
   "name": "liquidglassjs",
-  "homepage": "https://github.com/amir-abushanab/liquid-glass",
+  "homepage": "https://github.com/amir-abushanab/liquid-glass-js",
   "items": [
     {
       "name": "glass-surface",

@@ -13,13 +13,13 @@
     "svg-filter",
     "webgl"
   ],
-  "homepage": "https://github.com/amir-abushanab/liquid-glass/tree/main/packages/core#readme",
-  "bugs": "https://github.com/amir-abushanab/liquid-glass/issues",
+  "homepage": "https://github.com/amir-abushanab/liquid-glass-js/tree/main/packages/core#readme",
+  "bugs": "https://github.com/amir-abushanab/liquid-glass-js/issues",
   "license": "MIT",
   "author": "Amir Abushanab",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/amir-abushanab/liquid-glass.git",
+    "url": "git+https://github.com/amir-abushanab/liquid-glass-js.git",
     "directory": "packages/core"
   },
   "files": [

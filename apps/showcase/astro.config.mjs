@@ -11,10 +11,10 @@ import tailwindcss from '@tailwindcss/vite';
 // /components), so it carries the React integration + Tailwind v4.
 //
 // Deploy base: GitHub project Pages serves at a sub-path
-// (amir-abushanab.github.io/liquid-glass/), so the CI deploy sets
-// SHOWCASE_BASE=/liquid-glass. Local dev/build stay at root (var unset) so the
+// (amir-abushanab.github.io/liquid-glass-js/), so the CI deploy sets
+// SHOWCASE_BASE=/liquid-glass-js. Local dev/build stay at root (var unset) so the
 // dev URL is unchanged. Preview the Pages build locally with:
-//   SHOWCASE_BASE=/liquid-glass pnpm --filter showcase build && pnpm --filter showcase preview
+//   SHOWCASE_BASE=/liquid-glass-js pnpm --filter showcase build && pnpm --filter showcase preview
 const base = process.env.SHOWCASE_BASE || undefined;
 
 export default defineConfig({

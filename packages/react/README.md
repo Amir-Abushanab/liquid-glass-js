@@ -46,8 +46,8 @@ thin React bindings over the matching core renderers.
 
 ## Links
 
-- **Showcase**: <https://amir-abushanab.github.io/liquid-glass/>
-- **Core docs**: <https://github.com/amir-abushanab/liquid-glass#readme>
+- **Showcase**: <https://amir-abushanab.github.io/liquid-glass-js/>
+- **Core docs**: <https://github.com/amir-abushanab/liquid-glass-js#readme>
 
 ## License
 

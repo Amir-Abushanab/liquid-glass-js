@@ -46,7 +46,7 @@ import { GlassText, GlassShape, GlassLens, GlassButton, GlassRipple } from '@liq
 import { GlassQR } from '@liquidglassjs/qr/react'
 
 /** Where the registry JSON is hosted (served from the showcase's own deploy). */
-export const REGISTRY_URL = 'https://amir-abushanab.github.io/liquid-glass'
+export const REGISTRY_URL = 'https://amir-abushanab.github.io/liquid-glass-js'
 
 export type Category = 'Components' | 'Effects'
 

@@ -7,19 +7,33 @@ while the content underneath stays selectable, scrollable, and clickable. WebGL
 and a procedural QR are optional, code-split escape hatches for the two cases an
 SVG filter can't cover.
 
-> ## Credit
->
-> The technique and several of the constants here (the `erf = tanh(√π·x)`
-> approximation, the spherical-cap dome integral, the R/G/B displacement-map
-> layout, the "fresh filter id per rebuild" Safari trick) are **recreated from
-> Aave's _Building Glass for the Web_**:
-> <https://aave.com/design/building-glass-for-the-web>. Please read it; it is
-> the source of this approach. If you use this package, credit Aave too.
+<p align="center">
+  <a href="https://amir-abushanab.github.io/liquid-glass-js/">
+    <picture>
+      <source media="(prefers-color-scheme: light)" srcset="docs/media/hero-light.png">
+      <img src="docs/media/hero-dark.png" alt="The Liquid Glass showcase: a glass nav bar and a refractive glass typeface over an aurora background" width="830">
+    </picture>
+  </a>
+</p>
+
+<table>
+  <tr>
+    <td width="50%"><a href="https://amir-abushanab.github.io/liquid-glass-js/"><img src="docs/media/lens.png" alt="A draggable glass lens refracting live DOM text, grid lines, and colour chips"></a></td>
+    <td width="50%"><a href="https://amir-abushanab.github.io/liquid-glass-js/"><img src="docs/media/typeface.png" alt="Glass typeface: letterforms rasterized into a displacement map, refracting an animated gradient"></a></td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="https://amir-abushanab.github.io/liquid-glass-js/"><img src="docs/media/anything.png" alt="Glass from any alpha source: a droplet, a sparkle, an emoji orb, a meme card, and framework logos as glass"></a></td>
+    <td width="50%"><a href="https://amir-abushanab.github.io/liquid-glass-js/"><img src="docs/media/dropdown.png" alt="A glass dropdown menu refracting the vivid gradient scene behind it"></a></td>
+  </tr>
+</table>
+
+<p align="center"><em>All shots are the real thing — SVG filters bending live, selectable DOM.
+<a href="https://amir-abushanab.github.io/liquid-glass-js/">Try the showcase →</a></em></p>
 
 ## Why SVG-first
 
 The popular web-glass demos use `backdrop-filter: url()`, which is
-Chromium-only. Aave's insight is to put the filter **on the content**
+Chromium-only. The trick is to put the filter **on the content**
 (`filter: url()` over the real DOM) instead of on the backdrop. That one change
 is what makes it work in Safari and Firefox. WebGL is reserved for content an
 SVG filter genuinely can't bend: a `<canvas>` with no live DOM, or a `<video>`
@@ -61,9 +75,8 @@ is unavailable or the renderer throws.
 Two surfaces animate their own shape. Both reuse **one** displacement map and
 touch only cheap filter attributes per frame (the `<feImage>` box and the
 displacement scale). The map itself regenerates only once the size settles,
-under a fresh id so Safari doesn't serve a cached one. This is Aave's menu
-engine: `displScale: 0` is clear glass, and ramping it up materializes the
-refraction.
+under a fresh id so Safari doesn't serve a cached one. `displScale: 0` is
+clear glass, and ramping it up materializes the refraction.
 
 A button that reshapes when its label changes:
 
@@ -168,10 +181,15 @@ Every renderer touches `document` / canvas / WebGL / SVG filters. Guard adapters
 so they run client-side only (Astro `<script>` is fine; React needs `useEffect`;
 never call these during SSR).
 
+## Credits
+
+The filter-on-content idea was popularized by Aave's excellent
+[_Building Glass for the Web_](https://aave.com/design/building-glass-for-the-web)
+— worth a read for the deep dive into the optics. A few constants here (the
+`erf ≈ tanh(√π·x)` approximation, the spherical-cap dome profile, the R/G/B
+displacement-map layout, the fresh-filter-id Safari workaround) trace back to
+that write-up.
+
 ## License
 
 [MIT](./LICENSE) © Amir Abushanab.
-
-This is an independent implementation recreated from Aave's _Building Glass for
-the Web_ (see [Credit](#credit)), with improvements of its own. Please keep the
-attribution to Aave intact.

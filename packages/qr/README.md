@@ -5,8 +5,11 @@ A procedural **liquid-glass QR code**: the WebGL escape hatch, built on
 This is the one package that pulls in `qrcode`, so core consumers never
 install it.
 
-> **Credit.** Recreated from the technique in Aave's
-> [_Building Glass for the Web_](https://aave.com/design/building-glass-for-the-web).
+<p align="center">
+  <a href="https://amir-abushanab.github.io/liquid-glass-js/">
+    <img src="https://raw.githubusercontent.com/Amir-Abushanab/liquid-glass-js/main/docs/media/qr.png" alt="A scannable glass QR code rendered by a WebGL shader" width="700">
+  </a>
+</p>
 
 ## Install
 
@@ -40,9 +43,10 @@ import { GlassQR } from '@liquidglassjs/qr/react';
 
 ## Links
 
-- **Showcase**: <https://amir-abushanab.github.io/liquid-glass/>
-- **Core docs**: <https://github.com/amir-abushanab/liquid-glass#readme>
+- **Showcase**: <https://amir-abushanab.github.io/liquid-glass-js/>
+- **Core docs**: <https://github.com/amir-abushanab/liquid-glass-js#readme>
 
 ## License
 
-[MIT](./LICENSE) © Amir Abushanab.
+[MIT](./LICENSE) © Amir Abushanab. The glass technique traces back to Aave's
+[_Building Glass for the Web_](https://aave.com/design/building-glass-for-the-web).

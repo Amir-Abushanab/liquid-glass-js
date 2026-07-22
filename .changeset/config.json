@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
-  "changelog": ["@changesets/changelog-github", { "repo": "amir-abushanab/liquid-glass" }],
+  "changelog": ["@changesets/changelog-github", { "repo": "amir-abushanab/liquid-glass-js" }],
   "commit": false,
   "fixed": [["@liquidglassjs/core", "@liquidglassjs/react", "@liquidglassjs/element", "@liquidglassjs/qr"]],
   "linked": [],
