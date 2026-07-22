@@ -21,7 +21,7 @@
   "author": "Amir Abushanab",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/amir-abushanab/liquid-glass-js.git",
+    "url": "git+https://github.com/Amir-Abushanab/liquid-glass-js.git",
     "directory": "packages/core"
   },
   "files": [
