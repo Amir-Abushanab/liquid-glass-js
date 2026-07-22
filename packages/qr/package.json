@@ -1,7 +1,7 @@
 {
   "name": "@liquidglassjs/qr",
   "version": "0.1.0",
-  "description": "Procedural liquid-glass QR code — a WebGL escape hatch built on @liquidglassjs/core. Recreated from the technique in Aave's \"Building Glass for the Web\".",
+  "description": "Procedural liquid-glass QR code: a WebGL escape hatch built on @liquidglassjs/core. Recreated from the technique in Aave's \"Building Glass for the Web\".",
   "keywords": [
     "glass",
     "liquid-glass",

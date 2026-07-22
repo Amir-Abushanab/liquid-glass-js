@@ -9,6 +9,7 @@ import {
   categories,
   REGISTRY_URL,
   tuneDefaults,
+  renderPathOf,
   type RegistryItem,
   type TuneConfig,
 } from '@/lib/registry'
@@ -135,6 +136,50 @@ export function PreviewBackdrop({
   )
 }
 
+/**
+ * Whether this browser can actually show the capability a preview's params
+ * need (`TuneConfig.needs`). `true` until the client check runs (SSR renders
+ * the capable state; Chromium never flips it, so there's no flash there).
+ * The backdrop-url probe mirrors core's `supportsBackdropUrl()` exactly, so
+ * the Tuner's verdict always matches the path `mountGlass` actually picks.
+ */
+function useTuneCapable(needs?: TuneConfig['needs']): boolean {
+  const [capable, setCapable] = React.useState(true)
+  React.useEffect(() => {
+    if (!needs) return
+    // `?fallback=1` previews the incapable-browser state from any browser —
+    // the real gates below only trip on Safari/Firefox (frost) / no WebGL2 (QR).
+    // Query param, not hash: the hash carries tuned values.
+    if (new URLSearchParams(window.location.search).get('fallback')) {
+      setCapable(false)
+      return
+    }
+    if (needs === 'backdrop-url') {
+      try {
+        setCapable(CSS.supports('backdrop-filter', 'url("#a")'))
+      } catch {
+        setCapable(false)
+      }
+      return
+    }
+    try {
+      const gl = document.createElement('canvas').getContext('webgl2')
+      setCapable(!!gl)
+      gl?.getExtension('WEBGL_lose_context')?.loseContext()
+    } catch {
+      setCapable(false)
+    }
+  }, [needs])
+  return capable
+}
+
+const NEEDS_NOTE: Record<NonNullable<TuneConfig['needs']>, string> = {
+  'backdrop-url':
+    'This browser has no backdrop-filter: url(), so the preview falls back to a plain frost that ignores these refraction props — they take effect on Chromium. The code snippet still carries them.',
+  webgl2:
+    'This browser has no WebGL2, so the shader these params drive cannot run here.',
+}
+
 /** Read tuned values from the URL hash (client-only), falling back to defaults. */
 function readTuneValues(tune: TuneConfig): Record<string, number> {
   const out = tuneDefaults(tune)
@@ -157,6 +202,7 @@ export function ComponentPreview({ item }: { item: RegistryItem }) {
   // useDeferredValue keeps the sliders + code responsive while the (re-mounting) glass demo catches up.
   const demoValues = React.useDeferredValue(values)
   const Demo = item.Demo
+  const capable = useTuneCapable(tune?.needs)
 
   const dirty = !!tune && tune.params.some((p) => values[p.key] !== p.default)
 
@@ -216,6 +262,9 @@ export function ComponentPreview({ item }: { item: RegistryItem }) {
               }}
               shared={shared}
               dirty={dirty}
+              dead={!capable}
+              deadNote={tune.needs && !capable ? NEEDS_NOTE[tune.needs] : undefined}
+              render={renderPathOf(tune)}
             />
           )}
         </>

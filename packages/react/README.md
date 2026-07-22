@@ -1,7 +1,7 @@
 # @liquidglassjs/react
 
-React wrapper for **liquid glass** — a `<LiquidGlass>` component, a
-`useLiquidGlass` hook, and effect bindings, over
+The React wrapper for **liquid glass**: a `<LiquidGlass>` component, a
+`useLiquidGlass` hook, and effect bindings over
 [`@liquidglassjs/core`](https://www.npmjs.com/package/@liquidglassjs/core).
 
 ## Install
@@ -27,7 +27,7 @@ export function Card() {
 }
 ```
 
-Headless variant — attach the returned ref to your own element:
+Headless variant: attach the returned ref to your own element.
 
 ```tsx
 import { useLiquidGlass } from '@liquidglassjs/react';
@@ -41,13 +41,13 @@ disposes on cleanup.
 
 ### Effect components
 
-`GlassText`, `GlassShape`, `GlassLens`, `GlassButton`, `GlassRipple` — thin
-React bindings over the matching core renderers.
+`GlassText`, `GlassShape`, `GlassLens`, `GlassButton`, and `GlassRipple` are
+thin React bindings over the matching core renderers.
 
 ## Links
 
-- **Showcase** — <https://amir-abushanab.github.io/liquid-glass/>
-- **Core docs** — <https://github.com/amir-abushanab/liquid-glass#readme>
+- **Showcase**: <https://amir-abushanab.github.io/liquid-glass/>
+- **Core docs**: <https://github.com/amir-abushanab/liquid-glass#readme>
 
 ## License
 

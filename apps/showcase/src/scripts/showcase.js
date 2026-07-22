@@ -914,19 +914,19 @@ if (perfEl) {
   const narrate = (n, fps) => {
     const cards = n + (n === 1 ? " card" : " cards");
     const dropped = peakFps && fps < peakFps * 0.85; // meaningfully below the free ceiling
-    if (!glassOn) return "Glass off — " + cards + (animate ? " repainting every frame" : "") + ", no filter. This is your baseline: the cards alone are free.";
+    if (!glassOn) return "Glass off. " + cards + (animate ? " repainting every frame" : "") + ", no filter. This is your baseline: the cards alone are free.";
     if (source === "dom") {
-      if (!animate) return cards + " over static DOM — the filter is cached, so it composites essentially free. Holding consistent fps however many you stack.";
+      if (!animate) return cards + " over static DOM. The filter is cached, so it composites essentially free and holds fps however many you stack.";
       return dropped
-        ? cards + " over DOM that repaints every frame — the filter re-runs each frame, and the frame rate drops. That cost shows up only while the content moves."
-        : cards + " over DOM repainting every frame — the filter re-runs each frame, yet your GPU still holds its refresh rate. Add more to find where it bends.";
+        ? cards + " over DOM that repaints every frame. The filter re-runs each time and the frame rate drops; the cost shows up only while the content moves."
+        : cards + " over DOM repainting every frame. The filter re-runs each time, yet your GPU still holds its refresh rate. Add more cards to find where it bends.";
     }
     if (!animate) return dropped
-      ? cards + " over a STATIC canvas — yet the frame rate has dropped. The browser can't cache a canvas-backed filter, so it re-runs every frame even though nothing moved. This is the case the WebGL path exists for."
-      : cards + " over a static canvas — a canvas can't be filter-cached, so it re-runs every frame regardless. Your GPU holds refresh at this count; stack more and it drops fast.";
+      ? cards + " over a STATIC canvas, yet the frame rate has dropped. The browser can't cache a canvas-backed filter, so it re-runs every frame even though nothing moved. This is the case the WebGL path exists for."
+      : cards + " over a static canvas. A canvas can't be filter-cached, so the filter re-runs every frame regardless. Your GPU holds refresh at this count; stack more and it drops fast.";
     return dropped
-      ? cards + " over an animating canvas — re-filtered and repainted every frame, so the frame rate drops."
-      : cards + " over an animating canvas — re-filtered every frame, still holding refresh at this count.";
+      ? cards + " over an animating canvas, re-filtered and repainted every frame, so the frame rate drops."
+      : cards + " over an animating canvas, re-filtered every frame and still holding refresh at this count.";
   };
 
   let last = 0, winStart = 0, frames = 0, rafId = 0;
@@ -969,7 +969,7 @@ if (perfEl) {
   if (glassChk) glassChk.addEventListener("change", () => { glassOn = glassChk.checked; for (const c of cards) if (c.lens) c.lens.setActive(glassOn); winStart = 0; });
   if (countRange) countRange.addEventListener("input", () => { const n = +countRange.value; if (countN) countN.textContent = n; setCount(n); winStart = 0; });
 
-  if (ctxEl) ctxEl.textContent = "Cards are " + CW + "×" + CH + " glass surfaces, identical filter throughout — only the backdrop's source and motion change. Static live-DOM caches the filter; a canvas/video source is re-filtered every frame regardless.";
+  if (ctxEl) ctxEl.textContent = "Cards are " + CW + "×" + CH + " glass surfaces with an identical filter throughout; only the backdrop's source and motion change. Static live DOM caches the filter, while a canvas or video source is re-filtered every frame regardless.";
   setCount(+(countRange && countRange.value) || 8);
 }
 
@@ -1180,4 +1180,39 @@ cfgSections.sort((a, b) => {
   const ia = TUNER_ORDER.indexOf(a.id), ib = TUNER_ORDER.indexOf(b.id);
   return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
 });
-buildTuner(cfgSections);
+buildTuner(cfgSections);// ── Glass typeface: font switcher + editable stage text ──
+// The engine rasterizes the element's computed font, so flipping font-family is
+// the whole trick: the glyph-width change trips mountGlassText's ResizeObserver,
+// which re-measures (re-reading the computed font) and rebuilds the map.
+const lgfDemo = document.querySelector(".lgfdemo");
+const lgfFontBtns = document.querySelectorAll(".lgf-fonts__opt");
+lgfFontBtns.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    if (lgfDemo) {
+      const f = btn.dataset.lgfFont;
+      if (f === "mono") delete lgfDemo.dataset.font;
+      else lgfDemo.dataset.font = f;
+    }
+    lgfFontBtns.forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+  });
+});
+// Keep the editable glass text a single plain-text line: the map draws one
+// baseline (fillText), so Enter/rich paste would desync canvas raster from DOM.
+// contenteditable="plaintext-only" covers modern engines; the input normalize
+// covers engines that treat the value as "true" (Firefox < 136).
+document.querySelectorAll(".lgf__text[contenteditable]").forEach((el) => {
+  el.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      el.blur();
+    }
+  });
+  el.addEventListener("input", () => {
+    if (el.children.length || /[\r\n]/.test(el.textContent || "")) {
+      el.textContent = (el.textContent || "").replace(/\s+/g, " ");
+    }
+  });
+  el.addEventListener("blur", () => {
+    if (!(el.textContent || "").trim()) el.textContent = "Refraction"; // don't strand an empty demo
+  });
+});

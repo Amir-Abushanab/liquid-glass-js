@@ -755,3 +755,39 @@ a { color: inherit; text-decoration: none; }
 .demo-sep + .demo { border-top: 0; padding-top: 1.5rem; }
 
 .lcard__drop{position:absolute;top:50%;right:48px;width:140px;height:140px;margin-top:-70px;will-change:transform;animation:lcard-hover 4.5s ease-in-out infinite}@keyframes lcard-hover{0%,100%{transform:translateY(-9px) rotate(-4deg)}50%{transform:translateY(9px) rotate(4deg)}}@media (prefers-reduced-motion: reduce){.lcard__drop{animation:none}}
+
+/* Glass typeface: font switcher + editable text. The displacement map is
+   rasterized from the element's *computed* font (mountGlassText reads
+   getComputedStyle + document.fonts.ready), so any loaded typeface works.
+   The chips flip font-family/weight on .lgfdemo; the glyph-width change trips
+   the mount's ResizeObserver, which re-measures — re-reading the font — and
+   regenerates the map. Each chip label previews its own face. */
+.lgf-fonts { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.3rem; }
+.lgf-fonts__opt {
+  appearance: none; -webkit-appearance: none;
+  padding: 8px 15px; border: 1px solid var(--line-strong); border-radius: 999px;
+  background: var(--surface); color: var(--muted);
+  font-size: 0.88rem; line-height: 1; cursor: pointer;
+  transition: color 160ms, border-color 160ms;
+  -webkit-tap-highlight-color: transparent;
+}
+.lgf-fonts__opt:hover { color: var(--ink); }
+.lgf-fonts__opt[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); }
+.lgf-fonts__opt:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.lgf-fonts__opt[data-lgf-font="mono"] { font-family: var(--font-mono, ui-monospace, monospace); font-weight: 600; }
+.lgf-fonts__opt[data-lgf-font="serif"], .lgfdemo[data-font="serif"] { font-family: ui-serif, Georgia, 'Times New Roman', serif; }
+.lgf-fonts__opt[data-lgf-font="black"], .lgfdemo[data-font="black"] { font-family: var(--font-sans, system-ui); font-weight: 900; }
+.lgf-fonts__opt[data-lgf-font="script"], .lgfdemo[data-font="script"] { font-family: 'Snell Roundhand', 'Apple Chancery', 'Segoe Script', 'Brush Script MT', cursive; }
+.lgfdemo[data-font="black"] { letter-spacing: -0.03em; }
+.lgfdemo[data-font="script"] { letter-spacing: 0; }
+
+/* The glass text is real, editable DOM — give the caret/focus an affordance
+   that survives the transparent bg-clip fill. */
+.lgf__text[contenteditable] { cursor: text; caret-color: #fff; outline: none; }
+.lgf__text[contenteditable]:focus-visible {
+  outline: 2px dashed rgb(255 255 255 / 45%); outline-offset: 10px; border-radius: 6px;
+}
+/* .lgf__text sets its own font-family (hero styling), which would beat the
+   inherited switcher face — defer to the container whenever a face is picked. */
+.lgfdemo[data-font] .lgf__text { font-family: inherit; letter-spacing: inherit; font-weight: inherit; }

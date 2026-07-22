@@ -11,6 +11,6 @@ const slug = Astro.params.slug as string;
 const { title } = Astro.props;
 ---
 
-<DocsLayout title={`${title} — Liquid Glass`} currentSlug={slug}>
+<DocsLayout title={`${title} · Liquid Glass`} currentSlug={slug}>
   <ComponentDoc slug={slug} client:load />
 </DocsLayout>

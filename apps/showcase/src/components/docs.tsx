@@ -78,8 +78,8 @@ export function DocsLanding() {
         <p className="mb-2 text-sm font-medium text-muted-foreground">shadcn-compatible registry</p>
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Components</h1>
         <p className="mt-3 max-w-2xl text-lg text-muted-foreground">
-          Liquid-glass React components — real SVG refraction, not just blur. Behavior comes from Base
-          UI; the glass is the skin. Install any of them with the shadcn CLI.
+          React components in liquid glass, with real SVG refraction rather than a flat blur. Base UI
+          provides the behavior; the glass is the skin. Install any of them with the shadcn CLI.
         </p>
       </section>
 

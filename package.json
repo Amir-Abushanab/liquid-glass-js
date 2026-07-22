@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Liquid Glass — the @liquidglassjs packages that power it, plus the showcase.",
+  "description": "Liquid Glass: the @liquidglassjs packages that power it, plus the showcase.",
   "license": "MIT",
   "author": "Amir Abushanab",
   "packageManager": "pnpm@11.10.0",

@@ -1,8 +1,9 @@
 # @liquidglassjs/qr
 
-Procedural **liquid-glass QR code** — a WebGL escape hatch built on
-[`@liquidglassjs/core`](https://www.npmjs.com/package/@liquidglassjs/core). The
-one package that pulls in `qrcode`, so core consumers never install it.
+A procedural **liquid-glass QR code**: the WebGL escape hatch, built on
+[`@liquidglassjs/core`](https://www.npmjs.com/package/@liquidglassjs/core).
+This is the one package that pulls in `qrcode`, so core consumers never
+install it.
 
 > **Credit.** Recreated from the technique in Aave's
 > [_Building Glass for the Web_](https://aave.com/design/building-glass-for-the-web).
@@ -24,7 +25,7 @@ const qr = mountGlassQR(document.querySelector('#qr'), {
 qr.reconfigure({
   /* live refraction / animation params */
 });
-qr(); // the handle is callable — calling it disposes
+qr(); // the handle is callable: calling it disposes
 ```
 
 ### React
@@ -39,8 +40,8 @@ import { GlassQR } from '@liquidglassjs/qr/react';
 
 ## Links
 
-- **Showcase** — <https://amir-abushanab.github.io/liquid-glass/>
-- **Core docs** — <https://github.com/amir-abushanab/liquid-glass#readme>
+- **Showcase**: <https://amir-abushanab.github.io/liquid-glass/>
+- **Core docs**: <https://github.com/amir-abushanab/liquid-glass#readme>
 
 ## License
 

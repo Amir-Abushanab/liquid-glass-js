@@ -80,5 +80,5 @@
       "optional": true
     }
   },
-  "comment:exports": "Dev (workspace) resolves raw src/*.ts — no build needed to consume core. publishConfig.exports swaps `.`/webgl/qr to built dist at publish; css + .astro ship as source either way."
+  "comment:exports": "Dev (workspace) resolves raw src/*.ts, so no build is needed to consume core. publishConfig.exports swaps `.`/webgl/qr to built dist at publish; css + .astro ship as source either way."
 }

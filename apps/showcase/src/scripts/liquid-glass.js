@@ -300,4 +300,16 @@ function mount(el) {
     }
   };
 }
+// body.html is a saved live-DOM snapshot. If a re-capture bakes runtime state
+// back in, its capture-time <filter> holders would collide with the stable
+// data-uid ids minted here (url(#id) resolves first-in-tree, so a baked def
+// shadows every live update — the Tuner moves sliders and nothing happens).
+// This runs before any glass mounts, so every zero-size filter-plumbing svg
+// in the document at this point is snapshot residue: drop it.
+document.querySelectorAll('svg[width="0"][height="0"][aria-hidden="true"]').forEach((svg) => {
+  if (!svg.querySelector("filter")) return;
+  const holder = svg.parentElement;
+  if (holder && holder.tagName === "DIV") holder.remove();
+  else svg.remove();
+});
 document.querySelectorAll("[data-glass]").forEach(mount);

@@ -3,7 +3,7 @@
 SVG-first **liquid glass** for the web. The primary renderer is an SVG
 `feDisplacementMap` applied to **live DOM**, so the glass runs in every modern
 browser (Chrome, Safari, Firefox) with no flags and no fallbacks to maintain,
-and the content underneath stays selectable, scrollable, and clickable. WebGL
+while the content underneath stays selectable, scrollable, and clickable. WebGL
 and a procedural QR are optional, code-split escape hatches for the two cases an
 SVG filter can't cover.
 
@@ -11,10 +11,10 @@ SVG filter can't cover.
 >
 > The technique and several of the constants here (the `erf = tanh(√π·x)`
 > approximation, the spherical-cap dome integral, the R/G/B displacement-map
-> layout, the "fresh filter id per rebuild" Safari trick) are
-> **recreated based on the technique described in Aave's _Building Glass for the
-> Web_**: <https://aave.com/design/building-glass-for-the-web>. Please read it —
-> it is the source of this approach. If you use this package, credit Aave too.
+> layout, the "fresh filter id per rebuild" Safari trick) are **recreated from
+> Aave's _Building Glass for the Web_**:
+> <https://aave.com/design/building-glass-for-the-web>. Please read it; it is
+> the source of this approach. If you use this package, credit Aave too.
 
 ## Why SVG-first
 
@@ -59,10 +59,11 @@ is unavailable or the renderer throws.
 ## Morphing surfaces
 
 Two surfaces animate their own shape. Both reuse **one** displacement map and
-per frame touch only cheap filter attributes (the `<feImage>` box + the
-displacement scale), regenerating the map — with a fresh id, so Safari doesn't
-serve a cached one — only when the size settles. This is Aave's menu engine:
-`displScale: 0` is clear glass, and ramping it up materializes the refraction.
+touch only cheap filter attributes per frame (the `<feImage>` box and the
+displacement scale). The map itself regenerates only once the size settles,
+under a fresh id so Safari doesn't serve a cached one. This is Aave's menu
+engine: `displScale: 0` is clear glass, and ramping it up materializes the
+refraction.
 
 A button that reshapes when its label changes:
 
@@ -97,7 +98,7 @@ fade-able filter.
 ## Glass from any shape
 
 `mountGlassText` turns letterforms into glass; `mountGlassShape` does the same
-for any alpha coverage — an inline SVG mark, an `<img>`, a `<canvas>`, or a raw
+for any alpha coverage: an inline SVG mark, an `<img>`, a `<canvas>`, or a raw
 `draw` callback. The displacement map is shaped like the source's opaque pixels
 and the filter clips to the target's `SourceAlpha`, so the glass traces the
 artwork's silhouette.
@@ -112,9 +113,10 @@ const glass = mountGlassShape({ target: mark, host: mark.parentElement, source: 
 ```
 
 Both the shape and text (and the moving lens) take two material options:
-`shade` (0–1, a dark occlusion rim opposite the glint — real-glass depth) and
-`glint` (a CSS colour to tint the specular highlight). Both default to off /
-white, so existing surfaces are pixel-identical until you opt in.
+`shade` (0–1, a dark occlusion rim opposite the glint that reads as real-glass
+depth) and `glint` (a CSS colour to tint the specular highlight). They default
+to off and white respectively, so existing surfaces stay pixel-identical until
+you opt in.
 
 ## Entry points (the code-split)
 
@@ -128,7 +130,7 @@ white, so existing surfaces are pixel-identical until you opt in.
 The split relies on the **consumer's** bundler (Vite / webpack / Rollup split by
 default; esbuild needs `--splitting`). The `webgl` subpath is belt-and-suspenders
 on top of the internal dynamic `import()`: a consumer who only imports `.` never
-references WebGL. The Glass QR is isolated one level further — its own package
+references WebGL. The Glass QR is isolated one level further, in its own package
 (`@liquidglassjs/qr`), so `qrcode` never enters a core consumer's dependency tree.
 
 ## Astro
@@ -146,8 +148,8 @@ import LiquidGlassFont from '@liquidglassjs/core/astro/LiquidGlassFont.astro';
 
 ## Theming
 
-The CSS is de-themed — it reads namespaced vars with sane fallbacks, so nothing
-app-specific is assumed. Override per surface or globally:
+The CSS is de-themed: it reads namespaced vars with sane fallbacks and assumes
+nothing app-specific. Override per surface or globally:
 
 | Var | Role | Default |
 |---|---|---|
@@ -170,6 +172,6 @@ never call these during SSR).
 
 [MIT](./LICENSE) © Amir Abushanab.
 
-This is an independent implementation recreated from the technique described in
-Aave's _Building Glass for the Web_ (see [Credit](#credit)), extended with
-additional improvements. Please keep the attribution to Aave intact.
+This is an independent implementation recreated from Aave's _Building Glass for
+the Web_ (see [Credit](#credit)), with improvements of its own. Please keep the
+attribution to Aave intact.

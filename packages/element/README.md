@@ -1,7 +1,7 @@
 # @liquidglassjs/element
 
-The `<liquid-glass>` custom element — drop-in **liquid glass** for Vue, Svelte,
-Angular, plain HTML, or Astro, over
+The `<liquid-glass>` custom element: drop-in **liquid glass** for Vue, Svelte,
+Angular, plain HTML, or Astro, built on
 [`@liquidglassjs/core`](https://www.npmjs.com/package/@liquidglassjs/core).
 
 ## Install
@@ -29,13 +29,13 @@ import '@liquidglassjs/core/css';
 Attributes map to core options (`radius`, `depth`, `dome`, `strength`, `edge`,
 `glow`, `chroma`, `blur`, `tint`, `spec`, `vibrancy`, `backdrop`, `source`,
 `mode`) and reconfigure the glass live. The renderer mounts on the element in
-**light DOM** — the SVG path has to filter the element's real children, which a
-shadow root would hide.
+**light DOM**, because the SVG path has to filter the element's real children
+and a shadow root would hide them.
 
 ## Links
 
-- **Showcase** — <https://amir-abushanab.github.io/liquid-glass/>
-- **Core docs** — <https://github.com/amir-abushanab/liquid-glass#readme>
+- **Showcase**: <https://amir-abushanab.github.io/liquid-glass/>
+- **Core docs**: <https://github.com/amir-abushanab/liquid-glass#readme>
 
 ## License
 

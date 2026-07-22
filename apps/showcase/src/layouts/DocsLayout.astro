@@ -8,7 +8,7 @@ interface Props {
   title?: string;
   currentSlug?: string;
 }
-const { title = 'Liquid Glass — registry', currentSlug } = Astro.props;
+const { title = 'Liquid Glass · Registry', currentSlug } = Astro.props;
 const base = import.meta.env.BASE_URL; // '/' in dev, '/liquid-glass/' on Pages
 const docsHome = base.replace(/\/$/, '') + '/components';
 ---

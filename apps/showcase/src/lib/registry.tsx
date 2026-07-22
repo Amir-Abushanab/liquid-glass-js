@@ -65,11 +65,32 @@ export interface TuneConfig {
   params: TuneParam[]
   /** Build the copy-pastable snippet from the current values. */
   code: (v: Record<string, number>) => string
+  /**
+   * Browser capability the glass needs before these params have any visible
+   * effect. Frost shells refract via `backdrop-filter: url()` (Chromium only —
+   * elsewhere they fall back to a plain blur that ignores every refraction
+   * param); the QR runs a WebGL2 shader. Where the capability is missing the
+   * Tuner disables its sliders with a note instead of silently doing nothing.
+   * Omit for the SVG-filter paths (text/shape/lens/button/ripple, slider/switch),
+   * which honor every param in every browser.
+   */
+  needs?: 'backdrop-url' | 'webgl2'
 }
 
 /** Default value for each tunable param, e.g. `{ strength: 11, … }`. */
 export const tuneDefaults = (t: TuneConfig): Record<string, number> =>
   Object.fromEntries(t.params.map((p) => [p.key, p.default]))
+
+export type RenderPath = 'svg' | 'webgl' | 'frost'
+
+/**
+ * Which render path a preview's glass runs on — the same taxonomy as the
+ * showcase's render-path chips. Derived from `needs` so the two can't drift:
+ * backdrop-url *is* the frost path's refract mechanism, webgl2 is the shader
+ * path, and everything else here rides the works-everywhere SVG filter.
+ */
+export const renderPathOf = (t: TuneConfig): RenderPath =>
+  t.needs === 'backdrop-url' ? 'frost' : t.needs === 'webgl2' ? 'webgl' : 'svg'
 
 export interface RegistryItem {
   slug: string
@@ -194,6 +215,7 @@ export function Example() {
 }
 
 const SURFACE_TUNE: TuneConfig = {
+  needs: 'backdrop-url',
   params: [
     { key: 'strength', min: 0, max: 40, step: 0.5, default: 16 },
     { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.4 },
@@ -223,6 +245,7 @@ export function Example() {
 }
 
 const CARD_TUNE: TuneConfig = {
+  needs: 'backdrop-url',
   params: SURFACE_TUNE.params,
   code: (v) => `import { GlassCard } from "@/components/liquid-glass/glass-card"
 
@@ -299,6 +322,7 @@ export function Example() {
 }
 
 const QR_TUNE: TuneConfig = {
+  needs: 'webgl2',
   params: [
     { key: 'scaleX', min: 0, max: 0.25, step: 0.005, default: 0.08 },
     { key: 'scaleY', min: 0, max: 0.25, step: 0.005, default: 0.08 },
@@ -336,6 +360,7 @@ const FROST_PARAMS: TuneParam[] = [
 ]
 
 const TABS_TUNE: TuneConfig = {
+  needs: 'backdrop-url',
   params: FROST_PARAMS,
   code: (v) => `import {
   GlassTabs, GlassTabsList, GlassTabsTab, GlassTabsPanel,
@@ -355,6 +380,7 @@ export function Example() {
 }
 
 const DIALOG_TUNE: TuneConfig = {
+  needs: 'backdrop-url',
   params: FROST_PARAMS,
   code: (v) => `import {
   GlassDialog, GlassDialogTrigger, GlassDialogContent,
@@ -377,6 +403,7 @@ export function Example() {
 }
 
 const DROPDOWN_TUNE: TuneConfig = {
+  needs: 'backdrop-url',
   params: FROST_PARAMS,
   code: (v) => `import {
   GlassDropdownMenu, GlassDropdownMenuTrigger, GlassDropdownMenuContent,
@@ -444,7 +471,7 @@ export const registry: RegistryItem[] = [
     category: 'Components',
     icon: Square,
     description:
-      'The base primitive: crisp content over a glass surface that frosts — and, on Chromium, refracts — the scene behind it.',
+      'The base primitive: crisp content over a glass surface that frosts the scene behind it, and refracts it on Chromium.',
     tune: SURFACE_TUNE,
     code: SURFACE_TUNE.code(tuneDefaults(SURFACE_TUNE)),
     Demo: ({ values: v = tuneDefaults(SURFACE_TUNE) }) => (
@@ -527,7 +554,7 @@ export const registry: RegistryItem[] = [
     category: 'Components',
     icon: PanelTop,
     description:
-      'A segmented control: Base UI Tabs with a glass pill that slides under — and refracts — the active label.',
+      'A segmented control: Base UI Tabs with a glass pill that slides under the active label and refracts it.',
     tune: TABS_TUNE,
     code: TABS_TUNE.code(tuneDefaults(TABS_TUNE)),
     Demo: ({ values: v = tuneDefaults(TABS_TUNE) }) => (
@@ -562,7 +589,7 @@ export const registry: RegistryItem[] = [
     category: 'Components',
     icon: ToggleRight,
     description:
-      'A toggle: Base UI Switch with a real glass thumb — press it and the track refracts through the glass (a live SVG lens, not a CSS blur).',
+      'A toggle: Base UI Switch with a real glass thumb. Press it and the track refracts through the glass, a live SVG lens rather than a CSS blur.',
     tune: SWITCH_TUNE,
     code: SWITCH_TUNE.code(tuneDefaults(SWITCH_TUNE)),
     Demo: ({ values: v = tuneDefaults(SWITCH_TUNE) }) => (
@@ -578,7 +605,7 @@ export const registry: RegistryItem[] = [
     category: 'Components',
     icon: SlidersHorizontal,
     description:
-      'A slider: Base UI Slider with a real glass thumb — drag it and the rail refracts through the glass (a live SVG lens, not a CSS blur).',
+      'A slider: Base UI Slider with a real glass thumb. Drag it and the rail refracts through the glass, a live SVG lens rather than a CSS blur.',
     tune: SLIDER_TUNE,
     code: SLIDER_TUNE.code(tuneDefaults(SLIDER_TUNE)),
     Demo: ({ values: v = tuneDefaults(SLIDER_TUNE) }) => (
@@ -654,7 +681,7 @@ export const registry: RegistryItem[] = [
     category: 'Effects',
     icon: Star,
     npm: '@liquidglassjs/react',
-    description: 'Liquid glass clipped to any alpha — an inline <svg>, <img>, or <canvas>.',
+    description: 'Liquid glass clipped to any alpha source: an inline <svg>, <img>, or <canvas>.',
     tune: SHAPE_TUNE,
     code: SHAPE_TUNE.code(tuneDefaults(SHAPE_TUNE)),
     Demo: ({ values: v = tuneDefaults(SHAPE_TUNE) }) => (
@@ -686,7 +713,7 @@ export const registry: RegistryItem[] = [
     category: 'Effects',
     icon: Aperture,
     npm: '@liquidglassjs/react',
-    description: 'A movable refraction lens over live content — the text, grid, and chips beneath it bend in place.',
+    description: 'A movable refraction lens over live content; the text, grid, and chips beneath it bend in place.',
     tune: LENS_TUNE,
     code: LENS_TUNE.code(tuneDefaults(LENS_TUNE)),
     Demo: ({ values: v = tuneDefaults(LENS_TUNE) }) => (
@@ -729,7 +756,7 @@ export const registry: RegistryItem[] = [
     category: 'Effects',
     icon: MousePointerClick,
     npm: '@liquidglassjs/react',
-    description: 'Change a glass button’s label and it reshapes to fit — the refraction stretches through the morph.',
+    description: 'Change a glass button’s label and it reshapes to fit, the refraction stretching through the morph.',
     tune: BUTTON_TUNE,
     code: BUTTON_TUNE.code(tuneDefaults(BUTTON_TUNE)),
     Demo: ({ values: v = tuneDefaults(BUTTON_TUNE) }) => {
@@ -797,7 +824,7 @@ export const registry: RegistryItem[] = [
     category: 'Effects',
     icon: QrCode,
     npm: '@liquidglassjs/qr',
-    description: 'A scannable QR rendered by a WebGL shader — tap the centre for a refraction ripple.',
+    description: 'A scannable QR rendered by a WebGL shader. Tap the centre for a refraction ripple.',
     tune: QR_TUNE,
     code: QR_TUNE.code(tuneDefaults(QR_TUNE)),
     Demo: ({ values: v = tuneDefaults(QR_TUNE) }) => (
