@@ -4,6 +4,7 @@
   "description": "SVG-first liquid glass for the web (feDisplacementMap on live DOM), with WebGL + QR escape hatches. Recreated from the technique described in Aave's \"Building Glass for the Web\".",
   "keywords": [
     "astro",
+    "astro-component",
     "displacement-map",
     "fedisplacementmap",
     "glass",
@@ -11,7 +12,8 @@
     "liquid-glass",
     "refraction",
     "svg-filter",
-    "webgl"
+    "webgl",
+    "withastro"
   ],
   "homepage": "https://github.com/amir-abushanab/liquid-glass-js/tree/main/packages/core#readme",
   "bugs": "https://github.com/amir-abushanab/liquid-glass-js/issues",
