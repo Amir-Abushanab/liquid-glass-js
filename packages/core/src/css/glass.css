@@ -53,10 +53,6 @@
   z-index: 1;
   height: 100%;
 }
-/* Pointer-transparent only when a refract layer sits beneath — those clicks must
-   fall through to the live DOM being bent (selectable text, clickable links,
-   matching Aave). On the other paths (frost / backdrop clone) the slotted
-   content IS the interactive surface, so it stays clickable by default. */
 .ps-glass:has(> .ps-glass__refract) .ps-glass__content {
   pointer-events: none;
 }
