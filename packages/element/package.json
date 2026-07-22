@@ -1,6 +1,6 @@
 {
   "name": "@liquidglassjs/element",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The <liquid-glass> custom element: drop-in liquid glass for Vue, Svelte, Angular, plain HTML, or Astro, over @liquidglassjs/core.",
   "keywords": [
     "custom-elements",
