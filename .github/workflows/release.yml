@@ -1,0 +1,58 @@
+name: Release
+
+# The changesets release loop, publishing via npm Trusted Publishing (OIDC).
+#
+# On every push to main:
+#   • pending changesets → opens/updates the "Version Packages" PR
+#     (`changeset version`: bumps the fixed @liquidglassjs/* group together and
+#     writes CHANGELOGs via @changesets/changelog-github).
+#   • no pending changesets (i.e. the Version PR just merged) → publishes
+#     whatever is unpublished (`pnpm release`) and pushes the @pkg@x.y.z tags.
+#
+# Auth: NO npm token anywhere. At publish, pnpm exchanges this job's GitHub
+# OIDC identity (this repo + this workflow file) for a short-lived npm
+# credential. Each package's Trusted Publisher on npmjs.com must name exactly:
+#   Amir-Abushanab / liquid-glass-js / release.yml
+# Provenance attestations are generated automatically on this path.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write # version commit + release tags
+  pull-requests: write # open/update the Version Packages PR
+  id-token: write # mint the OIDC token npm exchanges at publish
+
+# One release flow at a time; let an in-flight publish finish rather than cancel it.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # changesets reads history + tags to decide what to version/publish.
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4 # version comes from the root packageManager field
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Version PR or publish
+        uses: changesets/action@v1
+        with:
+          publish: pnpm release # build:packages && changeset publish (creates tags)
+          title: 'Version Packages'
+          commit: 'Version Packages'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Version PR, tag push, changelog-github
