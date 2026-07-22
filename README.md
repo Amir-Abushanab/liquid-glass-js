@@ -18,11 +18,10 @@ cover.
 ## Why SVG-first
 
 The popular web-glass demos use `backdrop-filter: url()`, which is
-Chromium-only. The trick is to put the filter **on the content**
-(`filter: url()` over the real DOM) instead of on the backdrop. That one change
-is what makes it work in Safari and Firefox. WebGL is reserved for content an
-SVG filter genuinely can't bend: a `<canvas>` with no live DOM, or a `<video>`
-(WebKit refuses to filter video).
+Chromium-only. This library applies the filter **on the content** instead
+(`filter: url()` over the real DOM), which also works in Safari and Firefox.
+WebGL is reserved for content an SVG filter can't bend: a `<canvas>` with no
+live DOM, or a `<video>` (WebKit refuses to filter video).
 
 ## Install
 
@@ -47,7 +46,7 @@ glass.dispose();
 `mountGlass(root, opts)` builds its own chrome layers and auto-selects the
 renderer (`mode: 'auto'`):
 
-1. **`refract` element present** → SVG filter on the live DOM (the primary path). Wins over everything.
+1. **`refract` element present** → SVG filter on the live DOM (the primary path; takes precedence).
 2. **`source` (canvas/video/img) + WebGL2** → WebGL (lazily imported).
 3. **`backdrop` (CSS background)** → SVG filter on a viewport-locked clone.
 4. **otherwise** → frosted `backdrop-filter` (last resort).
