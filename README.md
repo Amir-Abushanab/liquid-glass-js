@@ -9,23 +9,9 @@ SVG filter can't cover.
 
 <p align="center">
   <a href="https://amir-abushanab.github.io/liquid-glass-js/">
-    <picture>
-      <source media="(prefers-color-scheme: light)" srcset="docs/media/hero-light.png">
-      <img src="docs/media/hero-dark.png" alt="The Liquid Glass showcase: a glass nav bar and a refractive glass typeface over an aurora background" width="830">
-    </picture>
+    <img src="docs/media/lens.png" alt="A draggable glass lens refracting live DOM text, grid lines, and colour chips" width="647">
   </a>
 </p>
-
-<table>
-  <tr>
-    <td width="50%"><a href="https://amir-abushanab.github.io/liquid-glass-js/"><img src="docs/media/lens.png" alt="A draggable glass lens refracting live DOM text, grid lines, and colour chips"></a></td>
-    <td width="50%"><a href="https://amir-abushanab.github.io/liquid-glass-js/"><img src="docs/media/typeface.png" alt="Glass typeface: letterforms rasterized into a displacement map, refracting an animated gradient"></a></td>
-  </tr>
-  <tr>
-    <td width="50%"><a href="https://amir-abushanab.github.io/liquid-glass-js/"><img src="docs/media/anything.png" alt="Glass from any alpha source: a droplet, a sparkle, an emoji orb, a meme card, and framework logos as glass"></a></td>
-    <td width="50%"><a href="https://amir-abushanab.github.io/liquid-glass-js/"><img src="docs/media/dropdown.png" alt="A glass dropdown menu refracting the vivid gradient scene behind it"></a></td>
-  </tr>
-</table>
 
 <p align="center"><em>All shots are the real thing — SVG filters bending live, selectable DOM.
 <a href="https://amir-abushanab.github.io/liquid-glass-js/">Try the showcase →</a></em></p>
@@ -67,6 +53,15 @@ renderer (`mode: 'auto'`):
 3. **`backdrop` (CSS background)** → SVG filter on a viewport-locked clone.
 4. **otherwise** → frosted `backdrop-filter` (last resort).
 
+<p align="center">
+  <a href="https://amir-abushanab.github.io/liquid-glass-js/">
+    <picture>
+      <source media="(prefers-color-scheme: light)" srcset="docs/media/render-paths-light.png">
+      <img src="docs/media/render-paths-dark.png" alt="The three render paths side by side: an SVG filter over live selectable DOM, WebGL for a canvas or video, and the frost fallback" width="502">
+    </picture>
+  </a>
+</p>
+
 `mode` can force `'svg' | 'webgl' | 'frost'`. WebGL degrades to frost if WebGL2
 is unavailable or the renderer throws.
 
@@ -101,6 +96,12 @@ const dd = mountGlassDropdown({
 // dd.open() / dd.close() / dd.toggle() / dd.isOpen()
 ```
 
+<p align="center">
+  <a href="https://amir-abushanab.github.io/liquid-glass-js/">
+    <img src="docs/media/dropdown.png" alt="A glass dropdown menu refracting the vivid gradient scene behind it">
+  </a>
+</p>
+
 The menu's `.gm-dd__bg` pane is the layer the filter bends. Point its
 `background` at a fixed-attachment clone of the scene behind the menu and the
 panel refracts the real page. The `/css` import ships the structure and the
@@ -116,6 +117,12 @@ for any alpha coverage: an inline SVG mark, an `<img>`, a `<canvas>`, or a raw
 and the filter clips to the target's `SourceAlpha`, so the glass traces the
 artwork's silhouette.
 
+<p align="center">
+  <a href="https://amir-abushanab.github.io/liquid-glass-js/">
+    <img src="docs/media/typeface.png" alt="Glass typeface: letterforms rasterized into a displacement map, refracting an animated gradient">
+  </a>
+</p>
+
 ```ts
 import { mountGlassShape } from '@liquidglassjs/core';
 
@@ -124,6 +131,12 @@ const glass = mountGlassShape({ target: mark, host: mark.parentElement, source: 
 // source can also be an HTMLImageElement / HTMLCanvasElement / url, or pass
 // draw(ctx, w, h) to paint the coverage yourself. Cross-origin images need CORS.
 ```
+
+<p align="center">
+  <a href="https://amir-abushanab.github.io/liquid-glass-js/">
+    <img src="docs/media/anything.png" alt="Glass from any alpha source: a droplet, a sparkle, an emoji orb, a meme card, and framework logos as glass">
+  </a>
+</p>
 
 Both the shape and text (and the moving lens) take two material options:
 `shade` (0–1, a dark occlusion rim opposite the glint that reads as real-glass
