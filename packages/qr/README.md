@@ -7,7 +7,7 @@ install it.
 
 <p align="center">
   <a href="https://amir-abushanab.github.io/liquid-glass-js/">
-    <img src="https://raw.githubusercontent.com/Amir-Abushanab/liquid-glass-js/main/docs/media/qr.png" alt="A scannable glass QR code rendered by a WebGL shader" width="700">
+    <img src="https://raw.githubusercontent.com/Amir-Abushanab/liquid-glass-js/main/docs/media/qr.png" alt="A scannable glass QR code rendered by a WebGL shader" width="458">
   </a>
 </p>
 
