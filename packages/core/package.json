@@ -1,6 +1,6 @@
 {
   "name": "@liquidglassjs/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "SVG-first liquid glass for the web (feDisplacementMap on live DOM), with WebGL + QR escape hatches. Recreated from the technique described in Aave's \"Building Glass for the Web\".",
   "keywords": [
     "astro",
