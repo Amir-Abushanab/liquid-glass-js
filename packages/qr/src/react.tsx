@@ -25,21 +25,39 @@ export function GlassQR({ className, style, ...opts }: GlassQRProps) {
   const handle = useRef<GlassQRHandle | null>(null);
   // Only the QR itself (value/size/colours) re-mounts; the refraction + animation
   // params reconfigure the live shader — no rebuild of the QR geometry + WebGL.
-  const { value, size, errorCorrectionLevel, dotColor, backgroundColor, image, ...params } = opts;
+  const {
+    value,
+    size,
+    errorCorrectionLevel,
+    dotColor,
+    backgroundColor,
+    logo,
+    reserveCenter,
+    image,
+    nonce,
+    styles,
+    ...params
+  } = opts;
+  // A `logo` Node serialises to {} here, so swapping one Node for another won't
+  // re-mount — pass a markup string (or change another struct option) if it must.
   const structKey = JSON.stringify({
     value,
     size,
     errorCorrectionLevel,
     dotColor,
     backgroundColor,
+    logo: typeof logo === 'object' ? true : logo,
+    reserveCenter,
     image,
+    nonce,
+    styles,
   });
   useEffect(() => {
     if (!ref.current) return;
     const h = mountGlassQR(ref.current, opts);
     handle.current = h;
     return () => {
-      h(); // GlassQRHandle is callable — calling it disposes
+      h.dispose();
       handle.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-mount on the QR itself; params reconfigure below

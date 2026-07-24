@@ -181,6 +181,36 @@ function compile(gl: WebGL2RenderingContext, src: string, type: number): WebGLSh
   return sh;
 }
 
+/** Cached probe result. `null` = not yet probed (and never cached on the server). */
+let webgl2Supported: boolean | null = null;
+
+/**
+ * Whether this environment can render a Glass QR (i.e. has a WebGL2 context).
+ *
+ * `mountGlassQR` throws where it can't — call this first to decide whether to
+ * enhance at all. Browsers cap live WebGL contexts (~16), so the probe context
+ * is released immediately and the answer cached; `false` on the server, where
+ * nothing is cached so the client re-probes after hydration.
+ *
+ * ```ts
+ * if (isGlassQRSupported()) mountGlassQR(el, { value });
+ * ```
+ */
+export function isGlassQRSupported(): boolean {
+  if (webgl2Supported !== null) return webgl2Supported;
+  if (typeof document === 'undefined') return false;
+  try {
+    const probe = document.createElement('canvas');
+    probe.width = probe.height = 1;
+    const gl = probe.getContext('webgl2');
+    webgl2Supported = !!gl;
+    gl?.getExtension('WEBGL_lose_context')?.loseContext();
+  } catch {
+    webgl2Supported = false;
+  }
+  return webgl2Supported;
+}
+
 function texParams(gl: WebGL2RenderingContext, filter: number) {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);

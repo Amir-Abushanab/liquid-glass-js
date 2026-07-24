@@ -20,13 +20,20 @@
     "directory": "packages/qr"
   },
   "files": [
-    "dist"
+    "dist",
+    "src/css"
   ],
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "**/*.css"
+  ],
   "exports": {
     ".": "./src/index.ts",
-    "./react": "./src/react.tsx"
+    "./react": "./src/react.tsx",
+    "./css": {
+      "types": "./src/css/qr.css.d.ts",
+      "default": "./src/css/qr.css"
+    }
   },
   "publishConfig": {
     "exports": {
@@ -37,13 +44,17 @@
       "./react": {
         "types": "./dist/react.d.ts",
         "import": "./dist/react.js"
+      },
+      "./css": {
+        "types": "./src/css/qr.css.d.ts",
+        "default": "./src/css/qr.css"
       }
     },
     "access": "public"
   },
   "scripts": {
-    "prepack": "node ../../scripts/sync-license.mjs",
-    "build": "tsup",
+    "prepack": "node ../../scripts/sync-license.mjs && node ../../scripts/sync-qr-css.mjs",
+    "build": "node ../../scripts/sync-qr-css.mjs && tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit"
   },

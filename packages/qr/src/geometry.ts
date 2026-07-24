@@ -33,6 +33,9 @@ export interface QRGeometry {
 export interface QRGeometryOptions {
   size: number;
   value: string;
+  /** Punch a logo-sized hole in the encoded modules. Default true. */
+  reserveCenter?: boolean;
+  /** @deprecated Renamed to `reserveCenter`. */
   image?: boolean;
   errorCorrectionLevel?: 'L' | 'M' | 'Q' | 'H';
 }
@@ -40,9 +43,11 @@ export interface QRGeometryOptions {
 export function buildQRGeometry({
   size,
   value,
-  image = true,
+  reserveCenter,
+  image,
   errorCorrectionLevel = 'Q',
 }: QRGeometryOptions): QRGeometry {
+  const reserve = reserveCenter ?? image ?? true;
   const inner = size - 20; // 10px quiet-zone padding each side
   const dots: QRGeometry['dots'] = [];
   const eyes: Eye[] = [];
@@ -64,7 +69,7 @@ export function buildQRGeometry({
   const N = matrix.length;
   const occupancy = new Uint8Array(N * N);
   const ecFrac = errorCorrectionLevel ? EC_RADIUS[errorCorrectionLevel] : 0;
-  const logoPx = image ? ecFrac * inner : 0;
+  const logoPx = reserve ? ecFrac * inner : 0;
 
   // 3 finder eyes — top-left, top-right, bottom-left.
   [

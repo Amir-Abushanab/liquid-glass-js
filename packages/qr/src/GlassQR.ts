@@ -10,14 +10,35 @@ import { QRGlassRenderer } from './renderer';
 import { PaintingTexture, EC_RADIUS } from './painting';
 import { hexToRgb, nextColor } from '@liquidglassjs/core';
 import { LensGenerator } from './lens';
+import { injectStyles } from './styles';
+import { resolveLogo } from './logo';
 
 export interface GlassQROptions {
-  value?: string;
+  /** The encoded payload. Required — there is deliberately no default URL. */
+  value: string;
   size?: number;
   errorCorrectionLevel?: 'L' | 'M' | 'Q' | 'H';
   dotColor?: string;
   backgroundColor?: string;
+  /**
+   * The centre mark. Defaults to the built-in glass mark; `false` renders no
+   * logo (and, unless `reserveCenter` says otherwise, encodes the middle too).
+   * Pass a `Node` rather than a markup string under Trusted Types.
+   */
+  logo?: string | Node | false;
+  /**
+   * Punch a logo-sized hole in the encoded modules. Defaults to whether a logo
+   * is actually being rendered — set it explicitly only for the rare case of a
+   * hole with no mark. Reserving the centre costs error-correction budget, so
+   * don't reserve it for a logo you aren't drawing.
+   */
+  reserveCenter?: boolean;
+  /** @deprecated Renamed to `reserveCenter`, which now also tracks `logo`. */
   image?: boolean;
+  /** Nonce for the injected <style>, for a `style-src 'nonce-…'` CSP. */
+  nonce?: string;
+  /** Set false when importing `@liquidglassjs/qr/css` yourself. Default true. */
+  styles?: boolean;
   // refraction
   scaleX?: number;
   scaleY?: number;
@@ -47,7 +68,10 @@ export type GlassQRParams = Required<
   >
 >;
 export interface GlassQRHandle {
-  (): void; // dispose
+  /** Callable for backwards compatibility — prefer the named `.dispose()`. */
+  (): void;
+  /** Tear down: cancels frames, drops listeners, frees GL, removes the DOM. */
+  dispose(): void;
   reconfigure(patch: Partial<GlassQRParams>): void;
 }
 
@@ -103,55 +127,6 @@ class Spring {
   }
 }
 
-const LOGO_SVG = `<svg viewBox="0 0 56 56" width="100%" height="100%" fill="none" aria-hidden="true">
-  <rect x="0.5" y="0.5" width="55" height="55" rx="13.5" fill="url(#psqr-bg)" stroke="white" stroke-opacity="0.14"/>
-  <rect x="17" y="17" width="22" height="22" rx="7" fill="url(#psqr-mark)"/>
-  <defs>
-    <linearGradient id="psqr-bg" x1="28" y1="0" x2="28" y2="56" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#2a2730"/><stop offset="1" stop-color="#16151b"/>
-    </linearGradient>
-    <linearGradient id="psqr-mark" x1="17" y1="17" x2="39" y2="39" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#8a7bff"/><stop offset="1" stop-color="#ff5ca8"/>
-    </linearGradient>
-  </defs>
-</svg>`;
-
-let stylesInjected = false;
-function injectStyles() {
-  if (stylesInjected) return;
-  stylesInjected = true;
-  const css = `
-.ps-qr { perspective: 50rem; display: inline-block; touch-action: manipulation; }
-.ps-qr__tilt { transform-style: preserve-3d; will-change: transform; }
-.ps-qr__stage {
-  position: relative; border-radius: 56px; padding: 0.75rem;
-  background: color-mix(in srgb, var(--ink, #0a0a0a) 6%, transparent);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--ink, #0a0a0a) 10%, transparent),
-    inset 0 1px 1px color-mix(in srgb, white 55%, transparent),
-    0 30px 70px -30px rgb(0 0 0 / 45%);
-}
-.ps-qr__box { position: relative; border-radius: 44px; overflow: hidden; }
-.ps-qr__color, .ps-qr__qr { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.ps-qr__color { z-index: 1; }
-.ps-qr__qr { z-index: 2; }
-.ps-qr__logo {
-  position: absolute; z-index: 3; left: 50%; top: 50%;
-  transform: translate(-50%, -50%);
-  border: 0; padding: 0; background: none; cursor: pointer;
-  -webkit-tap-highlight-color: transparent; transform-style: preserve-3d;
-}
-.ps-qr__logo:focus-visible { outline: 2px solid var(--ink, #0a0a0a); outline-offset: 4px; border-radius: 16px; }
-.ps-qr__logo-rotator { transform-style: preserve-3d; will-change: transform; }
-@media (prefers-reduced-motion: reduce) {
-  .ps-qr__tilt, .ps-qr__logo-rotator { transition: none; }
-}`;
-  const style = document.createElement('style');
-  style.dataset.psqr = '';
-  style.textContent = css;
-  document.head.appendChild(style);
-}
-
 interface LensLayer {
   w: number;
   h: number;
@@ -159,15 +134,26 @@ interface LensLayer {
   gen: LensGenerator;
 }
 
-export function mountGlassQR(container: HTMLElement, opts: GlassQROptions = {}): GlassQRHandle {
-  injectStyles();
+/**
+ * Mount an interactive Glass QR into `container`.
+ *
+ * Requires WebGL2 and THROWS where it isn't available (Brave's fingerprinting
+ * shields block it, among others) — gate the call on {@link isGlassQRSupported}
+ * and keep a plain QR as the fallback. A failed mount unwinds whatever it built,
+ * so a caught throw leaves no orphaned DOM in `container`.
+ */
+export function mountGlassQR(container: HTMLElement, opts: GlassQROptions): GlassQRHandle {
+  if (opts.styles !== false) injectStyles(opts.nonce);
 
-  const value = opts.value ?? 'https://principlestash.com';
+  const value = opts.value;
   const size = opts.size ?? 300;
   const ec = opts.errorCorrectionLevel ?? 'Q';
   const dotColor = opts.dotColor ?? 'var(--ink)';
   const backgroundColor = opts.backgroundColor ?? 'var(--paper)';
-  const image = opts.image ?? true;
+  const logoNode = resolveLogo(opts.logo);
+  // Reserving the centre spends error-correction budget, so it follows the logo
+  // unless asked otherwise. `image` is the old name for the same switch.
+  const reserveCenter = opts.reserveCenter ?? opts.image ?? logoNode !== null;
   let scaleX = opts.scaleX ?? 0.08; // mutable — the Glass Tuner reconfigures these live
   let scaleY = opts.scaleY ?? 0.08;
   let chromaAmount = opts.chromaAmount ?? 1;
@@ -199,42 +185,70 @@ export function mountGlassQR(container: HTMLElement, opts: GlassQROptions = {}):
   colorCanvas.className = 'ps-qr__color';
   const qrCanvas = document.createElement('canvas');
   qrCanvas.className = 'ps-qr__qr';
-  const logo = document.createElement('button');
-  logo.className = 'ps-qr__logo';
-  logo.setAttribute('aria-label', 'Spin the Glass QR');
-  const logoScale = (EC_RADIUS[ec] ?? 0.25) / 0.25;
-  const logoSize = displayPx * 0.2 * logoScale;
-  logo.style.width = `${logoSize}px`;
-  logo.style.height = `${logoSize}px`;
-  const rotator = document.createElement('div');
-  rotator.className = 'ps-qr__logo-rotator';
-  rotator.style.width = '100%';
-  rotator.style.height = '100%';
-  rotator.innerHTML = LOGO_SVG;
-  logo.appendChild(rotator);
-  box.append(colorCanvas, qrCanvas, logo);
+  // `logo: false` drops the button entirely — no mark, and nothing to click.
+  const logo = logoNode && document.createElement('button');
+  const rotator = logoNode && document.createElement('div');
+  if (logo && rotator) {
+    logo.className = 'ps-qr__logo';
+    logo.setAttribute('aria-label', 'Spin the Glass QR');
+    const logoScale = (EC_RADIUS[ec] ?? 0.25) / 0.25;
+    const logoSize = displayPx * 0.2 * logoScale;
+    logo.style.width = `${logoSize}px`;
+    logo.style.height = `${logoSize}px`;
+    rotator.className = 'ps-qr__logo-rotator';
+    rotator.style.width = '100%';
+    rotator.style.height = '100%';
+    rotator.appendChild(logoNode);
+    logo.appendChild(rotator);
+  }
+  box.append(colorCanvas, qrCanvas);
+  if (logo) box.appendChild(logo);
   stage.appendChild(box);
   tilt.appendChild(stage);
   root.appendChild(tilt);
+
+  // Attached before the renderer is built, because `resolveCssColor` reads the
+  // QR's colours back through getComputedStyle — `var(--ink)` / `var(--paper)`
+  // only resolve for an element that is actually in the document. `build()`
+  // below is what keeps a failure from leaving that node behind.
   container.appendChild(root);
 
   // ── geometry + renderer ──
-  const geo = buildQRGeometry({ size, value, image, errorCorrectionLevel: ec });
-  if (geo.dots.length === 0 || geo.eyes.length === 0)
-    return Object.assign(() => root.remove(), { reconfigure() {} }) as GlassQRHandle;
+  // Any of these can throw: a bad payload, no WebGL2 (Brave's fingerprinting
+  // shields block it), a shader compile/link error. None of them may leave a
+  // half-built .ps-qr stranded in the consumer's container.
+  const build = <T>(make: () => T): T => {
+    try {
+      return make();
+    } catch (err) {
+      root.remove();
+      throw err;
+    }
+  };
 
-  const renderer = new QRGlassRenderer({
-    canvas: qrCanvas,
-    size,
-    eyes: geo.eyes,
-    occupancy: geo.occupancy,
-    matrixLength: geo.matrixLength,
-    gridOriginUV: geo.gridOriginUV,
-    cellUV: geo.cellUV,
-    dotRadius: geo.dotRadius,
-    dotColor,
-    backgroundColor,
-  });
+  const geo = build(() =>
+    buildQRGeometry({ size, value, reserveCenter, errorCorrectionLevel: ec }),
+  );
+  if (geo.dots.length === 0 || geo.eyes.length === 0) {
+    root.remove();
+    throw new Error('Glass QR: the encoded value produced no drawable geometry.');
+  }
+
+  const renderer = build(
+    () =>
+      new QRGlassRenderer({
+        canvas: qrCanvas,
+        size,
+        eyes: geo.eyes,
+        occupancy: geo.occupancy,
+        matrixLength: geo.matrixLength,
+        gridOriginUV: geo.gridOriginUV,
+        cellUV: geo.cellUV,
+        dotRadius: geo.dotRadius,
+        dotColor,
+        backgroundColor,
+      }),
+  );
   renderer.updateEyeRefractionScale(eyeRefractionScale);
 
   // resolve dotColor for the painting clear color (via the live canvas)
@@ -242,27 +256,33 @@ export function mountGlassQR(container: HTMLElement, opts: GlassQROptions = {}):
   const defaultColor = renderer.resolveCssColor(dotColor);
 
   const splashSpeed = 3000 / colorSplash;
-  const colorPaint = new PaintingTexture({
-    canvas: colorCanvas,
-    size: size / 22.2,
-    maxAge: 240,
-    radius: size / 333,
-    intensityFactor: 0.8,
-    useColor: true,
-    clearColor,
-    splashSpeed,
-    ringStart,
-    ringEnd,
-  });
-  const shapePaint = new PaintingTexture({
-    size: size / 22.2,
-    maxAge: 48,
-    radius: size / 426,
-    intensityFactor: 0.4,
-    splashSpeed,
-    ringStart,
-    ringEnd,
-  });
+  const colorPaint = build(
+    () =>
+      new PaintingTexture({
+        canvas: colorCanvas,
+        size: size / 22.2,
+        maxAge: 240,
+        radius: size / 333,
+        intensityFactor: 0.8,
+        useColor: true,
+        clearColor,
+        splashSpeed,
+        ringStart,
+        ringEnd,
+      }),
+  );
+  const shapePaint = build(
+    () =>
+      new PaintingTexture({
+        size: size / 22.2,
+        maxAge: 48,
+        radius: size / 426,
+        intensityFactor: 0.4,
+        splashSpeed,
+        ringStart,
+        ringEnd,
+      }),
+  );
 
   // ── eye hover state ──
   const state = {
@@ -287,12 +307,14 @@ export function mountGlassQR(container: HTMLElement, opts: GlassQROptions = {}):
   }
 
   // ── lens layers ──
-  const layers: LensLayer[] = Array.from({ length: 5 }, () => ({
-    w: 0,
-    h: 0,
-    tween: null,
-    gen: new LensGenerator(),
-  }));
+  const layers: LensLayer[] = build(() =>
+    Array.from({ length: 5 }, () => ({
+      w: 0,
+      h: 0,
+      tween: null,
+      gen: new LensGenerator(),
+    })),
+  );
   let activeLayer = 0;
   const compositeCanvas = document.createElement('canvas');
   compositeCanvas.width = 128;
@@ -392,7 +414,7 @@ export function mountGlassQR(container: HTMLElement, opts: GlassQROptions = {}):
     tiltY.step(dt);
     spin.step(dt);
     tilt.style.transform = `rotateX(${tiltX.value}deg) rotateY(${tiltY.value}deg)`;
-    rotator.style.transform = `rotateY(${spin.value}deg)`;
+    if (rotator) rotator.style.transform = `rotateY(${spin.value}deg)`;
     if (tiltX.settled && tiltY.settled && spin.settled) {
       springRaf = null;
       springLast = 0;
@@ -567,7 +589,7 @@ export function mountGlassQR(container: HTMLElement, opts: GlassQROptions = {}):
     triggerSplash();
     restartQR();
   }
-  logo.addEventListener('click', handleClick);
+  logo?.addEventListener('click', handleClick);
 
   function onPointerMove(e: PointerEvent) {
     // 3D tilt
@@ -619,49 +641,52 @@ export function mountGlassQR(container: HTMLElement, opts: GlassQROptions = {}):
   if (colorPaint.canvas) renderer.updatePaintingColorTexture(colorPaint.canvas as TexImageSource);
 
   // ── cleanup + live reconfigure (the Glass Tuner tweaks refraction/bloom knobs) ──
-  const handle = Object.assign(
-    () => {
-      if (qrRaf != null) cancelAnimationFrame(qrRaf);
-      if (springRaf != null) cancelAnimationFrame(springRaf);
-      clearFTimers();
-      io.disconnect();
-      root.removeEventListener('pointermove', onPointerMove);
-      root.removeEventListener('pointerdown', onPointerDown);
-      root.removeEventListener('pointerleave', onPointerLeave);
-      logo.removeEventListener('click', handleClick);
-      renderer.cleanUp();
-      colorPaint.cleanUp();
-      shapePaint.cleanUp();
-      layers.forEach((l) => l.gen.dispose());
-      root.remove();
-    },
-    {
-      reconfigure(patch: Partial<GlassQRParams>) {
-        // scaleX/scaleY/chromaAmount/lensDepth/lensDuration are captured by the
-        // per-frame bloom closures, so updating them here applies to the next bloom.
-        if (patch.scaleX != null) scaleX = patch.scaleX;
-        if (patch.scaleY != null) scaleY = patch.scaleY;
-        if (patch.chromaAmount != null) chromaAmount = patch.chromaAmount;
-        if (patch.lensDepth != null) lensDepth = patch.lensDepth;
-        if (patch.lensDuration != null) lensDuration = patch.lensDuration;
-        if (patch.eyeRefractionScale != null)
-          renderer.updateEyeRefractionScale(patch.eyeRefractionScale);
-        // colour-ripple knobs — pushed into both PaintingTextures (read fresh on next click)
-        if (patch.colorSplash != null) {
-          const ss = 3000 / patch.colorSplash;
-          colorPaint.updateSplashSpeed(ss);
-          shapePaint.updateSplashSpeed(ss);
-        }
-        if (patch.ringStart != null) {
-          colorPaint.updateRingStart(patch.ringStart);
-          shapePaint.updateRingStart(patch.ringStart);
-        }
-        if (patch.ringEnd != null) {
-          colorPaint.updateRingEnd(patch.ringEnd);
-          shapePaint.updateRingEnd(patch.ringEnd);
-        }
-      },
-    },
-  ) as GlassQRHandle;
-  return handle;
+  let disposed = false;
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    if (qrRaf != null) cancelAnimationFrame(qrRaf);
+    if (springRaf != null) cancelAnimationFrame(springRaf);
+    clearFTimers();
+    io.disconnect();
+    root.removeEventListener('pointermove', onPointerMove);
+    root.removeEventListener('pointerdown', onPointerDown);
+    root.removeEventListener('pointerleave', onPointerLeave);
+    logo?.removeEventListener('click', handleClick);
+    renderer.cleanUp();
+    colorPaint.cleanUp();
+    shapePaint.cleanUp();
+    layers.forEach((l) => l.gen.dispose());
+    root.remove();
+  };
+
+  // The handle is a callable (the original shape) that also carries `.dispose()`,
+  // matching core's `mountGlass` — new code should prefer the named method.
+  const reconfigure = (patch: Partial<GlassQRParams>) => {
+    // scaleX/scaleY/chromaAmount/lensDepth/lensDuration are captured by the
+    // per-frame bloom closures, so updating them here applies to the next bloom.
+    if (patch.scaleX != null) scaleX = patch.scaleX;
+    if (patch.scaleY != null) scaleY = patch.scaleY;
+    if (patch.chromaAmount != null) chromaAmount = patch.chromaAmount;
+    if (patch.lensDepth != null) lensDepth = patch.lensDepth;
+    if (patch.lensDuration != null) lensDuration = patch.lensDuration;
+    if (patch.eyeRefractionScale != null)
+      renderer.updateEyeRefractionScale(patch.eyeRefractionScale);
+    // colour-ripple knobs — pushed into both PaintingTextures (read fresh on next click)
+    if (patch.colorSplash != null) {
+      const ss = 3000 / patch.colorSplash;
+      colorPaint.updateSplashSpeed(ss);
+      shapePaint.updateSplashSpeed(ss);
+    }
+    if (patch.ringStart != null) {
+      colorPaint.updateRingStart(patch.ringStart);
+      shapePaint.updateRingStart(patch.ringStart);
+    }
+    if (patch.ringEnd != null) {
+      colorPaint.updateRingEnd(patch.ringEnd);
+      shapePaint.updateRingEnd(patch.ringEnd);
+    }
+  };
+
+  return Object.assign(dispose, { dispose, reconfigure });
 }

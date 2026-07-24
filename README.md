@@ -179,7 +179,7 @@ nothing app-specific. Override per surface or globally:
 |---|---|---|
 | `--glass-paper` | base "paper" behind the tint + SVG clone | `#fff` |
 | `--glass-ink` | rim ink | `#000` |
-| `--glass-frost-bg` | frosted-fallback background | `rgb(255 255 255 / 55%)` |
+| `--glass-frost-bg` | frosted-fallback background | 55% of `--glass-paper` |
 | `--glass-backdrop` | default backdrop for the SVG-clone path | consumer-supplied |
 
 ```css

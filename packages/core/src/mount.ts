@@ -289,7 +289,12 @@ function supportsBackdropUrl(): boolean {
 
 // ── Frost: refracts the backdrop on Chromium; plain blur everywhere else ──
 function mountFrost(el: HTMLElement, surface: HTMLElement, p: P): () => void {
-  surface.style.background = 'var(--glass-frost-bg, rgb(255 255 255 / 55%))';
+  // Default derived from --glass-paper so theming one variable themes the frost
+  // fallback too — a hardcoded white read as a light slab on dark themes. The
+  // inner fallback matters: an unset --glass-paper would make the whole
+  // color-mix() invalid at computed-value time and drop the background.
+  surface.style.background =
+    'var(--glass-frost-bg, color-mix(in srgb, var(--glass-paper, #fff) 55%, transparent))';
 
   // Fallback (Safari / Firefox): a plain frosted blur — no url() backdrop filter.
   if (!supportsBackdropUrl()) {

@@ -6,6 +6,15 @@
 export { mountGlassQR } from './GlassQR';
 export type { GlassQROptions, GlassQRParams, GlassQRHandle } from './GlassQR';
 
+// Capability probe — mountGlassQR throws without WebGL2, so gate on this and
+// keep a plain QR as the fallback (the payload has to stay reachable).
+export { isGlassQRSupported } from './renderer';
+
+// Styling: the stylesheet is injected on mount unless you opt out with
+// `styles: false` and import "@liquidglassjs/qr/css" instead.
+export { QR_CSS } from './styles';
+export { defaultLogo } from './logo';
+
 // Lower-level pieces (escape-hatch / advanced use)
 export { QRGlassRenderer } from './renderer';
 export type { QRRendererOptions } from './renderer';

@@ -6,7 +6,7 @@
  * fallbacks, so it works standalone. Override per surface or globally:
  *   --glass-paper : base "paper" colour behind tint + SVG-clone   (default #fff)
  *   --glass-ink   : rim ink colour                                (default #000)
- *   --glass-frost-bg : frosted-fallback background (set in JS)    (default rgb(255 255 255/55%))
+ *   --glass-frost-bg : frosted-fallback background (set in JS)    (default: 55% of --glass-paper)
  *   --glass-backdrop : default CSS background for the SVG-clone path (consumer-supplied)
  * e.g.  .ps-glass { --glass-paper: var(--paper); --glass-ink: var(--ink); }
  */
