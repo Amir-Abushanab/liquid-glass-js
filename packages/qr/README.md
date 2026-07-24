@@ -25,9 +25,7 @@ import { mountGlassQR } from '@liquidglassjs/qr';
 const qr = mountGlassQR(document.querySelector('#qr'), {
   value: 'https://example.com',
 });
-qr.reconfigure({
-  /* live refraction / animation params */
-});
+qr.reconfigure({/* live refraction / animation params */});
 qr.dispose(); // (the handle is also callable, for backwards compatibility)
 ```
 

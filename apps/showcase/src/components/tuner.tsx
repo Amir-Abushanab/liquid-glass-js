@@ -6,6 +6,7 @@ import { Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { GlassSwitch } from '@/components/liquid-glass/glass-switch';
 import type { RenderPath, TuneParam, TuneControl, TuneOptions } from '@/lib/registry';
+import { parsePalette, joinPalette } from '@/lib/registry';
 
 /**
  * Render-path chip — the showcase's SVG/WebGL/Frost taxonomy (same colors as
@@ -158,22 +159,86 @@ export function Tuner({
               );
             }
             if (c.kind === 'select') {
+              const sw = c.swatches?.(String(options[c.key] ?? c.default)) ?? [];
               return (
                 <label key={c.key} className="grid grid-cols-[7rem_1fr] items-center gap-2 text-xs">
                   {label}
-                  <select
-                    value={String(options[c.key] ?? c.default)}
-                    disabled={disabled}
-                    onChange={(e) => setOption(c.key, e.target.value)}
-                    aria-label={c.label ?? c.key}
-                    className="min-w-0 rounded-md border bg-background px-2 py-1 text-xs text-foreground disabled:opacity-50"
-                  >
-                    {c.options.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <select
+                      value={String(options[c.key] ?? c.default)}
+                      disabled={disabled}
+                      onChange={(e) => setOption(c.key, e.target.value)}
+                      aria-label={c.label ?? c.key}
+                      className="min-w-0 flex-1 rounded-md border bg-background px-2 py-1 text-xs text-foreground disabled:opacity-50"
+                    >
+                      {c.options.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    {sw.length > 0 && (
+                      <span className="flex shrink-0 items-center gap-1" aria-hidden>
+                        {sw.map((color, i) => (
+                          <i
+                            key={i}
+                            className="size-3 rounded-[3px] border border-border"
+                            style={{ background: color }}
+                          />
+                        ))}
+                      </span>
+                    )}
+                  </div>
+                </label>
+              );
+            }
+            if (c.kind === 'palette') {
+              const colors = parsePalette(String(options[c.key] ?? c.default));
+              const min = c.min ?? 1;
+              const max = c.max ?? 5;
+              const setColors = (next: string[]) => setOption(c.key, joinPalette(next));
+              return (
+                <label key={c.key} className="grid grid-cols-[7rem_1fr] items-start gap-2 text-xs">
+                  {label}
+                  <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                    {colors.map((color, i) => (
+                      <span key={i} className="relative inline-flex">
+                        <input
+                          type="color"
+                          value={color}
+                          disabled={disabled}
+                          onChange={(e) =>
+                            setColors(colors.map((c2, j) => (j === i ? e.target.value : c2)))
+                          }
+                          aria-label={`${c.label ?? c.key} color ${i + 1}`}
+                          className="size-6 cursor-pointer rounded border bg-transparent p-0.5 disabled:cursor-default disabled:opacity-50"
+                        />
+                        {colors.length > min && !disabled && (
+                          <button
+                            type="button"
+                            onClick={() => setColors(colors.filter((_, j) => j !== i))}
+                            aria-label={`Remove color ${i + 1}`}
+                            className="absolute -top-1.5 -right-1.5 grid size-3.5 place-items-center rounded-full border bg-background text-[10px] leading-none text-muted-foreground hover:text-foreground"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </span>
                     ))}
-                  </select>
+                    {colors.length < max && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setColors([...colors, colors[colors.length - 1] ?? '#8a7bff'])
+                        }
+                        disabled={disabled}
+                        aria-label={`Add a color to ${c.label ?? c.key}`}
+                        className="grid size-6 place-items-center rounded border text-muted-foreground hover:text-foreground disabled:cursor-default disabled:opacity-50"
+                      >
+                        +
+                      </button>
+                    )}
+                  </div>
                 </label>
               );
             }

@@ -6,7 +6,7 @@
   "description": "Liquid Glass: the @liquidglassjs packages that power it, plus the showcase.",
   "license": "MIT",
   "author": "Amir Abushanab",
-  "packageManager": "pnpm@11.10.0",
+  "packageManager": "pnpm@11.13.1",
   "scripts": {
     "dev": "pnpm --filter showcase dev",
     "play": "pnpm --filter showcase dev",
@@ -20,6 +20,7 @@
     "knip": "knip",
     "depcruise": "depcruise packages apps",
     "check": "oxfmt --check packages apps && oxlint packages apps && pnpm -r typecheck && knip && depcruise packages apps",
+    "check:fix": "oxfmt packages apps && oxlint --fix packages apps",
     "changeset": "changeset",
     "ncu": "pnpm dlx npm-check-updates",
     "prepare": "simple-git-hooks"
@@ -29,11 +30,11 @@
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.7.0",
-    "@changesets/cli": "^2.31.0",
-    "dependency-cruiser": "^18.0.0",
-    "knip": "^6.24.0",
-    "oxfmt": "^0.57.0",
-    "oxlint": "^1.72.0",
+    "@changesets/cli": "^2.31.1",
+    "dependency-cruiser": "^18.1.0",
+    "knip": "^6.27.0",
+    "oxfmt": "^0.59.0",
+    "oxlint": "^1.74.0",
     "simple-git-hooks": "^2.13.1",
     "tsup": "^8.5.1",
     "typescript": "^6.0.3"

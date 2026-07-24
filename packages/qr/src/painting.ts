@@ -7,12 +7,30 @@
 // A click pushes a Splash — an expanding radial-gradient ring — and the cursor
 // leaves a soft blurred-shadow trail of Points.
 
-import { SPLASH_COLORS, nextColor } from '@liquidglassjs/core';
+import { SPLASH_COLORS } from '@liquidglassjs/core';
 
 // Error-correction → painted-centre fraction (also reused for the logo scale).
 export const EC_RADIUS: Record<string, number> = { L: 0.07, M: 0.15, Q: 0.25, H: 0.3 };
 
 const DEFAULT_RING_START = 0.7;
+
+// ── splash palette ───────────────────────────────────────────────────────────
+// The click ripple and the eyes' hover/press flashes cycle a palette of colours.
+// Per-instance brand palettes arrive via GlassQROptions.splashColors; the default
+// is core's shared SPLASH_COLORS. Values must be `#RRGGBB` hex — the trail points
+// and the eye tint parse them as hex (p3 / hexToRgb), so `rgb(…)`/`var(…)` don't
+// belong here (unlike dotColor/eyeColor, which resolve through the canvas).
+
+/** Resolve the instance palette, falling back to core's shared {@link SPLASH_COLORS}. */
+export function resolveSplashPalette(splashColors?: string[]): string[] {
+  return splashColors && splashColors.length > 0 ? splashColors : SPLASH_COLORS;
+}
+
+/** Advance to the next colour in `palette`; an absent/unknown current wraps to the first. */
+export function cycleColor(palette: string[], current?: string): string {
+  const i = current == null ? -1 : palette.indexOf(current);
+  return palette[(i + 1) % palette.length];
+}
 
 // hex (+ alpha) → display-p3 css string, matching Aave's `d()`.
 function p3(hex: string, alpha?: number): string {
@@ -132,6 +150,8 @@ export interface PaintingOptions {
   splashSpeed?: number;
   ringStart?: number;
   ringEnd?: number;
+  /** Hex palette the colour ripple cycles; defaults to core's SPLASH_COLORS. */
+  splashColors?: string[];
 }
 
 export class PaintingTexture {
@@ -149,6 +169,7 @@ export class PaintingTexture {
   private splashSpeed: number;
   private ringStart: number;
   private ringEnd: number;
+  private palette: string[];
   private splashes: Splash[] = [];
 
   constructor(o: PaintingOptions) {
@@ -162,7 +183,8 @@ export class PaintingTexture {
     this.splashSpeed = o.splashSpeed ?? (this.useColor ? 10 : 13);
     this.ringStart = o.ringStart ?? DEFAULT_RING_START;
     this.ringEnd = o.ringEnd ?? 0.9;
-    this.color = this.useColor ? SPLASH_COLORS[0] : '#ffffff';
+    this.palette = resolveSplashPalette(o.splashColors);
+    this.color = this.useColor ? this.palette[0] : '#ffffff';
     this.canvas = o.canvas ?? new OffscreenCanvas(this.size, this.size);
     this.canvas.width = this.size;
     this.canvas.height = this.size;
@@ -235,7 +257,7 @@ export class PaintingTexture {
         originY: ny * this.size,
       }),
     );
-    if (this.useColor) this.color = nextColor(this.color);
+    if (this.useColor) this.color = cycleColor(this.palette, this.color);
   }
 
   get pointCount() {

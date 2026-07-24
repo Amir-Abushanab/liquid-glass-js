@@ -31,11 +31,14 @@ export function GlassQR({ className, style, ...opts }: GlassQRProps) {
     errorCorrectionLevel,
     dotColor,
     backgroundColor,
+    eyeColor,
+    splashColors,
     logo,
     reserveCenter,
     image,
     nonce,
     styles,
+    playOnReveal,
     ...params
   } = opts;
   // A `logo` Node serialises to {} here, so swapping one Node for another won't
@@ -46,11 +49,14 @@ export function GlassQR({ className, style, ...opts }: GlassQRProps) {
     errorCorrectionLevel,
     dotColor,
     backgroundColor,
+    eyeColor,
+    splashColors,
     logo: typeof logo === 'object' ? true : logo,
     reserveCenter,
     image,
     nonce,
     styles,
+    playOnReveal,
   });
   useEffect(() => {
     if (!ref.current) return;

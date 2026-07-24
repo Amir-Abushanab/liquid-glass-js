@@ -82,6 +82,12 @@ export type TuneControl =
       options: { label: string; value: string }[];
       default: string;
       disabled?: (o: TuneOptions) => boolean;
+      /**
+       * Colour preview for the current value, shown as swatches inline beside the
+       * dropdown. Native `<option>`s can't carry a swatch, so this reflects the
+       * selection rather than every row. Return `[]` for a value with no colour.
+       */
+      swatches?: (value: string) => string[];
     }
   | {
       kind: 'text';
@@ -91,7 +97,31 @@ export type TuneControl =
       placeholder?: string;
       maxLength?: number;
       disabled?: (o: TuneOptions) => boolean;
+    }
+  | {
+      kind: 'palette';
+      key: string;
+      label?: string;
+      /** Comma-joined hex, e.g. `'#1db954,#ff3200'`; each colour edits via a native picker. */
+      default: string;
+      /** Colour-count bounds for the add/remove affordances (defaults 1…5). */
+      min?: number;
+      max?: number;
+      disabled?: (o: TuneOptions) => boolean;
     };
+
+/** Parse a comma-joined palette string into hex colours (drops blanks). */
+export const parsePalette = (s: string): string[] =>
+  s
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+/** Join a palette back to the comma string stored in a `palette` control's value. */
+export const joinPalette = (a: string[]): string => a.join(',');
+
+/** A `#rrggbb` colour — the only shape the QR's hex parsers (and native pickers) accept. */
+const isHexColor = (s: string): boolean => /^#[0-9a-fA-F]{6}$/.test(s);
 
 /** Current value of each structural control, e.g. `{ value: '…', logo: 'default', reserveCenter: true }`. */
 export type TuneOptions = Record<string, string | boolean>;
@@ -434,6 +464,45 @@ const qrLogoSource = (choice: unknown): string | null =>
       ? `"${QR_EMOJI_LOGO.replace(/"/g, '\\"')}"`
       : null;
 
+// Preset palettes for the "splash palette" control — a single-colour brand accent
+// and two multi-colour sets, to show `splashColors` is an array of any length. The
+// default ('default') maps to `undefined`, keeping the library's built-in palette.
+const QR_SPLASH_PALETTES: Record<string, string[]> = {
+  emerald: ['#1DB954'],
+  sunset: ['#FF3200', '#FFB400', '#FF5CA8'],
+  ocean: ['#39D1F9', '#5CE0A8', '#8A7BFF'],
+};
+
+/**
+ * Map the palette choice to the GlassQR `splashColors` prop. A preset reads the
+ * palette table; 'custom' parses the `customSplash` builder (valid hex only);
+ * 'default' (or nothing valid) → undefined, keeping the library's built-in palette.
+ */
+const qrSplashColors = (o: TuneOptions): string[] | undefined => {
+  if (o.splashColors === 'custom') {
+    const c = parsePalette(String(o.customSplash ?? '')).filter(isHexColor);
+    return c.length ? c : undefined;
+  }
+  return typeof o.splashColors === 'string' ? QR_SPLASH_PALETTES[o.splashColors] : undefined;
+};
+
+/** Map the eye-colour choice to the GlassQR `eyeColor` prop ('dots' → follow dotColor). */
+const qrEyeColor = (choice: unknown): string | undefined =>
+  typeof choice === 'string' && choice !== 'dots' ? choice : undefined;
+
+/** Render `splashColors` as the array literal in the snippet, e.g. `['#1DB954']`. */
+const qrSplashSource = (o: TuneOptions): string | null => {
+  const p = qrSplashColors(o);
+  return p ? `[${p.map((c) => `'${c}'`).join(', ')}]` : null;
+};
+
+// Inline-swatch colours per splash-palette choice; 'default' previews core's
+// built-in SPLASH_COLORS (mirrored here so the showcase doesn't import the barrel).
+const QR_SPLASH_SWATCHES: Record<string, string[]> = {
+  default: ['#9896FF', '#39D1F9', '#FFB400', '#FF3200'],
+  ...QR_SPLASH_PALETTES,
+};
+
 const QR_TUNE: TuneConfig = {
   needs: 'webgl2',
   controls: [
@@ -465,6 +534,56 @@ const QR_TUNE: TuneConfig = {
       default: true,
       disabled: (o) => o.logo !== 'none',
     },
+    // Colour options re-mount the QR (same channel as value/logo). 'dots'/'default'
+    // emit no prop, so the eyes follow dotColor and the ripple keeps the built-in palette.
+    {
+      kind: 'select',
+      key: 'eyeColor',
+      label: 'eye color',
+      options: [
+        { label: 'Match dots', value: 'dots' },
+        { label: 'Emerald', value: '#1DB954' },
+        { label: 'Amber', value: '#FFB400' },
+        { label: 'Rose', value: '#FF5CA8' },
+      ],
+      default: 'dots',
+      // 'dots' previews the demo's dotColor; every other value is itself a colour.
+      swatches: (v) => (v === 'dots' ? ['#f6f6f6'] : [v]),
+    },
+    {
+      kind: 'select',
+      key: 'splashColors',
+      label: 'splash palette',
+      options: [
+        { label: 'Default', value: 'default' },
+        { label: 'Emerald (1)', value: 'emerald' },
+        { label: 'Sunset (3)', value: 'sunset' },
+        { label: 'Ocean (3)', value: 'ocean' },
+        { label: 'Custom…', value: 'custom' },
+      ],
+      default: 'default',
+      // 'custom' shows its colours in the builder below, so no beside-swatch for it.
+      swatches: (v) => QR_SPLASH_SWATCHES[v] ?? [],
+    },
+    // Enabled only when "Custom…" is chosen. Native pickers emit valid #rrggbb, so
+    // the shader can't be handed a broken hex; unused when a preset is selected.
+    {
+      kind: 'palette',
+      key: 'customSplash',
+      label: 'custom colors',
+      default: '#1db954,#ff3200',
+      min: 1,
+      max: 5,
+      disabled: (o) => o.splashColors !== 'custom',
+    },
+    // Re-mounts the QR; when on, the press animation fires once as it's revealed
+    // (respects prefers-reduced-motion). Toggle it to replay the entrance.
+    {
+      kind: 'toggle',
+      key: 'playOnReveal',
+      label: 'play on reveal',
+      default: false,
+    },
   ],
   // Refraction knobs first, then the click-bloom animation timings.
   params: [
@@ -481,6 +600,8 @@ const QR_TUNE: TuneConfig = {
   code: (v, o = {}) => {
     const logoSrc = qrLogoSource(o.logo);
     const reserve = qrReserveCenter(o);
+    const eye = qrEyeColor(o.eyeColor);
+    const splashSrc = qrSplashSource(o);
     return `import { GlassQR } from "@liquidglassjs/qr/react"
 
 export function Example() {
@@ -489,7 +610,7 @@ export function Example() {
       value="${String(o.value || 'https://liquidglassjs.dev')}"
       size={220}
       dotColor="#f6f6f6"
-      backgroundColor="#0a0a0a"${logoSrc ? `\n      logo=${logoSrc}` : ''}${logoSrc === '{false}' && reserve ? '\n      reserveCenter' : ''}
+      backgroundColor="#0a0a0a"${eye ? `\n      eyeColor="${eye}"` : ''}${splashSrc ? `\n      splashColors={${splashSrc}}` : ''}${logoSrc ? `\n      logo=${logoSrc}` : ''}${logoSrc === '{false}' && reserve ? '\n      reserveCenter' : ''}
       scaleX={${v.scaleX}}
       scaleY={${v.scaleY}}
       chromaAmount={${v.chromaAmount}}
@@ -498,7 +619,7 @@ export function Example() {
       lensDuration={${v.lensDuration}}
       colorSplash={${v.colorSplash}}
       ringStart={${v.ringStart}}
-      ringEnd={${v.ringEnd}}
+      ringEnd={${v.ringEnd}}${o.playOnReveal ? '\n      playOnReveal' : ''}
       className="rounded-2xl"
     />
   )
@@ -1034,6 +1155,9 @@ export const registry: RegistryItem[] = [
         size={220}
         dotColor="#f6f6f6"
         backgroundColor="#0a0a0a"
+        eyeColor={qrEyeColor(o.eyeColor)}
+        splashColors={qrSplashColors(o)}
+        playOnReveal={Boolean(o.playOnReveal)}
         logo={qrLogoProp(o.logo)}
         reserveCenter={qrReserveCenter(o)}
         scaleX={v.scaleX}

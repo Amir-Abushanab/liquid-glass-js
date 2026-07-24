@@ -7,8 +7,8 @@
 
 import { buildQRGeometry } from './geometry';
 import { QRGlassRenderer } from './renderer';
-import { PaintingTexture, EC_RADIUS } from './painting';
-import { hexToRgb, nextColor } from '@liquidglassjs/core';
+import { PaintingTexture, EC_RADIUS, resolveSplashPalette, cycleColor } from './painting';
+import { hexToRgb } from '@liquidglassjs/core';
 import { LensGenerator } from './lens';
 import { injectStyles } from './styles';
 import { resolveLogo } from './logo';
@@ -20,6 +20,20 @@ export interface GlassQROptions {
   errorCorrectionLevel?: 'L' | 'M' | 'Q' | 'H';
   dotColor?: string;
   backgroundColor?: string;
+  /**
+   * Resting colour of the three eyes (the finder patterns). Defaults to
+   * `dotColor`, so the eyes match the modules unless you set this. Accepts any
+   * CSS colour (including `var(--…)`), resolved once at mount.
+   */
+  eyeColor?: string;
+  /**
+   * Palette the click ripple and the eyes' hover/press flashes cycle through, in
+   * order. Defaults to the library's built-in `SPLASH_COLORS`. Pass a
+   * single-element array (e.g. `['#1DB954']`) to pin one fixed brand accent.
+   * Values must be `#RRGGBB` hex — the ripple trail and eye tint parse them as
+   * hex, so `rgb(…)`/`var(…)` won't work here (unlike `eyeColor`/`dotColor`).
+   */
+  splashColors?: string[];
   /**
    * The centre mark. Defaults to the built-in glass mark; `false` renders no
    * logo (and, unless `reserveCenter` says otherwise, encodes the middle too).
@@ -50,6 +64,13 @@ export interface GlassQROptions {
   colorSplash?: number; // ms-ish; splashSpeed = 3000 / colorSplash
   ringStart?: number;
   ringEnd?: number;
+  /**
+   * Play the press animation once, automatically, the first time the QR scrolls
+   * into view (not on mount — a below-the-fold QR waits until it's revealed).
+   * Honours `prefers-reduced-motion` (skipped when the user asks for reduced
+   * motion). Default false. For manual control, call the handle's `press()`.
+   */
+  playOnReveal?: boolean;
 }
 
 // The subset of options the Glass Tuner can change at runtime (refraction + bloom).
@@ -73,6 +94,12 @@ export interface GlassQRHandle {
   /** Tear down: cancels frames, drops listeners, frees GL, removes the DOM. */
   dispose(): void;
   reconfigure(patch: Partial<GlassQRParams>): void;
+  /**
+   * Fire the press animation — the refraction bloom + colour ripple + eye press +
+   * 360° logo spin — as if the centre were tapped. Works even with `logo: false`
+   * (no button to click). This is what `playOnReveal` calls on first reveal.
+   */
+  press(): void;
 }
 
 // ── easing + spring helpers ───────────────────────────────────────────────
@@ -150,6 +177,8 @@ export function mountGlassQR(container: HTMLElement, opts: GlassQROptions): Glas
   const ec = opts.errorCorrectionLevel ?? 'Q';
   const dotColor = opts.dotColor ?? 'var(--ink)';
   const backgroundColor = opts.backgroundColor ?? 'var(--paper)';
+  const eyeColor = opts.eyeColor ?? dotColor;
+  const palette = resolveSplashPalette(opts.splashColors);
   const logoNode = resolveLogo(opts.logo);
   // Reserving the centre spends error-correction budget, so it follows the logo
   // unless asked otherwise. `image` is the old name for the same switch.
@@ -163,6 +192,7 @@ export function mountGlassQR(container: HTMLElement, opts: GlassQROptions): Glas
   const colorSplash = opts.colorSplash ?? 300;
   const ringStart = opts.ringStart ?? 0.15;
   const ringEnd = opts.ringEnd ?? 0.9;
+  const playOnReveal = opts.playOnReveal ?? false;
 
   const S = size; // the "/300" constants in Aave are the QR size
   const HALF_SIZE = 0.54 * S; // Aave: 162 at size 300
@@ -251,9 +281,10 @@ export function mountGlassQR(container: HTMLElement, opts: GlassQROptions): Glas
   );
   renderer.updateEyeRefractionScale(eyeRefractionScale);
 
-  // resolve dotColor for the painting clear color (via the live canvas)
+  // resolve colours for the painting clear (dots) + the eyes' resting tint, both
+  // via the live canvas so `var(--…)` resolves. Eyes fall back to dotColor.
   const clearColor = renderer.resolveCssColorString(dotColor);
-  const defaultColor = renderer.resolveCssColor(dotColor);
+  const defaultColor = renderer.resolveCssColor(eyeColor);
 
   const splashSpeed = 3000 / colorSplash;
   const colorPaint = build(
@@ -269,6 +300,7 @@ export function mountGlassQR(container: HTMLElement, opts: GlassQROptions): Glas
         splashSpeed,
         ringStart,
         ringEnd,
+        splashColors: palette,
       }),
   );
   const shapePaint = build(
@@ -292,7 +324,7 @@ export function mountGlassQR(container: HTMLElement, opts: GlassQROptions): Glas
     defaultColor,
     hoverGroup: -1,
     clickColor: null as number[] | null,
-    hoverRgb: hexToRgb(nextColor(undefined as unknown as string)),
+    hoverRgb: hexToRgb(cycleColor(palette)),
     lerpMultiplier: 1,
   };
   const eyeBounds: number[][] = [];
@@ -541,7 +573,7 @@ export function mountGlassQR(container: HTMLElement, opts: GlassQROptions): Glas
     clearFTimers();
     if (!color) {
       state.clickColor = null;
-      state.hoverRgb = hexToRgb(nextColor(undefined as unknown as string));
+      state.hoverRgb = hexToRgb(cycleColor(palette));
       state.lerpMultiplier = 0.125;
       restartQR();
       return;
@@ -551,7 +583,7 @@ export function mountGlassQR(container: HTMLElement, opts: GlassQROptions): Glas
     lastClickTime = now;
     const delay = 300 * (rapid ? 0 : 1);
     const rgb = hexToRgb(color);
-    state.hoverRgb = hexToRgb(nextColor(color));
+    state.hoverRgb = hexToRgb(cycleColor(palette, color));
     state.lerpMultiplier = 0.5;
     fTimers.push(
       setTimeout(
@@ -579,17 +611,19 @@ export function mountGlassQR(container: HTMLElement, opts: GlassQROptions): Glas
     fTimers.push(setTimeout(() => setF(undefined), 2000));
   }
 
-  function handleClick() {
+  // The full press choreography, decoupled from the click event so `playOnReveal`
+  // and the handle's `press()` can fire it without a logo button to click.
+  function press() {
     colorPaint.onClick();
     shapePaint.onClick();
-    setF(nextColor(fColor as unknown as string));
+    setF(cycleColor(palette, fColor));
     clickCounter += 1;
     spin.set(360 * clickCounter);
     wakeSprings();
     triggerSplash();
     restartQR();
   }
-  logo?.addEventListener('click', handleClick);
+  logo?.addEventListener('click', press);
 
   function onPointerMove(e: PointerEvent) {
     // 3D tilt
@@ -628,10 +662,24 @@ export function mountGlassQR(container: HTMLElement, opts: GlassQROptions): Glas
   root.addEventListener('pointerleave', onPointerLeave);
 
   // ── visibility ──
+  // `playOnReveal` fires the press once, the first time the QR enters the viewport
+  // (the 300px margin means it animates as it approaches). Gated on prefers-
+  // reduced-motion in JS: the CSS guard only covers the CSS tilt/rotator
+  // transitions, but this animation is JS/WebGL, so it needs its own check. When
+  // matchMedia is unavailable, treat it as no-preference and play.
+  let revealed = false;
+  const wantsReveal =
+    playOnReveal && !window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
   const io = new IntersectionObserver(
     (entries) => {
       visible = entries[0].isIntersecting;
-      if (visible) restartQR();
+      if (visible) {
+        restartQR();
+        if (wantsReveal && !revealed) {
+          revealed = true;
+          press();
+        }
+      }
     },
     { rootMargin: '300px 0px' },
   );
@@ -652,7 +700,7 @@ export function mountGlassQR(container: HTMLElement, opts: GlassQROptions): Glas
     root.removeEventListener('pointermove', onPointerMove);
     root.removeEventListener('pointerdown', onPointerDown);
     root.removeEventListener('pointerleave', onPointerLeave);
-    logo?.removeEventListener('click', handleClick);
+    logo?.removeEventListener('click', press);
     renderer.cleanUp();
     colorPaint.cleanUp();
     shapePaint.cleanUp();
@@ -688,5 +736,5 @@ export function mountGlassQR(container: HTMLElement, opts: GlassQROptions): Glas
     }
   };
 
-  return Object.assign(dispose, { dispose, reconfigure });
+  return Object.assign(dispose, { dispose, reconfigure, press });
 }
