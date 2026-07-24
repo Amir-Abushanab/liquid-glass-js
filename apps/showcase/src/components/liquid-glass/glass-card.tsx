@@ -1,9 +1,6 @@
-import * as React from "react";
-import {
-  GlassSurface,
-  type GlassSurfaceProps,
-} from "@/components/liquid-glass/glass-surface";
-import { cn } from "@/lib/utils";
+import * as React from 'react';
+import { GlassSurface, type GlassSurfaceProps } from '@/components/liquid-glass/glass-surface';
+import { cn } from '@/lib/utils';
 
 export type GlassCardProps = GlassSurfaceProps;
 
@@ -15,10 +12,7 @@ export type GlassCardProps = GlassSurfaceProps;
 export function GlassCard({ className, children, ...props }: GlassCardProps) {
   return (
     <GlassSurface
-      className={cn(
-        "border border-white/15 p-6 text-foreground shadow-xl",
-        className,
-      )}
+      className={cn('border border-white/15 p-6 text-foreground shadow-xl', className)}
       {...props}
     >
       {children}

@@ -2,5 +2,10 @@
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
   "singleQuote": true,
   "printWidth": 100,
-  "ignorePatterns": ["dist"]
+  "ignorePatterns": [
+    "dist",
+    "packages/qr/src/css/qr.css",
+    "apps/showcase/src/body.html",
+    "apps/registry/public"
+  ]
 }

@@ -23,11 +23,11 @@ already do).
 
 ## Components
 
-| Item | Source | Notes |
-|---|---|---|
-| `glass-surface` | `../showcase/src/components/liquid-glass/glass-surface.tsx` | Base restyleable surface over `<LiquidGlass>`. |
-| `glass-card` | `../showcase/src/components/liquid-glass/glass-card.tsx` | Card chrome on top of `glass-surface`. |
-| `glass-dialog` | `../showcase/src/components/liquid-glass/glass-dialog.tsx` | Modal dialog: [Base UI](https://base-ui.com) `Dialog` (focus trap, scroll lock, ARIA, dismissal) with a frosted glass panel. Adds `@base-ui/react` as a dependency. |
+| Item            | Source                                                      | Notes                                                                                                                                                               |
+| --------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `glass-surface` | `../showcase/src/components/liquid-glass/glass-surface.tsx` | Base restyleable surface over `<LiquidGlass>`.                                                                                                                      |
+| `glass-card`    | `../showcase/src/components/liquid-glass/glass-card.tsx`    | Card chrome on top of `glass-surface`.                                                                                                                              |
+| `glass-dialog`  | `../showcase/src/components/liquid-glass/glass-dialog.tsx`  | Modal dialog: [Base UI](https://base-ui.com) `Dialog` (focus trap, scroll lock, ARIA, dismissal) with a frosted glass panel. Adds `@base-ui/react` as a dependency. |
 
 ## Build
 

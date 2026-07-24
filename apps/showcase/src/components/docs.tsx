@@ -1,19 +1,19 @@
-import { Info } from 'lucide-react'
-import { GlassText } from '@liquidglassjs/react'
-import { registry, registryBySlug } from '@/lib/registry'
-import { ComponentPreview, InstallCommand, PreviewBackdrop, withBase } from '@/components/site'
+import { Info } from 'lucide-react';
+import { GlassText } from '@liquidglassjs/react';
+import { registry, registryBySlug } from '@/lib/registry';
+import { ComponentPreview, InstallCommand, PreviewBackdrop, withBase } from '@/components/site';
 
 /** The per-component docs page body (hydrated island). */
 export function ComponentDoc({ slug }: { slug: string }) {
-  const item = registryBySlug.get(slug)
+  const item = registryBySlug.get(slug);
   if (!item) {
     return (
       <div className="mx-auto max-w-3xl text-muted-foreground">
         No component named <code className="rounded bg-muted px-1.5 py-0.5 text-sm">{slug}</code>.
       </div>
-    )
+    );
   }
-  const Icon = item.icon
+  const Icon = item.icon;
   return (
     <article className="mx-auto max-w-3xl">
       <div className="flex items-center gap-3">
@@ -38,15 +38,17 @@ export function ComponentDoc({ slug }: { slug: string }) {
       {!item.npm && (
         <p className="mt-3 text-sm text-muted-foreground">
           Copies the source into{' '}
-          <code className="rounded bg-muted px-1.5 py-0.5 text-xs">components/liquid-glass/</code> and installs
-          its dependencies. Requires a shadcn-initialized project.
+          <code className="rounded bg-muted px-1.5 py-0.5 text-xs">components/liquid-glass/</code>{' '}
+          and installs its dependencies. Requires a shadcn-initialized project.
         </p>
       )}
 
       <div className="mt-4 flex gap-3 rounded-lg border border-primary/25 bg-primary/[0.04] p-4">
         <Info className="mt-0.5 size-4 shrink-0 text-primary" />
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground">Remember to load the glass chrome CSS once</p>
+          <p className="text-sm font-semibold text-foreground">
+            Remember to load the glass chrome CSS once
+          </p>
           <p className="mt-1 text-sm text-muted-foreground">
             {item.npm
               ? 'Import the component where you use it, then load the shared stylesheet a single time'
@@ -59,7 +61,7 @@ export function ComponentDoc({ slug }: { slug: string }) {
         </div>
       </div>
     </article>
-  )
+  );
 }
 
 /** The registry landing body: a glass hero + the component card grid. */
@@ -78,14 +80,14 @@ export function DocsLanding() {
         <p className="mb-2 text-sm font-medium text-muted-foreground">shadcn-compatible registry</p>
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Components</h1>
         <p className="mt-3 max-w-2xl text-lg text-muted-foreground">
-          React components in liquid glass, with real SVG refraction rather than a flat blur. Base UI
-          provides the behavior; the glass is the skin. Install any of them with the shadcn CLI.
+          React components in liquid glass, with real SVG refraction rather than a flat blur. Base
+          UI provides the behavior; the glass is the skin. Install any of them with the shadcn CLI.
         </p>
       </section>
 
       <div className="grid gap-4 sm:grid-cols-2">
         {registry.map((item) => {
-          const Icon = item.icon
+          const Icon = item.icon;
           return (
             <a
               key={item.slug}
@@ -106,9 +108,9 @@ export function DocsLanding() {
                 View component →
               </span>
             </a>
-          )
+          );
         })}
       </div>
     </div>
-  )
+  );
 }

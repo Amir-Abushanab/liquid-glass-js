@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import { Switch as BaseSwitch } from "@base-ui/react/switch";
-import { mountGlassLens } from "@liquidglassjs/core";
-import { cn } from "@/lib/utils";
-import "@liquidglassjs/core/css";
+import * as React from 'react';
+import { Switch as BaseSwitch } from '@base-ui/react/switch';
+import { mountGlassLens } from '@liquidglassjs/core';
+import { cn } from '@/lib/utils';
+import '@liquidglassjs/core/css';
 
 const TRACK_W = 48;
 const TRACK_H = 28;
@@ -80,16 +80,16 @@ function GlassSwitch({
       lens.setActive(true);
     };
     const up = () => lens.setActive(false);
-    root.addEventListener("pointerdown", down);
-    window.addEventListener("pointerup", up);
-    root.addEventListener("pointercancel", up);
+    root.addEventListener('pointerdown', down);
+    window.addEventListener('pointerup', up);
+    root.addEventListener('pointercancel', up);
     const ro = new ResizeObserver(place);
     ro.observe(root);
 
     return () => {
-      root.removeEventListener("pointerdown", down);
-      window.removeEventListener("pointerup", up);
-      root.removeEventListener("pointercancel", up);
+      root.removeEventListener('pointerdown', down);
+      window.removeEventListener('pointerup', up);
+      root.removeEventListener('pointercancel', up);
       ro.disconnect();
       lens.dispose();
     };
@@ -101,8 +101,8 @@ function GlassSwitch({
       ref={rootRef}
       style={{ width: TRACK_W, height: TRACK_H, padding: PAD }}
       className={cn(
-        "group relative isolate inline-flex shrink-0 cursor-pointer items-center rounded-full outline-none ring-1 ring-white/15",
-        "focus-visible:ring-2 focus-visible:ring-white/50 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50",
+        'group relative isolate inline-flex shrink-0 cursor-pointer items-center rounded-full outline-none ring-1 ring-white/15',
+        'focus-visible:ring-2 focus-visible:ring-white/50 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50',
         className,
       )}
       {...props}
@@ -112,24 +112,24 @@ function GlassSwitch({
         ref={railRef}
         aria-hidden
         className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-full"
-        style={{ background: "rgb(255 255 255 / 12%)" }}
+        style={{ background: 'rgb(255 255 255 / 12%)' }}
       >
         <span
           className="absolute inset-0 rounded-full opacity-0 transition-opacity duration-300 group-data-[checked]:opacity-100"
-          style={{ background: "linear-gradient(90deg, #12d3ff, #8b6bff 52%, #ff5db1)" }}
+          style={{ background: 'linear-gradient(90deg, #12d3ff, #8b6bff 52%, #ff5db1)' }}
         />
       </span>
       <BaseSwitch.Thumb
         ref={thumbRef}
         style={{ width: THUMB, height: THUMB }}
         className={cn(
-          "relative z-10 rounded-full bg-white",
-          "shadow-[inset_0_1px_1px_rgb(255_255_255/70%),inset_0_0_0_1px_rgb(255_255_255/25%),inset_0_-2px_4px_rgb(0_0_0/22%),0_2px_6px_-1px_rgb(0_0_0/40%)]",
-          "transition-[transform,translate,background-color] duration-300 ease-[cubic-bezier(0.34,1.4,0.5,1)]",
+          'relative z-10 rounded-full bg-white',
+          'shadow-[inset_0_1px_1px_rgb(255_255_255/70%),inset_0_0_0_1px_rgb(255_255_255/25%),inset_0_-2px_4px_rgb(0_0_0/22%),0_2px_6px_-1px_rgb(0_0_0/40%)]',
+          'transition-[transform,translate,background-color] duration-300 ease-[cubic-bezier(0.34,1.4,0.5,1)]',
           // slide on check (20px — see the geometry note above)
-          "data-[checked]:[translate:20px]",
+          'data-[checked]:[translate:20px]',
           // press → pop (springy) + go clear so the refracting track shows through the glass
-          "group-active:[transform:scale(1.12)] group-active:[background-color:transparent]",
+          'group-active:[transform:scale(1.12)] group-active:[background-color:transparent]',
         )}
       />
     </BaseSwitch.Root>

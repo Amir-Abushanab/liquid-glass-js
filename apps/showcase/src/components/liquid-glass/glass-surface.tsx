@@ -1,7 +1,7 @@
-import * as React from "react";
-import { LiquidGlass, type LiquidGlassProps } from "@liquidglassjs/react";
-import { cn } from "@/lib/utils";
-import "@liquidglassjs/core/css";
+import * as React from 'react';
+import { LiquidGlass, type LiquidGlassProps } from '@liquidglassjs/react';
+import { cn } from '@/lib/utils';
+import '@liquidglassjs/core/css';
 
 export type GlassSurfaceProps = LiquidGlassProps;
 
@@ -25,7 +25,7 @@ export function GlassSurface({
   return (
     <LiquidGlass
       radius={radius}
-      className={cn("relative isolate overflow-hidden", className)}
+      className={cn('relative isolate overflow-hidden', className)}
       style={{ borderRadius: radius, ...style }}
       {...props}
     >

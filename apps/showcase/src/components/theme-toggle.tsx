@@ -1,11 +1,11 @@
-import * as React from 'react'
-import { flushSync } from 'react-dom'
-import { Moon, Sun } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import * as React from 'react';
+import { flushSync } from 'react-dom';
+import { Moon, Sun } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 type ViewTransitionDocument = Document & {
-  startViewTransition?: (callback: () => void) => { ready: Promise<void> }
-}
+  startViewTransition?: (callback: () => void) => { ready: Promise<void> };
+};
 
 /**
  * MagicUI-style animated theme toggle: a circular View-Transitions reveal wipes
@@ -15,56 +15,53 @@ type ViewTransitionDocument = Document & {
  * instant swap where View Transitions or reduced-motion apply.
  */
 export function AnimatedThemeToggle({ className }: { className?: string }) {
-  const ref = React.useRef<HTMLButtonElement>(null)
-  const [mounted, setMounted] = React.useState(false)
-  const [dark, setDark] = React.useState(false)
+  const ref = React.useRef<HTMLButtonElement>(null);
+  const [mounted, setMounted] = React.useState(false);
+  const [dark, setDark] = React.useState(false);
 
   React.useEffect(() => {
-    setMounted(true)
-    setDark(document.documentElement.classList.contains('dark'))
-  }, [])
+    setMounted(true);
+    setDark(document.documentElement.classList.contains('dark'));
+  }, []);
 
   const apply = React.useCallback(() => {
-    const next = !document.documentElement.classList.contains('dark')
-    document.documentElement.classList.toggle('dark', next)
+    const next = !document.documentElement.classList.contains('dark');
+    document.documentElement.classList.toggle('dark', next);
     try {
-      window.localStorage.setItem('theme', next ? 'dark' : 'light')
+      window.localStorage.setItem('theme', next ? 'dark' : 'light');
     } catch {
       /* ignore */
     }
-    setDark(next)
-  }, [])
+    setDark(next);
+  }, []);
 
   const toggle = React.useCallback(async () => {
-    const el = ref.current
-    const start = (document as ViewTransitionDocument).startViewTransition
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const el = ref.current;
+    const start = (document as ViewTransitionDocument).startViewTransition;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!el || reduce || typeof start !== 'function') {
-      apply()
-      return
+      apply();
+      return;
     }
-    await start.call(document, () => flushSync(apply)).ready
-    const { top, left, width, height } = el.getBoundingClientRect()
-    const x = left + width / 2
-    const y = top + height / 2
+    await start.call(document, () => flushSync(apply)).ready;
+    const { top, left, width, height } = el.getBoundingClientRect();
+    const x = left + width / 2;
+    const y = top + height / 2;
     const maxRadius = Math.hypot(
       Math.max(left, window.innerWidth - left),
       Math.max(top, window.innerHeight - top),
-    )
+    );
     document.documentElement.animate(
       {
-        clipPath: [
-          `circle(0px at ${x}px ${y}px)`,
-          `circle(${maxRadius}px at ${x}px ${y}px)`,
-        ],
+        clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${maxRadius}px at ${x}px ${y}px)`],
       },
       {
         duration: 640,
         easing: 'ease-in-out',
         pseudoElement: '::view-transition-new(root)',
       },
-    )
-  }, [apply])
+    );
+  }, [apply]);
 
   return (
     <button
@@ -87,5 +84,5 @@ export function AnimatedThemeToggle({ className }: { className?: string }) {
         <span className="size-4" />
       )}
     </button>
-  )
+  );
 }

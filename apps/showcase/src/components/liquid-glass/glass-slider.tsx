@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import { Slider as BaseSlider } from "@base-ui/react/slider";
-import { mountGlassLens } from "@liquidglassjs/core";
-import { cn } from "@/lib/utils";
-import "@liquidglassjs/core/css";
+import * as React from 'react';
+import { Slider as BaseSlider } from '@base-ui/react/slider';
+import { mountGlassLens } from '@liquidglassjs/core';
+import { cn } from '@/lib/utils';
+import '@liquidglassjs/core/css';
 
 const RAIL = 28; // rail + lens height (px)
 const THUMB = 24; // thumb diameter (px)
@@ -80,13 +80,13 @@ function GlassSlider({
     };
     const sync = () => {
       place();
-      lens.setActive(thumb.hasAttribute("data-dragging"));
+      lens.setActive(thumb.hasAttribute('data-dragging'));
     };
     place();
 
     // Base UI rewrites the thumb's inline style on every move + toggles data-dragging.
     const mo = new MutationObserver(sync);
-    mo.observe(thumb, { attributes: true, attributeFilter: ["data-dragging", "style"] });
+    mo.observe(thumb, { attributes: true, attributeFilter: ['data-dragging', 'style'] });
     const ro = new ResizeObserver(place);
     ro.observe(host);
 
@@ -99,7 +99,7 @@ function GlassSlider({
   }, [strength, chroma, dome, depth, edge, glow]);
 
   return (
-    <BaseSlider.Root className={cn("w-full", className)} {...props}>
+    <BaseSlider.Root className={cn('w-full', className)} {...props}>
       <BaseSlider.Control
         ref={hostRef}
         className="relative isolate flex w-full touch-none items-center select-none"
@@ -110,14 +110,14 @@ function GlassSlider({
           ref={railRef}
           aria-hidden
           className="pointer-events-none absolute inset-x-0 top-1/2 z-0 -translate-y-1/2 overflow-hidden rounded-full ring-1 ring-white/15"
-          style={{ height: RAIL, background: "rgb(255 255 255 / 10%)" }}
+          style={{ height: RAIL, background: 'rgb(255 255 255 / 10%)' }}
         >
           <div
             ref={fillRef}
             className="h-full rounded-full"
             style={{
               width: `${initialPct}%`,
-              background: "linear-gradient(90deg, #12d3ff, #8b6bff 52%, #ff5db1)",
+              background: 'linear-gradient(90deg, #12d3ff, #8b6bff 52%, #ff5db1)',
             }}
           />
         </div>
@@ -127,12 +127,12 @@ function GlassSlider({
             ref={thumbRef}
             style={{ width: THUMB, height: THUMB }}
             className={cn(
-              "rounded-full bg-white outline-none",
-              "shadow-[inset_0_1px_1px_rgb(255_255_255/70%),inset_0_0_0_1px_rgb(255_255_255/25%),inset_0_-2px_5px_rgb(0_0_0/22%),0_4px_10px_-4px_rgb(0_0_0/45%)]",
-              "transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.34,1.4,0.5,1)]",
-              "focus-visible:ring-2 focus-visible:ring-white/60",
+              'rounded-full bg-white outline-none',
+              'shadow-[inset_0_1px_1px_rgb(255_255_255/70%),inset_0_0_0_1px_rgb(255_255_255/25%),inset_0_-2px_5px_rgb(0_0_0/22%),0_4px_10px_-4px_rgb(0_0_0/45%)]',
+              'transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.34,1.4,0.5,1)]',
+              'focus-visible:ring-2 focus-visible:ring-white/60',
               // while dragging: pop (springy) + go clear so the refracting rail shows through the glass
-              "data-[dragging]:[transform:scale(1.16)] data-[dragging]:[background-color:transparent]",
+              'data-[dragging]:[transform:scale(1.16)] data-[dragging]:[background-color:transparent]',
             )}
           />
         </BaseSlider.Track>

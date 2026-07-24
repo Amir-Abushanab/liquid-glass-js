@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import { Menu as BaseMenu } from "@base-ui/react/menu";
-import { LiquidGlass } from "@liquidglassjs/react";
-import { cn } from "@/lib/utils";
-import "@liquidglassjs/core/css";
+import * as React from 'react';
+import { Menu as BaseMenu } from '@base-ui/react/menu';
+import { LiquidGlass } from '@liquidglassjs/react';
+import { cn } from '@/lib/utils';
+import '@liquidglassjs/core/css';
 
 /**
  * Liquid-glass Dropdown Menu — Base UI's Menu (anchored positioning, roving focus,
@@ -49,10 +49,10 @@ function GlassDropdownMenuContent({
       <BaseMenu.Positioner sideOffset={sideOffset} className="z-50 outline-none">
         <BaseMenu.Popup
           className={cn(
-            "relative min-w-44 origin-[var(--transform-origin)] overflow-hidden rounded-2xl p-1.5 shadow-2xl outline-none",
-            "transition-[transform,opacity] duration-150 ease-out",
-            "data-[starting-style]:scale-95 data-[starting-style]:opacity-0",
-            "data-[ending-style]:scale-95 data-[ending-style]:opacity-0",
+            'relative min-w-44 origin-[var(--transform-origin)] overflow-hidden rounded-2xl p-1.5 shadow-2xl outline-none',
+            'transition-[transform,opacity] duration-150 ease-out',
+            'data-[starting-style]:scale-95 data-[starting-style]:opacity-0',
+            'data-[ending-style]:scale-95 data-[ending-style]:opacity-0',
             className,
           )}
           {...props}
@@ -76,12 +76,15 @@ function GlassDropdownMenuContent({
   );
 }
 
-function GlassDropdownMenuItem({ className, ...props }: React.ComponentProps<typeof BaseMenu.Item>) {
+function GlassDropdownMenuItem({
+  className,
+  ...props
+}: React.ComponentProps<typeof BaseMenu.Item>) {
   return (
     <BaseMenu.Item
       className={cn(
-        "relative flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground outline-none select-none",
-        "data-[highlighted]:bg-white/15 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        'relative flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground outline-none select-none',
+        'data-[highlighted]:bg-white/15 data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         className,
       )}
       {...props}
@@ -93,7 +96,7 @@ function GlassDropdownMenuSeparator({
   className,
   ...props
 }: React.ComponentProps<typeof BaseMenu.Separator>) {
-  return <BaseMenu.Separator className={cn("mx-1 my-1 h-px bg-white/15", className)} {...props} />;
+  return <BaseMenu.Separator className={cn('mx-1 my-1 h-px bg-white/15', className)} {...props} />;
 }
 
 export {

@@ -1,4 +1,4 @@
-const DROPLET = 'M32 4 C 46 22 52 30 52 40 A 20 20 0 1 1 12 40 C 12 30 18 22 32 4 Z'
+const DROPLET = 'M32 4 C 46 22 52 30 52 40 A 20 20 0 1 1 12 40 C 12 30 18 22 32 4 Z';
 
 /**
  * The "aurora droplet" brand mark — the same glyph the showcase uses as its
@@ -49,7 +49,14 @@ export function BrandMark({ size = 28, className }: { size?: number; className?:
         <path d={DROPLET} fill="url(#lg-aur)" />
         <rect width="64" height="64" fill="url(#lg-depth)" />
         <ellipse cx="33" cy="49.5" rx="13" ry="7" fill="url(#lg-caustic)" />
-        <ellipse cx="23.5" cy="30" rx="7" ry="12" fill="url(#lg-spec)" transform="rotate(-22 23.5 30)" />
+        <ellipse
+          cx="23.5"
+          cy="30"
+          rx="7"
+          ry="12"
+          fill="url(#lg-spec)"
+          transform="rotate(-22 23.5 30)"
+        />
         <path
           d="M31 7 C 22 18 16 26 14.5 35"
           fill="none"
@@ -60,9 +67,23 @@ export function BrandMark({ size = 28, className }: { size?: number; className?:
         />
         <circle cx="26" cy="20.5" r="2.6" fill="#fff" />
       </g>
-      <path d={DROPLET} fill="none" stroke="#5ad8ff" strokeWidth="1.4" opacity=".5" transform="translate(-.5 -.5)" />
-      <path d={DROPLET} fill="none" stroke="#ff4f9d" strokeWidth="1.4" opacity=".5" transform="translate(.5 .5)" />
+      <path
+        d={DROPLET}
+        fill="none"
+        stroke="#5ad8ff"
+        strokeWidth="1.4"
+        opacity=".5"
+        transform="translate(-.5 -.5)"
+      />
+      <path
+        d={DROPLET}
+        fill="none"
+        stroke="#ff4f9d"
+        strokeWidth="1.4"
+        opacity=".5"
+        transform="translate(.5 .5)"
+      />
       <path d={DROPLET} fill="none" stroke="url(#lg-rim)" strokeWidth="1.5" />
     </svg>
-  )
+  );
 }

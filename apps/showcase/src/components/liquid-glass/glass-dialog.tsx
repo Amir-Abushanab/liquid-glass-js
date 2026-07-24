@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import { Dialog as BaseDialog } from "@base-ui/react/dialog";
-import { LiquidGlass } from "@liquidglassjs/react";
-import { cn } from "@/lib/utils";
-import "@liquidglassjs/core/css";
+import * as React from 'react';
+import { Dialog as BaseDialog } from '@base-ui/react/dialog';
+import { LiquidGlass } from '@liquidglassjs/react';
+import { cn } from '@/lib/utils';
+import '@liquidglassjs/core/css';
 
 /**
  * Liquid-glass Dialog — Base UI's Dialog (focus trap, scroll lock, dismissal, and
@@ -63,8 +63,8 @@ function GlassDialogContent({
           modal without blacking out the page behind it */}
       <BaseDialog.Backdrop
         className={cn(
-          "fixed inset-0 z-50 bg-black/20 backdrop-blur-[2px] transition-opacity duration-200 ease-out",
-          "data-[starting-style]:opacity-0 data-[ending-style]:opacity-0",
+          'fixed inset-0 z-50 bg-black/20 backdrop-blur-[2px] transition-opacity duration-200 ease-out',
+          'data-[starting-style]:opacity-0 data-[ending-style]:opacity-0',
         )}
       />
       {/* positioning + scroll container */}
@@ -72,10 +72,10 @@ function GlassDialogContent({
         <BaseDialog.Popup
           className={cn(
             // shadow lives on the wrapper — the glass root's overflow:hidden would clip it
-            "relative w-full max-w-lg overflow-hidden rounded-2xl shadow-2xl outline-none",
-            "transition duration-200 ease-out motion-reduce:transition-none",
-            "data-[starting-style]:scale-95 data-[starting-style]:opacity-0",
-            "data-[ending-style]:scale-95 data-[ending-style]:opacity-0",
+            'relative w-full max-w-lg overflow-hidden rounded-2xl shadow-2xl outline-none',
+            'transition duration-200 ease-out motion-reduce:transition-none',
+            'data-[starting-style]:scale-95 data-[starting-style]:opacity-0',
+            'data-[ending-style]:scale-95 data-[ending-style]:opacity-0',
             className,
           )}
           {...props}
@@ -122,29 +122,23 @@ function GlassDialogContent({
   );
 }
 
-function GlassDialogHeader({ className, ...props }: React.ComponentProps<"div">) {
-  return <div className={cn("flex flex-col gap-1.5 pr-8", className)} {...props} />;
+function GlassDialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
+  return <div className={cn('flex flex-col gap-1.5 pr-8', className)} {...props} />;
 }
 
-function GlassDialogFooter({ className, ...props }: React.ComponentProps<"div">) {
+function GlassDialogFooter({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
-      className={cn(
-        "mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
-        className,
-      )}
+      className={cn('mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', className)}
       {...props}
     />
   );
 }
 
-function GlassDialogTitle({
-  className,
-  ...props
-}: React.ComponentProps<typeof BaseDialog.Title>) {
+function GlassDialogTitle({ className, ...props }: React.ComponentProps<typeof BaseDialog.Title>) {
   return (
     <BaseDialog.Title
-      className={cn("text-lg font-semibold text-foreground", className)}
+      className={cn('text-lg font-semibold text-foreground', className)}
       {...props}
     />
   );
@@ -155,10 +149,7 @@ function GlassDialogDescription({
   ...props
 }: React.ComponentProps<typeof BaseDialog.Description>) {
   return (
-    <BaseDialog.Description
-      className={cn("text-sm text-foreground/70", className)}
-      {...props}
-    />
+    <BaseDialog.Description className={cn('text-sm text-foreground/70', className)} {...props} />
   );
 }
 
