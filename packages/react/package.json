@@ -1,6 +1,6 @@
 {
   "name": "@liquidglassjs/react",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "React wrapper for liquid glass: the <LiquidGlass> component and useLiquidGlass hook, over @liquidglassjs/core.",
   "keywords": [
     "component",
