@@ -585,8 +585,13 @@ const QR_TUNE: TuneConfig = {
       default: false,
     },
   ],
-  // Refraction knobs first, then the click-bloom animation timings.
+  // Shape first (dots → squares, and how sharp the card is), then the refraction
+  // knobs, then the click-bloom animation timings.
   params: [
+    { key: 'moduleRadius', label: 'dot radius', min: 0, max: 1, step: 0.05, default: 1 },
+    { key: 'moduleScale', label: 'dot size', min: 0.3, max: 1, step: 0.02, default: 0.7 },
+    { key: 'eyeRadius', label: 'eye radius', min: 0, max: 1, step: 0.05, default: 0.55 },
+    { key: 'frameRadius', label: 'frame radius', min: 0, max: 56, step: 1, default: 56 },
     { key: 'scaleX', min: 0, max: 0.25, step: 0.005, default: 0.08 },
     { key: 'scaleY', min: 0, max: 0.25, step: 0.005, default: 0.08 },
     { key: 'chromaAmount', label: 'chroma', min: 0, max: 3, step: 0.05, default: 1 },
@@ -611,6 +616,10 @@ export function Example() {
       size={220}
       dotColor="#f6f6f6"
       backgroundColor="#0a0a0a"${eye ? `\n      eyeColor="${eye}"` : ''}${splashSrc ? `\n      splashColors={${splashSrc}}` : ''}${logoSrc ? `\n      logo=${logoSrc}` : ''}${logoSrc === '{false}' && reserve ? '\n      reserveCenter' : ''}
+      moduleRadius={${v.moduleRadius}}
+      moduleScale={${v.moduleScale}}
+      eyeRadius={${v.eyeRadius}}
+      frameRadius={${v.frameRadius}}
       scaleX={${v.scaleX}}
       scaleY={${v.scaleY}}
       chromaAmount={${v.chromaAmount}}
@@ -1160,6 +1169,10 @@ export const registry: RegistryItem[] = [
         playOnReveal={Boolean(o.playOnReveal)}
         logo={qrLogoProp(o.logo)}
         reserveCenter={qrReserveCenter(o)}
+        moduleRadius={v.moduleRadius}
+        moduleScale={v.moduleScale}
+        eyeRadius={v.eyeRadius}
+        frameRadius={v.frameRadius}
         scaleX={v.scaleX}
         scaleY={v.scaleY}
         chromaAmount={v.chromaAmount}

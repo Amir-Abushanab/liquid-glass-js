@@ -26,7 +26,8 @@ const FRAG = `#version 300 es
   in vec2 v_uv;
   out vec4 fragColor;
 
-  uniform float u_dotRadius;
+  uniform float u_dotHalf;   // module half-extent, in UV
+  uniform float u_dotCorner; // corner radius as a fraction of that half: 0 = square, 1 = circle
   uniform vec3 u_backgroundColor;
   uniform sampler2D u_PaintingTexture;
 
@@ -52,7 +53,15 @@ const FRAG = `#version 300 es
   uniform float u_eyeScale[3];  // hover scale per group
   uniform float u_eyeRefractionScale; // 0-1 multiplier for eye displacement
 
-  float testDot(vec2 pos, float r2) {
+  float roundedRectSDF(vec2 p, float half_, float radius) {
+    vec2 d = abs(p) - vec2(half_) + vec2(radius);
+    return length(max(d, vec2(0.0))) + min(max(d.x, d.y), 0.0) - radius;
+  }
+
+  // A module is a rounded box centred in its cell. At u_dotCorner == 1 the corner
+  // radius equals the half-extent, so the SDF degenerates to |p| - half — the exact
+  // circle this drew before shapes were tunable; at 0 it's a sharp square.
+  float testDot(vec2 pos, float half_) {
     int i = int(floor((pos.x - u_gridOriginUV) * u_invCellUV));
     int j = int(floor((pos.y - u_gridOriginUV) * u_invCellUV));
     if (i < 0 || i >= u_matrixLength || j < 0 || j >= u_matrixLength)
@@ -60,13 +69,7 @@ const FRAG = `#version 300 es
     if (texelFetch(u_occupancyTexture, ivec2(i, j), 0).r < 0.5)
       return 1.0;
     vec2 c = vec2(u_gridOriginUV) + (vec2(float(i), float(j)) + 0.5) * u_cellUV;
-    vec2 d = pos - c;
-    return dot(d, d) < r2 ? 0.0 : 1.0;
-  }
-
-  float roundedRectSDF(vec2 p, float half_, float radius) {
-    vec2 d = abs(p) - vec2(half_) + vec2(radius);
-    return length(max(d, vec2(0.0))) + min(max(d.x, d.y), 0.0) - radius;
+    return roundedRectSDF(pos - c, half_, half_ * u_dotCorner) < 0.0 ? 0.0 : 1.0;
   }
 
   vec4 testEyes(vec2 pos) {
@@ -82,10 +85,10 @@ const FRAG = `#version 300 es
     return vec4(0.0);
   }
 
-  vec4 sampleStatic(vec2 pos, float r2) {
+  vec4 sampleStatic(vec2 pos, float half_) {
     vec4 eye = testEyes(pos);
     if (eye.a > 0.5) return eye;
-    float hole = testDot(pos, r2);
+    float hole = testDot(pos, half_);
     if (hole < 0.5) return vec4(0.0, 0.0, 0.0, -1.0);
     return vec4(u_backgroundColor, 1.0);
   }
@@ -93,10 +96,11 @@ const FRAG = `#version 300 es
   void main() {
     vec2 uv = vec2(v_uv.x, 1.0 - v_uv.y);
     float paint = texture(u_PaintingTexture, uv).r;
-    float r2 = pow(u_dotRadius * (1.0 - paint), 2.0);
+    // The ripple shrinks modules as it sweeps over them.
+    float dotHalf = max(u_dotHalf * (1.0 - paint), 0.0);
 
     if (u_displacementActive == 0) {
-      vec4 s = sampleStatic(uv, r2);
+      vec4 s = sampleStatic(uv, dotHalf);
       if (s.a < 0.0) discard;
       fragColor = s;
       return;
@@ -107,7 +111,7 @@ const FRAG = `#version 300 es
                       lensUV.y >= 0.0 && lensUV.y <= 1.0;
 
     if (!insideLens) {
-      vec4 s = sampleStatic(uv, r2);
+      vec4 s = sampleStatic(uv, dotHalf);
       if (s.a < 0.0) discard;
       fragColor = s;
       return;
@@ -115,7 +119,7 @@ const FRAG = `#version 300 es
 
     vec4 dispSample = texture(u_displacementMap, lensUV);
     if (dispSample.a < 0.01) {
-      vec4 s = sampleStatic(uv, r2);
+      vec4 s = sampleStatic(uv, dotHalf);
       if (s.a < 0.0) discard;
       fragColor = s;
       return;
@@ -143,7 +147,7 @@ const FRAG = `#version 300 es
     if (eyeR.a > 0.5) {
       r = eyeR.r;
     } else {
-      float holeR = testDot(uvR, r2);
+      float holeR = testDot(uvR, dotHalf);
       float paintR = texture(u_paintingColorTexture, uvR).r;
       r = mix(paintR, u_backgroundColor.r, holeR);
     }
@@ -151,7 +155,7 @@ const FRAG = `#version 300 es
     if (eyeG.a > 0.5) {
       g = eyeG.g;
     } else {
-      float holeG = testDot(uvG, r2);
+      float holeG = testDot(uvG, dotHalf);
       float paintG = texture(u_paintingColorTexture, uvG).g;
       g = mix(paintG, u_backgroundColor.g, holeG);
     }
@@ -159,7 +163,7 @@ const FRAG = `#version 300 es
     if (eyeB.a > 0.5) {
       b = eyeB.b;
     } else {
-      float holeB = testDot(uvB, r2);
+      float holeB = testDot(uvB, dotHalf);
       float paintB = texture(u_paintingColorTexture, uvB).b;
       b = mix(paintB, u_backgroundColor.b, holeB);
     }
@@ -231,10 +235,15 @@ export interface QRRendererOptions {
   matrixLength: number;
   gridOriginUV: number;
   cellUV: number;
+  /** Module half-extent in UV (`QRGeometry.dotRadius`). */
   dotRadius: number;
+  /** Module corner rounding, 0 (square) … 1 (circle). Default 1. */
+  moduleRadius?: number;
   dotColor?: string;
   backgroundColor?: string;
 }
+
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 export class QRGlassRenderer {
   private canvas: HTMLCanvasElement;
@@ -246,6 +255,10 @@ export class QRGlassRenderer {
   private indexBuffer: WebGLBuffer;
   private indices: Uint16Array;
   private dotRadius: number;
+  /** Kept so `updateModuleScale` can re-derive the half-extent from the cell. */
+  private cellUV: number;
+  /** Per-eye ring half-sizes in UV — the basis for a proportional `eyeRadius`. */
+  private eyeHalfUV: [number, number, number][] = [];
 
   private occupancyTexture: WebGLTexture;
   private paintingTexture: WebGLTexture;
@@ -256,6 +269,8 @@ export class QRGlassRenderer {
   private paintSize: TexSize = { w: 0, h: 0 };
   private paintColorSize: TexSize = { w: 0, h: 0 };
 
+  private u_dotHalf: WebGLUniformLocation;
+  private u_dotCorner: WebGLUniformLocation;
   private u_backgroundColor: WebGLUniformLocation;
   private u_displacementActive: WebGLUniformLocation;
   private u_lensOrigin: WebGLUniformLocation;
@@ -264,6 +279,7 @@ export class QRGlassRenderer {
   private u_chromaAmount: WebGLUniformLocation;
   private u_eyeColor: WebGLUniformLocation[] = [];
   private u_eyeScale: WebGLUniformLocation[] = [];
+  private u_eyeRadius: WebGLUniformLocation[] = [];
   private u_eyeRefractionScale: WebGLUniformLocation;
 
   /** Cached 1×1 2D context used to normalize any CSS colour to sRGB bytes. */
@@ -277,6 +293,7 @@ export class QRGlassRenderer {
     const vertices = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
     this.indices = new Uint16Array([0, 1, 2, 2, 1, 3]);
     this.dotRadius = o.dotRadius;
+    this.cellUV = o.cellUV;
 
     const gl = this.canvas.getContext('webgl2');
     if (!gl) throw new Error('Failed to get webgl2 context.');
@@ -314,7 +331,10 @@ export class QRGlassRenderer {
     gl.enableVertexAttribArray(aPos);
     gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
 
-    gl.uniform1f(gl.getUniformLocation(program, 'u_dotRadius'), this.dotRadius);
+    this.u_dotHalf = gl.getUniformLocation(program, 'u_dotHalf')!;
+    gl.uniform1f(this.u_dotHalf, this.dotRadius);
+    this.u_dotCorner = gl.getUniformLocation(program, 'u_dotCorner')!;
+    gl.uniform1f(this.u_dotCorner, clamp01(o.moduleRadius ?? 1));
     this.u_backgroundColor = gl.getUniformLocation(program, 'u_backgroundColor')!;
     const [br, bgc, bb] = this.resolveCssColor(o.backgroundColor ?? '#ffffff');
     gl.uniform3f(this.u_backgroundColor, br, bgc, bb);
@@ -353,18 +373,16 @@ export class QRGlassRenderer {
       const cx = (outer.x + outer.width / 2) / o.size;
       const cy = (outer.y + outer.height / 2) / o.size;
       gl.uniform2f(gl.getUniformLocation(program, `u_eyeCenter[${e}]`), cx, cy);
-      gl.uniform3f(
-        gl.getUniformLocation(program, `u_eyeHalf[${e}]`),
+      const halves: [number, number, number] = [
         outer.width / 2 / o.size,
         mid.width / 2 / o.size,
         innr.width / 2 / o.size,
-      );
-      gl.uniform3f(
-        gl.getUniformLocation(program, `u_eyeRadius[${e}]`),
-        outer.rx / o.size,
-        mid.rx / o.size,
-        innr.rx / o.size,
-      );
+      ];
+      this.eyeHalfUV.push(halves);
+      gl.uniform3f(gl.getUniformLocation(program, `u_eyeHalf[${e}]`), ...halves);
+      const radiusLoc = gl.getUniformLocation(program, `u_eyeRadius[${e}]`)!;
+      this.u_eyeRadius.push(radiusLoc);
+      gl.uniform3f(radiusLoc, outer.rx / o.size, mid.rx / o.size, innr.rx / o.size);
       const colorLoc = gl.getUniformLocation(program, `u_eyeColor[${e}]`)!;
       this.u_eyeColor.push(colorLoc);
       gl.uniform3f(colorLoc, dotRgb[0], dotRgb[1], dotRgb[2]);
@@ -425,6 +443,26 @@ export class QRGlassRenderer {
   updateBackgroundColor(value: string) {
     const [r, g, b] = this.resolveCssColor(value);
     this.gl.uniform3f(this.u_backgroundColor, r, g, b);
+  }
+  /** Module corner rounding, 0 (square) … 1 (circle). */
+  updateModuleRadius(v: number) {
+    this.gl.uniform1f(this.u_dotCorner, clamp01(v));
+  }
+  /** How much of its cell a module fills, 0…1 (the geometry's `moduleScale`). */
+  updateModuleScale(v: number) {
+    this.dotRadius = (this.cellUV * clamp01(v)) / 2;
+    this.gl.uniform1f(this.u_dotHalf, this.dotRadius);
+  }
+  /**
+   * Finder-eye corner radius as a fraction of each ring's half-size, 0 (square)
+   * … 1 (circle). Always proportional — it replaces the classic absolute radii.
+   */
+  updateEyeRadius(v: number) {
+    const f = clamp01(v);
+    for (let e = 0; e < this.u_eyeRadius.length; e++) {
+      const [outer, mid, innr] = this.eyeHalfUV[e];
+      this.gl.uniform3f(this.u_eyeRadius[e], outer * f, mid * f, innr * f);
+    }
   }
   updateEyeColor(i: number, r: number, g: number, b: number) {
     this.gl.uniform3f(this.u_eyeColor[i], r, g, b);

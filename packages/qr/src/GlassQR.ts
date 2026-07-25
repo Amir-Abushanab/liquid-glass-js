@@ -26,6 +26,32 @@ export interface GlassQROptions {
    * CSS colour (including `var(--…)`), resolved once at mount.
    */
   eyeColor?: string;
+  // ── shape ──
+  /**
+   * Corner rounding of the encoded modules, as a fraction of their half-size:
+   * `1` (the default) draws the classic circles, `0` sharp squares, anything
+   * between a squircle. Pair with `moduleScale: 1` for a printed-QR look.
+   */
+  moduleRadius?: number;
+  /**
+   * How much of its cell each module fills, 0…1. Default ≈0.7 — the classic
+   * gapped dots; `1` makes neighbouring dark modules touch, like a printed QR.
+   */
+  moduleScale?: number;
+  /**
+   * Corner rounding of the three finder eyes, as a fraction of each ring's
+   * half-size: `0` squares them off, `1` makes them circles. Unset keeps the
+   * classic radii (a fixed px step that doesn't scale with `size`); setting it
+   * switches every ring to proportional rounding, which does.
+   */
+  eyeRadius?: number;
+  /**
+   * Corner radius of the card and the QR tile inside it — any CSS length (a
+   * number is px), `0` for a hard square. Sets the `--ps-qr-radius` custom
+   * property on the root, so it also works under `styles: false` as long as your
+   * stylesheet keeps the var (the shipped `@liquidglassjs/qr/css` does).
+   */
+  frameRadius?: number | string;
   /**
    * Palette the click ripple and the eyes' hover/press flashes cycle through, in
    * order. Defaults to the library's built-in `SPLASH_COLORS`. Pass a
@@ -73,10 +99,15 @@ export interface GlassQROptions {
   playOnReveal?: boolean;
 }
 
-// The subset of options the Glass Tuner can change at runtime (refraction + bloom).
+// The subset of options the Glass Tuner can change at runtime (shape, refraction,
+// bloom) — everything that's a shader uniform or a CSS variable, so no re-mount.
 export type GlassQRParams = Required<
   Pick<
     GlassQROptions,
+    | 'moduleRadius'
+    | 'moduleScale'
+    | 'eyeRadius'
+    | 'frameRadius'
     | 'scaleX'
     | 'scaleY'
     | 'chromaAmount'
@@ -211,6 +242,11 @@ export function mountGlassQR(container: HTMLElement, opts: GlassQROptions): Glas
   box.className = 'ps-qr__box';
   box.style.width = `${displayPx}px`;
   box.style.height = `${displayPx}px`;
+  // The stylesheet derives the tile's radius from the card's, so one var squares
+  // off (or rounds) both. A bare number is px, like every other CSS-ish option.
+  const setFrameRadius = (v: number | string) =>
+    root.style.setProperty('--ps-qr-radius', typeof v === 'number' ? `${v}px` : v);
+  if (opts.frameRadius != null) setFrameRadius(opts.frameRadius);
   const colorCanvas = document.createElement('canvas');
   colorCanvas.className = 'ps-qr__color';
   const qrCanvas = document.createElement('canvas');
@@ -257,7 +293,14 @@ export function mountGlassQR(container: HTMLElement, opts: GlassQROptions): Glas
   };
 
   const geo = build(() =>
-    buildQRGeometry({ size, value, reserveCenter, errorCorrectionLevel: ec }),
+    buildQRGeometry({
+      size,
+      value,
+      reserveCenter,
+      errorCorrectionLevel: ec,
+      moduleScale: opts.moduleScale,
+      eyeRadius: opts.eyeRadius,
+    }),
   );
   if (geo.dots.length === 0 || geo.eyes.length === 0) {
     root.remove();
@@ -275,6 +318,7 @@ export function mountGlassQR(container: HTMLElement, opts: GlassQROptions): Glas
         gridOriginUV: geo.gridOriginUV,
         cellUV: geo.cellUV,
         dotRadius: geo.dotRadius,
+        moduleRadius: opts.moduleRadius,
         dotColor,
         backgroundColor,
       }),
@@ -711,6 +755,16 @@ export function mountGlassQR(container: HTMLElement, opts: GlassQROptions): Glas
   // The handle is a callable (the original shape) that also carries `.dispose()`,
   // matching core's `mountGlass` — new code should prefer the named method.
   const reconfigure = (patch: Partial<GlassQRParams>) => {
+    if (disposed) return; // the GL program is gone; every uniform below would throw
+    // shape — pure uniforms, so no geometry rebuild. Nothing animates afterwards,
+    // so the change needs its own draw to land (the rAF loop may well be parked).
+    if (patch.moduleRadius != null) renderer.updateModuleRadius(patch.moduleRadius);
+    if (patch.moduleScale != null) renderer.updateModuleScale(patch.moduleScale);
+    if (patch.eyeRadius != null) renderer.updateEyeRadius(patch.eyeRadius);
+    if (patch.moduleRadius != null || patch.moduleScale != null || patch.eyeRadius != null) {
+      renderer.draw();
+    }
+    if (patch.frameRadius != null) setFrameRadius(patch.frameRadius);
     // scaleX/scaleY/chromaAmount/lensDepth/lensDuration are captured by the
     // per-frame bloom closures, so updating them here applies to the next bloom.
     if (patch.scaleX != null) scaleX = patch.scaleX;

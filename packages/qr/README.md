@@ -55,6 +55,35 @@ if (isGlassQRSupported()) {
 without caching, so the client re-probes after hydration). A failed mount unwinds
 whatever it built, so a caught throw leaves no half-built DOM in your container.
 
+### Shape
+
+Modules are circles and the eyes are squircles by default. Both are tunable, and
+so is the card — all four are shader uniforms or a CSS variable, so `reconfigure`
+moves them live without rebuilding the QR:
+
+```ts
+mountGlassQR(el, {
+  value,
+  moduleRadius: 0, // module corners: 1 = circles (default) … 0 = sharp squares
+  moduleScale: 1, // how much of its cell a module fills; ≈0.7 (gapped) by default
+  eyeRadius: 0, // finder-eye corners: 0 = square … 1 = circle
+  frameRadius: 0, // the card + tile radius; any CSS length, a number is px
+});
+```
+
+Those four values together are a classic printed QR: sharp modules that touch,
+square eyes, square card. Leave `eyeRadius` unset to keep the original eye
+radii — a fixed px step that doesn't scale with `size`; setting it switches
+every ring to proportional rounding, which does.
+
+`frameRadius` just sets `--ps-qr-radius` on the root, so it also works under
+`styles: false` as long as your stylesheet keeps the var (the tile's radius is
+derived from it, inset by the card's padding).
+
+One caveat on `moduleScale`: scanners sample the centre of each module, so
+shrinking them much below the default trades away real-world scan margin —
+small, low-contrast, or motion-blurred captures are the ones that suffer.
+
 ### Branding
 
 The centre mark is yours:

@@ -27,6 +27,7 @@ export interface QRGeometry {
   matrixLength: number;
   gridOriginUV: number;
   cellUV: number;
+  /** Module half-extent in UV: a dot's radius, or a square module's half-width. */
   dotRadius: number;
 }
 
@@ -38,7 +39,30 @@ export interface QRGeometryOptions {
   /** @deprecated Renamed to `reserveCenter`. */
   image?: boolean;
   errorCorrectionLevel?: 'L' | 'M' | 'Q' | 'H';
+  /**
+   * How much of its cell a module fills, 0…1. Default {@link DEFAULT_MODULE_SCALE}
+   * (≈0.7) — the classic gapped dots; `1` makes neighbours touch.
+   */
+  moduleScale?: number;
+  /**
+   * Finder-eye corner radius as a fraction of each ring's half-size, 0 (sharp
+   * squares) … 1 (circles). Unset keeps the classic radii.
+   */
+  eyeRadius?: number;
 }
+
+/** The classic module footprint: `cell / 2.85` as a radius, i.e. ~70% of the cell. */
+export const DEFAULT_MODULE_SCALE = 2 / 2.85;
+
+/**
+ * The classic finder-eye corner radii — outer, middle, inner — in px, and (like
+ * Aave's original) NOT scaled by `size`: they step by ~one cell at the default
+ * 300px, which is what keeps the three rings' corners looking parallel there.
+ * `eyeRadius` opts into proportional radii instead, which do scale.
+ */
+const CLASSIC_EYE_RADII = [22, 13, 3];
+
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 export function buildQRGeometry({
   size,
@@ -46,6 +70,8 @@ export function buildQRGeometry({
   reserveCenter,
   image,
   errorCorrectionLevel = 'Q',
+  moduleScale,
+  eyeRadius,
 }: QRGeometryOptions): QRGeometry {
   const reserve = reserveCenter ?? image ?? true;
   const inner = size - 20; // 10px quiet-zone padding each side
@@ -72,6 +98,7 @@ export function buildQRGeometry({
   const logoPx = reserve ? ecFrac * inner : 0;
 
   // 3 finder eyes — top-left, top-right, bottom-left.
+  const eyeR = eyeRadius == null ? null : clamp01(eyeRadius);
   [
     { x: 0, y: 0 },
     { x: 1, y: 0 },
@@ -80,12 +107,14 @@ export function buildQRGeometry({
     const ox = (matrix.length - 7) * cell * x + 10;
     const oy = (matrix.length - 7) * cell * y + 10;
     for (let e = 0; e < 3; e++) {
+      const ringSize = cell * (7 - 2 * e);
+      const r = eyeR == null ? CLASSIC_EYE_RADII[e] : (eyeR * ringSize) / 2;
       eyes.push({
         fill: e % 2 !== 0 ? 'white' : 'black',
-        rx: -((e - 2) * 10) + (e === 0 ? 2 : 3),
-        ry: -((e - 2) * 10) + (e === 0 ? 2 : 3),
-        width: cell * (7 - 2 * e),
-        height: cell * (7 - 2 * e),
+        rx: r,
+        ry: r,
+        width: ringSize,
+        height: ringSize,
         x: ox + cell * e,
         y: oy + cell * e,
       });
@@ -97,13 +126,17 @@ export function buildQRGeometry({
   const lo = matrix.length / 2 - logoModules / 2;
   const hi = matrix.length / 2 + logoModules / 2 - 1;
 
+  // Half-extent of one module: the circle's radius at the default `moduleRadius`,
+  // and the half-width of the rounded box the shader draws at any other.
+  const half = (cell * clamp01(moduleScale ?? DEFAULT_MODULE_SCALE)) / 2;
+
   matrix.forEach((row, t) => {
     row.forEach((bit, r) => {
       const inFinder =
         (t < 7 && r < 7) || (t > matrix.length - 8 && r < 7) || (t < 7 && r > matrix.length - 8);
       const inLogo = !!logoPx && t > lo && t < hi && r > lo && r < hi;
       if (!bit || inFinder || inLogo) return;
-      dots.push({ x: t * cell + cell / 2 + 10, y: r * cell + cell / 2 + 10, r: cell / 2.85 });
+      dots.push({ x: t * cell + cell / 2 + 10, y: r * cell + cell / 2 + 10, r: half });
       occupancy[r * N + t] = 255;
     });
   });
@@ -115,6 +148,6 @@ export function buildQRGeometry({
     matrixLength: N,
     gridOriginUV: 10 / size,
     cellUV: cell / size,
-    dotRadius: cell / 2.85 / size,
+    dotRadius: half / size,
   };
 }
