@@ -1,5 +1,14 @@
 # showcase
 
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies [[`ab147c1`](https://github.com/Amir-Abushanab/liquid-glass-js/commit/ab147c132a4749019880422698fbc894a31bd36c)]:
+  - @liquidglassjs/qr@0.4.0
+  - @liquidglassjs/core@0.4.0
+  - @liquidglassjs/react@0.4.0
+
 ## 0.0.3
 
 ### Patch Changes
