@@ -155,14 +155,23 @@ async function mountWebgl(el, surface, p, src, reg) {
   };
   requestAnimationFrame(frame);
 }
+// Mirrors core's `supportsBackdropUrl()` — keep the two in sync. `CSS.supports`
+// only parses: Safari and Firefox accept `url()` in the backdrop-filter grammar
+// but paint nothing for it (WebKit bug 245510), so the parse check is true in
+// every engine and can't gate anything on its own. No pixel readback exists for
+// DOM, so the engine is the only signal; a false negative just means plain blur.
 function supportsBackdropUrl() {
   try {
-    return typeof CSS !== 'undefined' && CSS.supports('backdrop-filter', 'url("#a")');
+    if (typeof CSS === 'undefined' || !CSS.supports('backdrop-filter', 'url("#a")')) return false;
+    if (typeof navigator === 'undefined') return false;
+    const brands = navigator.userAgentData?.brands;
+    if (brands) return brands.some((b) => /Chromium/i.test(b.brand));
+    return /Chrome\/|Chromium\//.test(navigator.userAgent);
   } catch {
     return false;
   }
 }
-// Frost. Chromium is the only engine that supports `backdrop-filter: url()`; where it
+// Frost. Chromium is the only engine that RENDERS `backdrop-filter: url()`; where it
 // is, we run the SAME feDisplacementMap over the live page behind the surface, so a
 // fixed element (e.g. the nav) actually REFRACTS the content scrolling under it —
 // not a flat blur. Everywhere else, fall back to a plain frosted blur.

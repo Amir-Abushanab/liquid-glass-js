@@ -174,7 +174,18 @@ function useTuneCapable(needs?: TuneConfig['needs']): boolean {
     }
     if (needs === 'backdrop-url') {
       try {
-        setCapable(CSS.supports('backdrop-filter', 'url("#a")'));
+        // Same two-part test as core: `CSS.supports` only parses, and Safari and
+        // Firefox accept `url()` here while rendering nothing (WebKit bug 245510),
+        // so the engine check is what actually decides. See core's
+        // `supportsBackdropUrl()` for why no real capability probe is possible.
+        const parses = CSS.supports('backdrop-filter', 'url("#a")');
+        const brands = (
+          navigator as Navigator & { userAgentData?: { brands?: { brand: string }[] } }
+        ).userAgentData?.brands;
+        const chromium = brands
+          ? brands.some((b) => /Chromium/i.test(b.brand))
+          : /Chrome\/|Chromium\//.test(navigator.userAgent);
+        setCapable(parses && chromium);
       } catch {
         setCapable(false);
       }

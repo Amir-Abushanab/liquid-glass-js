@@ -274,14 +274,36 @@ function mountWebgl(
   })();
 }
 
-// Chromium is the only engine that supports `backdrop-filter: url()`. Where it is,
+// Chromium is the only engine that RENDERS `backdrop-filter: url()`. Where it does,
 // we don't just blur the page behind the surface — we run the SAME feDisplacementMap
 // over it, so a frost surface actually REFRACTS the live page (the liquid ripple,
 // not a flat blur). This is the one place the library reaches for a url() backdrop
 // filter, and it's gated: elsewhere it's unsupported, so we fall back to blur().
+//
+// `CSS.supports()` CANNOT gate this on its own. It only parses, and Safari and
+// Firefox both accept `url()` in the backdrop-filter grammar while painting
+// nothing for it (WebKit bug 245510, open since 2022; mdn/browser-compat-data
+// #24110). So the parse check returns true in all three engines, and gating on it
+// alone sent Safari/Firefox down the refractive branch — where they got no frost
+// at all, not even the blur() this function exists to fall back to.
+//
+// Note the asymmetry that makes this specifically a *backdrop*-filter problem:
+// `filter: url()` over live DOM (mountDomRefract / mountGlassLens) works fine in
+// all three engines. It's only the backdrop variant WebKit/Gecko haven't shipped.
+//
+// There is no pixel readback for DOM, so no true capability probe exists here —
+// the engine is the only available signal. `navigator.userAgentData` is
+// Chromium-only, which makes it a cheaper tell than a UA regex; the UA fallback
+// covers non-secure contexts, where userAgentData is undefined. Both failure
+// directions are safe: a false negative just yields the plain frosted blur.
 function supportsBackdropUrl(): boolean {
   try {
-    return typeof CSS !== 'undefined' && CSS.supports('backdrop-filter', 'url("#a")');
+    if (typeof CSS === 'undefined' || !CSS.supports('backdrop-filter', 'url("#a")')) return false;
+    if (typeof navigator === 'undefined') return false;
+    const brands = (navigator as Navigator & { userAgentData?: { brands?: { brand: string }[] } })
+      .userAgentData?.brands;
+    if (brands) return brands.some((b) => /Chromium/i.test(b.brand));
+    return /Chrome\/|Chromium\//.test(navigator.userAgent);
   } catch {
     return false;
   }

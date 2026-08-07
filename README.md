@@ -63,6 +63,13 @@ renderer (`mode: 'auto'`):
 `mode` can force `'svg' | 'webgl' | 'frost'`. WebGL degrades to frost if WebGL2
 is unavailable or the renderer throws.
 
+Paths 1–3 (`filter: url()`) render in every engine. Path 4 is the one that
+varies: on Chromium the frost *refracts* the live page through the same
+displacement map, while Safari and Firefox get a plain `blur()` — they parse
+`backdrop-filter: url()` but paint nothing for it ([WebKit 245510][wk245510]).
+
+[wk245510]: https://bugs.webkit.org/show_bug.cgi?id=245510
+
 ## Morphing surfaces
 
 Two surfaces animate their own shape. Both reuse **one** displacement map and
