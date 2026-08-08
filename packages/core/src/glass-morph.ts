@@ -18,6 +18,7 @@
 
 import { buildDisplacementMap } from './displacement';
 import { NEUTRAL } from './map-encode';
+import { supportsDisplacementMaps } from './engine';
 
 // The live-tunable refraction params (everything except the box geometry).
 export interface GlassSurfaceParams {
@@ -178,7 +179,9 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
     feImage = div.querySelector('feImage');
     dm = Array.from(div.querySelectorAll('feDisplacementMap'));
     spec = div.querySelector<SVGFEColorMatrixElement>('[result="specMask"]');
-    if (active) {
+    // Off Chromium the map never arrives (see engine.ts), so this filter can only
+    // dim the button — the morph and its label crossfade still run, unrefracted.
+    if (active && supportsDisplacementMaps()) {
       o.target.style.filter = `url(#${id})`;
       o.target.style.setProperty('-webkit-filter', `url(#${id})`);
     }
@@ -212,7 +215,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
     whenReady: () => ready,
     setActive(on) {
       active = on;
-      if (on && curId) {
+      if (on && curId && supportsDisplacementMaps()) {
         o.target.style.filter = `url(#${curId})`;
         o.target.style.setProperty('-webkit-filter', `url(#${curId})`);
       } else {

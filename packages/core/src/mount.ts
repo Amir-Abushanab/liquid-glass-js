@@ -16,6 +16,7 @@
 
 import { buildDisplacementMap } from './displacement';
 import { specMaskValues } from './map-encode';
+import { supportsDisplacementMaps, isChromium } from './engine';
 import type { GlassGL as GlassGLType } from './webgl';
 
 const MARGIN = 28; // bleed so the displacement doesn't sample past the lens rim
@@ -287,9 +288,12 @@ function mountWebgl(
 // alone sent Safari/Firefox down the refractive branch — where they got no frost
 // at all, not even the blur() this function exists to fall back to.
 //
-// Note the asymmetry that makes this specifically a *backdrop*-filter problem:
-// `filter: url()` over live DOM (mountDomRefract / mountGlassLens) works fine in
-// all three engines. It's only the backdrop variant WebKit/Gecko haven't shipped.
+// This was once written up as an asymmetry — backdrop-filter broken, `filter: url()`
+// over live DOM fine in all three engines. That second half was wrong. The filter is
+// *applied* everywhere, but the map inside it is delivered by `<feImage>`, which only
+// Chromium renders, so off Chromium the displacement is uniformly zero and the glass
+// silently stops bending. See engine.ts for the measurements. Both gates therefore
+// come down to the same question, and both answer it the same way.
 //
 // There is no pixel readback for DOM, so no true capability probe exists here —
 // the engine is the only available signal. `navigator.userAgentData` is
@@ -299,11 +303,7 @@ function mountWebgl(
 function supportsBackdropUrl(): boolean {
   try {
     if (typeof CSS === 'undefined' || !CSS.supports('backdrop-filter', 'url("#a")')) return false;
-    if (typeof navigator === 'undefined') return false;
-    const brands = (navigator as Navigator & { userAgentData?: { brands?: { brand: string }[] } })
-      .userAgentData?.brands;
-    if (brands) return brands.some((b) => /Chromium/i.test(b.brand));
-    return /Chrome\/|Chromium\//.test(navigator.userAgent);
+    return isChromium();
   } catch {
     return false;
   }
@@ -451,8 +451,12 @@ function mountDomRefract(el: HTMLElement, refract: HTMLElement, p: P): () => voi
       `<feComposite in="specMask" in2="lensResult" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite>` +
       `</filter></svg>`;
     el.appendChild(svg);
-    refract.style.filter = `url(#${id})`;
-    refract.style.setProperty('-webkit-filter', `url(#${id})`);
+    // No map, no displacement — see engine.ts. This chain doesn't clip to SourceAlpha,
+    // so the content survives either way, but the filter pass would buy nothing.
+    if (supportsDisplacementMaps()) {
+      refract.style.filter = `url(#${id})`;
+      refract.style.setProperty('-webkit-filter', `url(#${id})`);
+    }
     if (holder) holder.remove();
     holder = svg;
   };
@@ -559,7 +563,12 @@ export function mountGlass(root: HTMLElement, opts: GlassOptions = {}): GlassIns
 
   let mode = opts.mode || 'auto';
   const canWebgl = !!sourceEl && webgl2OK();
-  if (mode === 'auto') mode = canWebgl ? 'webgl' : p.backdrop ? 'svg' : 'frost';
+  // Auto used to prefer the SVG clone whenever a backdrop was supplied. Off Chromium
+  // that path can't bend anything (no `feImage`, so no map — see engine.ts), while
+  // frost still produces a real blur. Prefer the one that actually renders; an
+  // explicit `mode: 'svg'` is still honoured, since asking for it is a choice.
+  if (mode === 'auto')
+    mode = canWebgl ? 'webgl' : p.backdrop && supportsDisplacementMaps() ? 'svg' : 'frost';
 
   if (mode === 'webgl' && sourceEl && webgl2OK()) {
     root.dataset.render = 'webgl';

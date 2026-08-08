@@ -71,5 +71,9 @@ export type {
 // Overshoot easing (used by switch/segmented snaps)
 export { cubicBezier } from './dynamics';
 
+// Engine capability gate — whether `<feImage>` delivers a displacement map here.
+// Consumers can read it to decide whether to offer glass at all.
+export { supportsDisplacementMaps, isChromium } from './engine';
+
 // Shared colour utilities (hex/palette helpers; also consumed by @liquidglassjs/qr)
 export { hexToRgb, SPLASH_COLORS, nextColor } from './color';

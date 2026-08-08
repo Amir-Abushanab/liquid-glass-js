@@ -14,6 +14,7 @@
 import { buildDisplacementMap } from './displacement';
 import { specMaskValues, darkMaskValues } from './map-encode';
 import { parseCssColor } from './color';
+import { supportsDisplacementMaps } from './engine';
 
 export interface GlassLensOptions {
   target: HTMLElement; // live DOM to refract (receives filter:url())
@@ -130,7 +131,10 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
       `</filter></svg>`;
     o.host.appendChild(div);
     curId = id;
-    if (active) {
+    // Without `feImage` the map never reaches feDisplacementMap, which then displaces
+    // by zero — the lens would cost a full filter pass to bend nothing, and on WebKit
+    // the partial map it does build is worse than none. Leave the target unfiltered.
+    if (active && supportsDisplacementMaps()) {
       o.target.style.filter = `url(#${id})`;
       o.target.style.setProperty('-webkit-filter', `url(#${id})`);
     } else {
@@ -177,7 +181,7 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
     },
     setActive(on) {
       active = on;
-      if (on) {
+      if (on && supportsDisplacementMaps()) {
         o.target.style.filter = `url(#${curId})`;
         o.target.style.setProperty('-webkit-filter', `url(#${curId})`);
       } else {

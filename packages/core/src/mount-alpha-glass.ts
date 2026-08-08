@@ -9,6 +9,7 @@
 import { type GlyphMap, type GlyphMapCache } from './glyph-map';
 import { specMaskValues, darkMaskValues } from './map-encode';
 import { parseCssColor } from './color';
+import { supportsDisplacementMaps } from './engine';
 
 // The seven refraction params + shade (item 2). Same set for text and shapes.
 export interface AlphaGlassParams {
@@ -111,8 +112,15 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
       `<feComposite in="litDark" in2="SourceAlpha" operator="in"></feComposite>` +
       `</filter></svg>`;
     core.host.appendChild(div);
-    core.target.style.filter = `url(#${id})`;
-    core.target.style.setProperty('-webkit-filter', `url(#${id})`);
+    // This filter ends in `feComposite operator="in"` against SourceAlpha, so it can
+    // only ever show what the lit result contains. Where `feImage` doesn't deliver
+    // the map (everything but Chromium — see engine.ts) that result is empty, the
+    // clip yields nothing, and the element's own content vanishes. Leaving the filter
+    // off renders the text or artwork plainly, which is strictly better than erasing it.
+    if (supportsDisplacementMaps()) {
+      core.target.style.filter = `url(#${id})`;
+      core.target.style.setProperty('-webkit-filter', `url(#${id})`);
+    }
     if (holder) holder.remove();
     holder = div;
     dispNodes = Array.from(div.querySelectorAll('feDisplacementMap'));

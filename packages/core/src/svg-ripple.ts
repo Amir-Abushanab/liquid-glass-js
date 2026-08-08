@@ -18,6 +18,7 @@
 
 import { buildDisplacementMap } from './displacement';
 import { NEUTRAL } from './map-encode';
+import { supportsDisplacementMaps } from './engine';
 import { SPLASH_COLORS, hexToRgb } from './color';
 
 // Live-tunable ripple params (the Glass Tuner mutates these via reconfigure()).
@@ -136,6 +137,9 @@ export function mountSvgRipple(o: SvgRippleOptions) {
       col = hexToRgb(SPLASH_COLORS[colorIndex]);
       colorIndex = (colorIndex + 1) % SPLASH_COLORS.length;
       t0 = performance.now();
+      // The bloom is a displacement of the button's own pixels; with no map it would
+      // animate nothing for the length of the ripple. Skip it rather than burn frames.
+      if (!supportsDisplacementMaps()) return;
       o.target.style.filter = `url(#${id})`;
       o.target.style.setProperty('-webkit-filter', `url(#${id})`);
       if (!active) {
