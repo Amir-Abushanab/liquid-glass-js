@@ -2756,3 +2756,17 @@ a {
   letter-spacing: inherit;
   font-weight: inherit;
 }
+
+/* The Glass QR needs a WebGL2 context and can't degrade to anything; this stands in
+   for it where the browser has none. */
+.qr-fallback {
+  max-width: 34ch;
+  margin: 0 auto;
+  padding: 1.1rem 1.3rem;
+  border: 1px dashed color-mix(in srgb, var(--ink) 22%, transparent);
+  border-radius: 12px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--muted);
+}

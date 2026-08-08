@@ -946,8 +946,31 @@ if (rpToggle) {
   else window.addEventListener('load', start, { once: true });
 }
 import { mountGlassQR } from '@liquidglassjs/qr';
+// Every other renderer on this page degrades — the SVG filter works everywhere, and
+// frost is itself the fallback. The QR can't: it *is* a WebGL2 shader, so it throws
+// when there's no context to get. This script initialises every demo at module
+// scope, one after another, so an escaping exception here doesn't just cost us the
+// QR — it silently kills the render-path toggle, the morph and ripple demos, the
+// performance section and the Glass Tuner, all of which are set up below. Probe
+// first, and keep the mount in a catch for what a probe can't foresee (a context
+// that's granted and then lost, a shader that fails to link).
+const webgl2OK = () => {
+  try {
+    const gl = document.createElement('canvas').getContext('webgl2');
+    // Hand the context straight back — probing shouldn't hold one of the browser's
+    // small number of live contexts open for the life of the page.
+    gl?.getExtension('WEBGL_lose_context')?.loseContext();
+    return !!gl;
+  } catch {
+    return false;
+  }
+};
 const qrMount = document.getElementById('glassqr');
-if (qrMount) {
+if (qrMount && !webgl2OK()) {
+  qrMount.innerHTML =
+    '<p class="qr-fallback">The Glass QR is a WebGL2 shader, and this browser has no WebGL2 ' +
+    'context to give it. Every other demo on this page runs on the SVG filter path and works here.</p>';
+} else if (qrMount) {
   let qr = null;
   const mountQR = () => {
     qr = mountGlassQR(qrMount, {
@@ -962,25 +985,35 @@ if (qrMount) {
       mountQR();
     });
   };
-  mountQR();
-  cfgSections.push({
-    id: 'qr',
-    label: 'Glass QR',
-    icon: CFG_ICONS.qr,
-    params: QR_PARAMS,
-    opts: {
-      scaleX: 0.08,
-      scaleY: 0.08,
-      chromaAmount: 1,
-      eyeRefractionScale: 0.16,
-      lensDepth: 30,
-      lensDuration: 6e3,
-      colorSplash: 300,
-      ringStart: 0.15,
-      ringEnd: 0.9,
-    },
-    apply: (patch) => qr?.reconfigure(patch),
-  });
+  try {
+    mountQR();
+  } catch (err) {
+    // Belt and braces: the probe said yes, so this is a shader/context failure the
+    // probe couldn't see. Lose the QR, keep the page.
+    console.warn('[showcase] Glass QR failed to mount; skipping it.', err);
+    qr = null;
+    qrMount.innerHTML = '<p class="qr-fallback">The Glass QR could not start on this browser.</p>';
+  }
+  // Only offer the QR's tuner section if there's an instance for it to drive.
+  if (qr)
+    cfgSections.push({
+      id: 'qr',
+      label: 'Glass QR',
+      icon: CFG_ICONS.qr,
+      params: QR_PARAMS,
+      opts: {
+        scaleX: 0.08,
+        scaleY: 0.08,
+        chromaAmount: 1,
+        eyeRefractionScale: 0.16,
+        lensDepth: 30,
+        lensDuration: 6e3,
+        colorSplash: 300,
+        ringStart: 0.15,
+        ringEnd: 0.9,
+      },
+      apply: (patch) => qr?.reconfigure(patch),
+    });
 }
 import { mountGlassButton, mountGlassDropdown, GLASS_SURFACE_DEFAULTS } from '@liquidglassjs/core';
 const MORPH_PARAMS = [
