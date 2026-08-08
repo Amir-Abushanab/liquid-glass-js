@@ -36,7 +36,53 @@ renderer: an SVG filter over live DOM (the primary path) → WebGL for a
 `mode: 'svg' | 'webgl' | 'frost'`.
 
 Also exported: `mountGlassText`, `mountGlassShape`, `mountGlassButton`,
-`mountGlassDropdown`, `mountGlassLens`, `mountSvgRipple`.
+`mountGlassDropdown`, `mountGlassLens`, `mountGlassLoupe`, `mountSvgRipple`.
+
+## The loupe
+
+`mountGlassLoupe` is the iOS "hold on a word" magnifier: press and hold, and a
+glass capsule floats above the pointer showing the line under it, blown up.
+
+```ts
+import { mountGlassLoupe } from '@liquidglassjs/core';
+
+const loupe = mountGlassLoupe({
+  source: document.querySelector('article'), // what to magnify
+  zoom: 1.55,
+  trigger: 'longpress', // | 'press' | 'hover' | 'none'
+  onMove: ({ caret }) => caret && console.log(caret.node.nodeValue, caret.offset),
+});
+```
+
+A displacement map bends pixels but can't scale them, so the loupe deep-clones
+the source, scales the clone with a CSS transform, and puts the lens filter on
+top of that copy — the magnified text is real DOM, so it stays crisp at any zoom
+and the rim refracts it like any other glass surface. The capsule renders in the
+top layer (`popover`), so no ancestor's `overflow: hidden` can clip it.
+
+`trigger` covers the common gestures; **`'none'` binds nothing** and hands you
+`show(x, y)` / `move(x, y)` / `hide()` to drive from your own gesture code. Live
+knobs go through `reconfigure()` — `zoom`, `width`, `height`, `offsetY`,
+`longPressMs`, and every lens param. Only the ones that change the displacement map
+cost a rebuild; `zoom`, `offsetY` and `longPressMs` are free.
+
+Worth knowing:
+
+- The clone is a **snapshot** taken when the loupe opens. Call `refresh()` if the
+  source changes underneath it. Canvas bitmaps, form values, and scroll offsets are
+  copied across; `<video>` frames are not.
+- `snapToLine` (default on) pins the sample to the text line's centre and reports
+  the caret, so a selection UI can ride along.
+- With `trigger: 'longpress'` the source's native selection UI is suppressed, or iOS
+  Safari answers the same gesture with its own loupe on top of yours. Only the
+  touch-only bits (`-webkit-touch-callout`, `touch-action`) sit on the element for
+  the whole mount — `user-select` is taken for the duration of the gesture and given
+  back on release, so **press-and-drag still selects text normally** and only a
+  still hold becomes a loupe. `touch-action: none` does stop the source scrolling
+  under touch; pass `suppressNative: false` and run your own gesture if you need both.
+- The loupe mounts next to the source so the clone keeps the same CSS ancestors.
+  Its ids are duplicated for the life of the gesture (the clone is `inert` and
+  `aria-hidden`, and stays after the original in document order).
 
 ## Entry points
 

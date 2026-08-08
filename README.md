@@ -149,6 +149,50 @@ depth) and `glint` (a CSS colour to tint the specular highlight). They default
 to off and white respectively, so existing surfaces stay pixel-identical until
 you opt in.
 
+## The loupe
+
+`mountGlassLoupe` recreates the iOS text magnifier: press and hold on a
+paragraph and a glass capsule floats above the pointer showing the line under it,
+blown up and refracting at the rim.
+
+```ts
+import { mountGlassLoupe } from '@liquidglassjs/core';
+
+const loupe = mountGlassLoupe({
+  source: document.querySelector('article'),
+  zoom: 1.55,
+  trigger: 'longpress', // | 'press' | 'hover' | 'none'
+  onMove: ({ caret }) => caret && console.log(caret.node.nodeValue, caret.offset),
+});
+```
+
+The interesting constraint is that a displacement map **bends** pixels and can
+never scale them, so the magnification can't come from the filter. Instead the
+loupe deep-clones the source, scales the clone with a CSS transform, and mounts
+the lens on that copy. Because the magnified content is still DOM, the glyphs
+rasterize at their final size and stay pin-sharp — a bitmap snapshot would go
+soft at exactly the moment the user asked for detail. The capsule renders in the
+top layer (`popover`), so no ancestor's `overflow: hidden` can clip it, and the
+filter target is inset by a bleed ring so the rim has real pixels to refract
+instead of smearing its own edge.
+
+`trigger` covers the usual gestures; `'none'` binds nothing and hands you
+`show(x, y)` / `move(x, y)` / `hide()`. `snapToLine` (default on) pins the sample
+to the text line's centre and reports the caret under the pointer, so a selection
+UI can ride along. The clone is a snapshot — `refresh()` re-reads a source that
+changed. Everything else tunes live through `reconfigure()`, `longPressMs`
+included.
+
+A long-press loupe has to suppress the platform's own selection UI, or iOS Safari
+answers the same gesture with its native loupe on top of yours. Only the
+touch-only properties sit on the element for the whole mount; `user-select` is
+taken for the duration of the gesture and handed back on release, so
+**press-and-drag still selects text normally** and only a still hold becomes a
+loupe — the same split iOS makes.
+
+React (`<GlassLoupe>` / `useGlassLoupe`) and the `<glass-loupe>` custom element
+wrap the same mount.
+
 ## Entry points (the code-split)
 
 | Import | Ships | Notes |

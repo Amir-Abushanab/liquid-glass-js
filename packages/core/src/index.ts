@@ -20,6 +20,16 @@ export type { GlassMapOptions } from './displacement';
 export { mountGlassLens } from './glass-lens';
 export type { GlassLensOptions, GlassLensParams, GlassLens } from './glass-lens';
 
+// iOS-style magnifying loupe (lens over a scaled live-DOM clone)
+export { mountGlassLoupe, GLASS_LOUPE_DEFAULTS } from './glass-loupe';
+export type {
+  GlassLoupeParams,
+  GlassLoupeOptions,
+  GlassLoupeTrigger,
+  GlassLoupeSample,
+  GlassLoupe,
+} from './glass-loupe';
+
 // Ripple-button bloom (animated SVG filter)
 export { mountSvgRipple } from './svg-ripple';
 export type { SvgRippleParams, SvgRippleOptions } from './svg-ripple';

@@ -41,8 +41,34 @@ disposes on cleanup.
 
 ### Effect components
 
-`GlassText`, `GlassShape`, `GlassLens`, `GlassButton`, and `GlassRipple` are
-thin React bindings over the matching core renderers.
+`GlassText`, `GlassShape`, `GlassLens`, `GlassLoupe`, `GlassButton`, and
+`GlassRipple` are thin React bindings over the matching core renderers.
+
+### The loupe
+
+`<GlassLoupe>` is the iOS "hold on a word" magnifier — long-press its children
+and a glass capsule floats above the pointer, magnifying the line under it.
+
+```tsx
+import { GlassLoupe } from '@liquidglassjs/react';
+
+<GlassLoupe as="article" zoom={1.6} onMove={({ caret }) => setCaret(caret)}>
+  {post.body}
+</GlassLoupe>;
+```
+
+`useGlassLoupe(ref, options)` is the headless form: point it at content you
+already render, and with `trigger: 'none'` drive it from your own gesture.
+
+```tsx
+const ref = useRef<HTMLElement>(null);
+const loupe = useGlassLoupe(ref, { trigger: 'none', zoom: 2 });
+// loupe.current?.show(e.clientX, e.clientY)
+```
+
+See the [core docs](https://www.npmjs.com/package/@liquidglassjs/core) for what
+the clone does and does not capture, and why a long-press loupe has to suppress
+the platform's own selection UI.
 
 ## Links
 

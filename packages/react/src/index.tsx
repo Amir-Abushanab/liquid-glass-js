@@ -172,13 +172,23 @@ export function useLiquidGlass<T extends HTMLElement = HTMLDivElement>(
   return ref;
 }
 
-// Visual effect bindings (typeface, alpha-shaped glass, movable lens, morphing
-// button, ripple bloom).
-export { GlassText, GlassShape, GlassLens, GlassButton, GlassRipple } from './effects';
+// Visual effect bindings (typeface, alpha-shaped glass, movable lens, magnifying
+// loupe, morphing button, ripple bloom).
+export {
+  GlassText,
+  GlassShape,
+  GlassLens,
+  GlassLoupe,
+  useGlassLoupe,
+  GlassButton,
+  GlassRipple,
+} from './effects';
 export type {
   GlassTextProps,
   GlassShapeProps,
   GlassLensProps,
+  GlassLoupeProps,
+  UseGlassLoupeOptions,
   GlassButtonProps,
   GlassRippleProps,
 } from './effects';
