@@ -69,3 +69,40 @@ export function supportsDisplacementMaps(): boolean {
 export function __setEngineOverride(value: boolean | undefined): void {
   cached = value;
 }
+
+const NEUTRAL_FLOOD = (result: string) =>
+  `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="${result}"></feFlood>`;
+
+/**
+ * The map stage of a glass filter, as markup: neutral field, the real map painted
+ * over it, composited to `result="map"`.
+ *
+ * Where `<feImage>` won't deliver (above), it is left out and the neutral field
+ * becomes the map directly. That matters more than dropping the filter wholesale,
+ * which was the first thing tried here and threw the baby out: a neutral map
+ * displaces by zero, but the rest of the chain — the pre-blur especially — still
+ * runs, and it's the blur plus the tint and rim layers that read as *glass*. So off
+ * Chromium a surface still looks like frosted glass; it just doesn't bend. Removing
+ * the filter left flat, unblurred content and no glass at all.
+ *
+ * It also makes the degraded output deterministic: WebKit doesn't ignore `feImage`,
+ * it renders the wrong thing, and a neutral flood can't.
+ *
+ * One chain can't be saved this way. The alpha-shaped renderers end in
+ * `feComposite operator="in"` against SourceAlpha, and off Chromium that clip yields
+ * nothing no matter what the map holds — measured with the real map and again with it
+ * swapped for a plain neutral flood; WebKit rendered the glass wordmark as blank space
+ * both times. So `mount-alpha-glass` skips the filter outright rather than degrading
+ * it, which is why `supportsDisplacementMaps()` is exported alongside this.
+ *
+ * Callers pass their own `<feImage …  result="rawMap">`, since its positioning
+ * differs per renderer.
+ */
+export function mapStage(feImage: string): string {
+  if (!supportsDisplacementMaps()) return NEUTRAL_FLOOD('map');
+  return (
+    NEUTRAL_FLOOD('mapBg') +
+    feImage +
+    `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>`
+  );
+}

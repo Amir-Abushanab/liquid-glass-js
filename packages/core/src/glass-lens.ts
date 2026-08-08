@@ -14,7 +14,7 @@
 import { buildDisplacementMap } from './displacement';
 import { specMaskValues, darkMaskValues } from './map-encode';
 import { parseCssColor } from './color';
-import { supportsDisplacementMaps } from './engine';
+import { mapStage, supportsDisplacementMaps } from './engine';
 
 export interface GlassLensOptions {
   target: HTMLElement; // live DOM to refract (receives filter:url())
@@ -111,9 +111,9 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
     div.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
     div.innerHTML =
       `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB">` +
-      `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
-      `<feImage href="${map}" xlink:href="${map}" x="${lx}" y="${ly}" width="${lensW}" height="${lensH}" preserveAspectRatio="none" result="rawMap"></feImage>` +
-      `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>` +
+      mapStage(
+        `<feImage href="${map}" xlink:href="${map}" x="${lx}" y="${ly}" width="${lensW}" height="${lensH}" preserveAspectRatio="none" result="rawMap"></feImage>`,
+      ) +
       `<feGaussianBlur in="SourceGraphic" stdDeviation="${cur.blur}" result="blurred"></feGaussianBlur>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
       `<feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix>` +
@@ -131,9 +131,13 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
       `</filter></svg>`;
     o.host.appendChild(div);
     curId = id;
-    // Without `feImage` the map never reaches feDisplacementMap, which then displaces
-    // by zero — the lens would cost a full filter pass to bend nothing, and on WebKit
-    // the partial map it does build is worse than none. Leave the target unfiltered.
+    // A lens has no frost equivalent — it's a moving window over arbitrary DOM, not a
+    // surface with a backdrop to blur — so off Chromium there's nothing to fall back
+    // to and the filter has to come off entirely. Applying it ghosted the content on
+    // WebKit (measured on the perf demo's cards, with a real map and a neutral one
+    // alike). The lens ring is drawn in CSS, so the affordance survives; only the
+    // refraction is lost. The loupe magnifies via a CSS transform on its clone, so it
+    // keeps magnifying here too.
     if (active && supportsDisplacementMaps()) {
       o.target.style.filter = `url(#${id})`;
       o.target.style.setProperty('-webkit-filter', `url(#${id})`);

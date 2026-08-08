@@ -9,7 +9,7 @@
 import { type GlyphMap, type GlyphMapCache } from './glyph-map';
 import { specMaskValues, darkMaskValues } from './map-encode';
 import { parseCssColor } from './color';
-import { supportsDisplacementMaps } from './engine';
+import { mapStage, supportsDisplacementMaps } from './engine';
 
 // The seven refraction params + shade (item 2). Same set for text and shapes.
 export interface AlphaGlassParams {
@@ -90,9 +90,9 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
     div.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
     div.innerHTML =
       `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="${-pad}" y="${-pad}" width="${m.rectW + 2 * pad}" height="${m.rectH + 2 * pad}" color-interpolation-filters="sRGB">` +
-      `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
-      `<feImage href="${map.url}" xlink:href="${map.url}" x="${-map.margin}" y="${-map.margin}" width="${map.cssW}" height="${map.cssH}" preserveAspectRatio="none" result="rawMap"></feImage>` +
-      `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>` +
+      mapStage(
+        `<feImage href="${map.url}" xlink:href="${map.url}" x="${-map.margin}" y="${-map.margin}" width="${map.cssW}" height="${map.cssH}" preserveAspectRatio="none" result="rawMap"></feImage>`,
+      ) +
       `<feGaussianBlur in="SourceGraphic" stdDeviation="${cur.blur}" result="blurred"></feGaussianBlur>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
       `<feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix>` +
@@ -112,11 +112,13 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
       `<feComposite in="litDark" in2="SourceAlpha" operator="in"></feComposite>` +
       `</filter></svg>`;
     core.host.appendChild(div);
-    // This filter ends in `feComposite operator="in"` against SourceAlpha, so it can
-    // only ever show what the lit result contains. Where `feImage` doesn't deliver
-    // the map (everything but Chromium — see engine.ts) that result is empty, the
-    // clip yields nothing, and the element's own content vanishes. Leaving the filter
-    // off renders the text or artwork plainly, which is strictly better than erasing it.
+    // The alpha path is the one exception to the neutral-map degrade below. Its chain
+    // ends in `feComposite operator="in"` against SourceAlpha, and off Chromium that
+    // clip yields nothing whatever the map contains — measured: with the real map, and
+    // again with the map replaced by a plain neutral flood, WebKit rendered the glass
+    // wordmark as blank space both times. So this is not the missing map, it's the
+    // alpha composite itself, and the only safe answer is to leave the element alone.
+    // Unfiltered glyphs are legible; erased ones are a bug.
     if (supportsDisplacementMaps()) {
       core.target.style.filter = `url(#${id})`;
       core.target.style.setProperty('-webkit-filter', `url(#${id})`);
