@@ -1283,6 +1283,57 @@ a {
     inset 0 -3px 6px rgb(0 0 0 / 20%),
     0 12px 30px -12px rgb(0 0 0 / 45%);
 }
+/* ── Magnifying loupe: a page of fine print, small enough that magnifying it is
+   obviously the point. The doc paints its own background so the capsule has
+   something opaque to fill with (see mountGlassLoupe's `backdrop`). ── */
+.loupe-stage {
+  width: min(560px, 100%);
+}
+.loupe-doc {
+  padding: 1.5rem 1.6rem 1.3rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  columns: 2;
+  column-gap: 1.5rem;
+  font-size: 9.5px;
+  line-height: 1.6;
+  text-align: justify;
+  hyphens: auto;
+  color: color-mix(in srgb, var(--ink) 72%, transparent);
+}
+@media (max-width: 560px) {
+  .loupe-doc {
+    columns: 1;
+  }
+}
+.loupe-doc__tag {
+  display: block;
+  margin-bottom: 0.7em;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 8.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--ink) 45%, transparent);
+}
+.loupe-doc p {
+  margin: 0 0 0.8em;
+}
+.loupe-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.7rem 0 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.loupe-hint svg {
+  flex: none;
+  /* The cursor glyph reads as a pointer sitting still, so nudge it up to sit on
+     the text's optical centre rather than its baseline. */
+  margin-top: -1px;
+}
 .cfg {
   position: fixed;
   right: 16px;

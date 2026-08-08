@@ -52,6 +52,9 @@ importers:
       '@liquidglassjs/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@liquidglassjs/element':
+        specifier: workspace:*
+        version: link:../../packages/element
       '@liquidglassjs/qr':
         specifier: workspace:*
         version: link:../../packages/qr

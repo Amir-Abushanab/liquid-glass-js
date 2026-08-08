@@ -1,4 +1,4 @@
-import { mountGlassLens } from '@liquidglassjs/core';
+import { mountGlassLens, mountGlassLoupe } from '@liquidglassjs/core';
 import { reconfigureAllGlassText, GLASS_TEXT_DEFAULTS } from '@liquidglassjs/core';
 import { cubicBezier } from '@liquidglassjs/core';
 const cfgSections = [];
@@ -12,6 +12,19 @@ const LENS_PARAMS = [
   { k: 'edge', min: 0, max: 2, step: 0.05 },
   { k: 'glow', min: 0, max: 2, step: 0.05 },
   { k: 'shade', min: 0, max: 1, step: 0.05 },
+];
+// The loupe adds its own geometry (how much to magnify, and the capsule's size and
+// offset) on top of the lens refraction params.
+const LOUPE_PARAMS = [
+  { k: 'zoom', min: 1.1, max: 3, step: 0.05 },
+  { k: 'longPressMs', label: 'hold', min: 0, max: 900, step: 20 },
+  { k: 'width', min: 60, max: 260, step: 2 },
+  { k: 'height', min: 28, max: 120, step: 2 },
+  { k: 'radius', min: 0, max: 60, step: 1 },
+  { k: 'offsetY', min: -140, max: 0, step: 2 },
+  { k: 'strength', min: 0, max: 30, step: 0.5 },
+  { k: 'chroma', min: 0, max: 1.5, step: 0.02 },
+  { k: 'dome', min: 0, max: 24, step: 0.5 },
 ];
 // Render-paths tuner: the params `mountGlass` (the unified surface) accepts. Each of the
 // three cards honors a different subset — see the per-focus `dead` sets below.
@@ -51,6 +64,9 @@ const CFG_ICONS = {
   switch:
     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="5" width="13" height="6" rx="3"/><circle cx="11" cy="8" r="2" fill="currentColor" stroke="none"/></svg>',
   lens: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="6.8" cy="6.8" r="4.3"/><line x1="10.2" y1="10.2" x2="14" y2="14"/></svg>',
+  // Same glass as the lens, but it magnifies — hence the plus.
+  loupe:
+    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="6.8" cy="6.8" r="4.3"/><line x1="10.2" y1="10.2" x2="14" y2="14"/><line x1="6.8" y1="4.9" x2="6.8" y2="8.7"/><line x1="4.9" y1="6.8" x2="8.7" y2="6.8"/></svg>',
   ripple:
     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="4" opacity="0.85"/><circle cx="8" cy="8" r="6.3" opacity="0.4"/></svg>',
   qr: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.5" y="1.5" width="4.5" height="4.5" rx="1"/><rect x="10" y="1.5" width="4.5" height="4.5" rx="1"/><rect x="1.5" y="10" width="4.5" height="4.5" rx="1"/><rect x="10.5" y="10.5" width="3" height="3" fill="currentColor" stroke="none"/></svg>',
@@ -794,6 +810,54 @@ if (lstage && lcard && lensEl) {
   };
   place();
   tick();
+}
+// ── Magnifying loupe: the same lens, over a scaled clone of the fine print ──
+const loupeDoc = document.getElementById('loupedoc');
+if (loupeDoc) {
+  const LOUPE_OPTS = {
+    zoom: 2.2, // the doc is set at ~9.5px, so it needs more than the iOS 1.5×
+    width: 156,
+    height: 50,
+    radius: 25,
+    offsetY: -58,
+    strength: 18,
+    chroma: 0.7,
+    dome: 8,
+    longPressMs: 400,
+  };
+  const loupe = mountGlassLoupe({
+    source: loupeDoc,
+    // A hold, not a press: a drag that sets off immediately cancels it, which is
+    // what leaves ordinary text selection intact. Tune the wait in the Glass Tuner.
+    trigger: 'longpress',
+    glint: '#ffd9a0', // the warm specular the draggable lens above uses
+    ...LOUPE_OPTS,
+  });
+  // A tuner slider is useless if you can't see what it did, and the loupe is only
+  // visible mid-gesture. So tuning opens it over the middle of the doc and lets it
+  // fall away again once the sliders go quiet — unless a real press already has it.
+  let peek = 0;
+  const previewTune = () => {
+    clearTimeout(peek);
+    if (!loupe.isOpen()) {
+      const r = loupeDoc.getBoundingClientRect();
+      loupe.show(r.left + r.width / 2, r.top + r.height / 2);
+    }
+    peek = setTimeout(() => loupe.hide(), 1600);
+  };
+  cfgSections.push({
+    id: 'loupe',
+    label: 'Loupe',
+    icon: CFG_ICONS.loupe,
+    params: LOUPE_PARAMS,
+    opts: { ...LOUPE_OPTS },
+    apply: (patch) => {
+      loupe.reconfigure(patch);
+      // The hold duration is the one param with nothing to look at — previewing it
+      // would just flash the capsule at you while you drag a timing slider.
+      if (Object.keys(patch).some((k) => k !== 'longPressMs')) previewTune();
+    },
+  });
 }
 import { mountSvgRipple } from '@liquidglassjs/core';
 const svgBtn = document.querySelector('[data-wbtn-svg]');
@@ -1713,6 +1777,7 @@ const TUNER_ORDER = [
   'paths',
   'shape',
   'lens',
+  'loupe',
   'font',
   'segmented',
   'ripple',

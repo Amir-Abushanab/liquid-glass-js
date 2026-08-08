@@ -1,0 +1,275 @@
+---
+// Demo bench for `mountGlassLoupe` — the iOS "hold on a word" magnifier.
+//
+// Deliberately standalone (no DocsLayout, no Tailwind, no React island): the loupe
+// clones live DOM and renders it in the top layer, so it's worth seeing the effect
+// with nothing else in the stack that could be doing the work.
+import '@liquidglassjs/core/css';
+
+const base = import.meta.env.BASE_URL;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Glass loupe · Liquid Glass</title>
+    <link rel="icon" type="image/svg+xml" href={base + 'favicon.svg'} />
+  </head>
+  <body>
+    <main>
+      <header class="head">
+        <h1>Glass loupe</h1>
+        <p class="lede">
+          Press and hold anywhere in the article, then drag. A glass capsule floats above the
+          pointer, magnifying the line under it — the iOS text loupe, built from the same
+          displacement lens as everything else in this library.
+        </p>
+      </header>
+
+      <div class="controls" id="controls">
+        <label>
+          Trigger
+          <select id="trigger">
+            <option value="longpress">long press</option>
+            <option value="press">press</option>
+            <option value="hover">hover</option>
+          </select>
+        </label>
+        <label>Zoom <input type="range" id="zoom" min="1.1" max="3" step="0.05" value="1.55" /></label>
+        <label>Width <input type="range" id="width" min="60" max="280" step="2" value="132" /></label>
+        <label>Height <input type="range" id="height" min="28" max="160" step="2" value="44" /></label>
+        <label>Radius <input type="range" id="radius" min="0" max="80" step="1" value="22" /></label>
+        <label>Strength <input type="range" id="strength" min="0" max="30" step="0.5" value="16" /></label>
+        <label>Chroma <input type="range" id="chroma" min="0" max="1.5" step="0.02" value="0.6" /></label>
+        <label>Dome <input type="range" id="dome" min="0" max="24" step="0.5" value="7" /></label>
+        <label>Offset Y <input type="range" id="offsetY" min="-140" max="0" step="2" value="-54" /></label>
+        <label>
+          Hold <input type="range" id="longPressMs" min="0" max="900" step="20" value="400" />
+          <span id="holdVal">400ms</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="snap" checked /> snap to line
+        </label>
+        <output id="caret">—</output>
+      </div>
+
+      <article id="article" class="article">
+        <h2>Building glass for the web</h2>
+        <p>
+          The trick that makes any of this work is that a displacement map is just an image. Encode
+          a height field into a bitmap — red for how far each pixel should slide sideways, green for
+          how far it should slide down — and <code>feDisplacementMap</code> will push the pixels of a
+          live DOM subtree around accordingly. No canvas, no WebGL, no snapshot: the text underneath
+          stays real text, selectable and searchable and crisp at any zoom.
+        </p>
+        <p>
+          A lens is that same map, sized to a small rounded rectangle and dropped into the filter
+          through a positioned <code>feImage</code>. Moving the lens is a matter of moving that one
+          node; the map itself never gets rebuilt, which is why dragging holds its frame rate even on
+          a phone. Everything outside the lens region encodes to neutral grey — no displacement at
+          all — so the rest of the page passes through untouched.
+        </p>
+        <p>
+          Magnification, though, is a different problem. A displacement map bends pixels; it cannot
+          scale them. To actually enlarge what is underneath, something has to render the content a
+          second time at a larger size — and if you want the result to stay sharp, that something had
+          better not be a bitmap.
+        </p>
+        <p>
+          Hence the clone. The magnifier deep-copies the source subtree, scales it with a CSS
+          transform, and clips it to the capsule. Because it is still DOM, the glyphs are rasterised
+          at their final size and land pin-sharp. The lens filter then sits on top of that copy, so
+          the rim refracts the magnified text exactly the way it refracts everything else.
+        </p>
+      </article>
+
+      <h2 class="sub">Same thing, as a custom element</h2>
+      <p class="note">
+        The markup below is a <code>&lt;glass-loupe&gt;</code> with no JavaScript of its own — the
+        consumption path for Vue, Svelte, plain HTML, or Astro. Hover it.
+      </p>
+      <glass-loupe id="ce" trigger="hover" zoom="1.9" width="150" height="50" radius="25">
+        <blockquote>
+          A lens is a small image and a positioned <code>feImage</code>; a magnifier is that lens
+          over a second copy of the page. Neither one needs a canvas.
+        </blockquote>
+      </glass-loupe>
+
+      <p class="note">
+        Selecting text still works: hold <em>still</em> for the hold duration and you get the loupe;
+        press and <em>drag</em> and you get an ordinary selection. Only once the hold has won does
+        the loupe take <code>user-select</code> away, and it hands it back on release — which is also
+        what keeps iOS Safari from stacking its native loupe on top of this one.
+      </p>
+    </main>
+
+    <script>
+      import '@liquidglassjs/element/loupe'; // registers <glass-loupe>; no wiring needed
+      import { mountGlassLoupe } from '@liquidglassjs/core';
+      import type { GlassLoupe, GlassLoupeTrigger } from '@liquidglassjs/core';
+
+      const article = document.getElementById('article') as HTMLElement;
+      const caretOut = document.getElementById('caret') as HTMLOutputElement;
+      const $ = (id: string) => document.getElementById(id) as HTMLInputElement;
+
+      const PARAMS = [
+        'zoom',
+        'longPressMs',
+        'width',
+        'height',
+        'radius',
+        'strength',
+        'chroma',
+        'dome',
+        'offsetY',
+      ] as const;
+
+      let loupe: GlassLoupe | null = null;
+
+      const readParams = () =>
+        Object.fromEntries(PARAMS.map((k) => [k, Number($(k).value)])) as Record<string, number>;
+
+      const syncHold = () => {
+        document.getElementById('holdVal')!.textContent = $('longPressMs').value + 'ms';
+      };
+
+      // Only trigger and snapToLine are mount-time options, so changing either remounts.
+      // Everything else — the hold duration included — tunes live via reconfigure().
+      const mount = () => {
+        loupe?.dispose();
+        syncHold();
+        loupe = mountGlassLoupe({
+          source: article,
+          trigger: ($('trigger') as unknown as HTMLSelectElement).value as GlassLoupeTrigger,
+          snapToLine: $('snap').checked,
+          ...readParams(),
+          onMove: (s) => {
+            caretOut.textContent = s.caret
+              ? `“${(s.caret.node.nodeValue ?? '').slice(Math.max(0, s.caret.offset - 12), s.caret.offset + 12).trim()}”`
+              : '—';
+          },
+          onHide: () => {
+            caretOut.textContent = '—';
+          },
+        });
+      };
+
+      mount();
+      $('trigger').addEventListener('change', mount);
+      $('snap').addEventListener('change', mount);
+      PARAMS.forEach((k) =>
+        $(k).addEventListener('input', () => {
+          loupe?.reconfigure(readParams());
+          syncHold();
+        }),
+      );
+
+      // Handy for poking at it from the console / automation.
+      (window as unknown as { loupe: () => GlassLoupe | null }).loupe = () => loupe;
+    </script>
+
+    <style>
+      :root {
+        --paper: #fbfaf7;
+        --ink: #16151a;
+        --muted: #6c6a75;
+        color-scheme: light dark;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --paper: #131218;
+          --ink: #ece9f2;
+          --muted: #9b98a6;
+        }
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+      }
+      main {
+        max-width: 46rem;
+        margin: 0 auto;
+        padding: 3rem 1.5rem 6rem;
+      }
+      h1 {
+        font-size: 2rem;
+        margin: 0 0 0.5rem;
+        letter-spacing: -0.02em;
+      }
+      .lede {
+        color: var(--muted);
+        margin: 0 0 2rem;
+      }
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+        gap: 0.6rem 1.2rem;
+        padding: 1rem 1.2rem;
+        margin-bottom: 2rem;
+        border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+        border-radius: 14px;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .controls label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        justify-content: space-between;
+      }
+      .controls label.check {
+        justify-content: flex-start;
+      }
+      .controls input[type='range'] {
+        flex: 1;
+        min-width: 0;
+      }
+      #caret {
+        grid-column: 1 / -1;
+        font-family: ui-monospace, SFMono-Regular, monospace;
+        color: var(--ink);
+      }
+      .article {
+        /* Deliberately no background of its own — the loupe should find the page's
+           and fill the capsule with it, rather than showing a see-through hole. */
+        border-radius: 16px;
+      }
+      .article h2 {
+        font-size: 1.25rem;
+        letter-spacing: -0.01em;
+        margin: 0 0 0.75rem;
+      }
+      .article p {
+        margin: 0 0 1.1rem;
+        text-wrap: pretty;
+      }
+      .article code {
+        font-family: ui-monospace, SFMono-Regular, monospace;
+        font-size: 0.9em;
+        padding: 0.1em 0.3em;
+        border-radius: 5px;
+        background: color-mix(in srgb, var(--ink) 8%, transparent);
+      }
+      .sub {
+        font-size: 1.1rem;
+        margin: 3rem 0 0.5rem;
+        border-top: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+        padding-top: 2rem;
+      }
+      .note {
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+      blockquote {
+        margin: 1rem 0 0;
+        padding: 1.1rem 1.3rem;
+        border-left: 3px solid color-mix(in srgb, var(--ink) 25%, transparent);
+        font-size: 1.05rem;
+      }
+    </style>
+  </body>
+</html>

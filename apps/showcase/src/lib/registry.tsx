@@ -14,6 +14,7 @@ import {
   ToggleRight,
   Type,
   Waves,
+  ZoomIn,
 } from 'lucide-react';
 import { GlassSurface } from '@/components/liquid-glass/glass-surface';
 import { GlassCard } from '@/components/liquid-glass/glass-card';
@@ -42,7 +43,14 @@ import {
   GlassDropdownMenuItem,
   GlassDropdownMenuSeparator,
 } from '@/components/liquid-glass/glass-dropdown-menu';
-import { GlassText, GlassShape, GlassLens, GlassButton, GlassRipple } from '@liquidglassjs/react';
+import {
+  GlassText,
+  GlassShape,
+  GlassLens,
+  GlassLoupe,
+  GlassButton,
+  GlassRipple,
+} from '@liquidglassjs/react';
 import { GlassQR } from '@liquidglassjs/qr/react';
 
 /** Where the registry JSON is hosted (served from the showcase's own deploy). */
@@ -275,6 +283,57 @@ export function Example() {
         {/* live content — refracted under the lens */}
       </div>
     </GlassLens>
+  )
+}`,
+};
+
+// Every GlassLoupeParam, in interface order: the magnifier's own geometry (how much
+// to enlarge, the capsule's box, where it sits relative to the pointer, how long the
+// hold is) and then the lens refraction it shares with GlassLens. `hold` is here
+// rather than in `controls` because it reconfigures live like the rest — it's read
+// at pointerdown, so a change lands on the next gesture without a remount.
+const LOUPE_TUNE: TuneConfig = {
+  params: [
+    { key: 'zoom', min: 1.1, max: 3, step: 0.05, default: 2.2 },
+    { key: 'longPressMs', label: 'hold', min: 0, max: 900, step: 20, default: 400 },
+    { key: 'width', min: 60, max: 260, step: 2, default: 156 },
+    { key: 'height', min: 28, max: 120, step: 2, default: 50 },
+    { key: 'radius', min: 0, max: 60, step: 1, default: 25 },
+    { key: 'offsetY', min: -140, max: 0, step: 2, default: -58 },
+    { key: 'strength', min: 0, max: 30, step: 0.5, default: 16 },
+    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.6 },
+    { key: 'blur', min: 0, max: 2, step: 0.05, default: 0.15 },
+    { key: 'dome', min: 0, max: 24, step: 0.5, default: 7 },
+    { key: 'depth', min: 0, max: 30, step: 0.5, default: 5 },
+    { key: 'edge', min: 0, max: 2, step: 0.05, default: 0.9 },
+    { key: 'glow', min: 0, max: 2, step: 0.05, default: 0.4 },
+    { key: 'shade', min: 0, max: 1, step: 0.05, default: 0.12 },
+  ],
+  code: (v) => `import { GlassLoupe } from "@liquidglassjs/react"
+
+export function Example() {
+  return (
+    <GlassLoupe
+      zoom={${v.zoom}}
+      longPressMs={${v.longPressMs}}
+      width={${v.width}}
+      height={${v.height}}
+      radius={${v.radius}}
+      offsetY={${v.offsetY}}
+      strength={${v.strength}}
+      chroma={${v.chroma}}
+      blur={${v.blur}}
+      dome={${v.dome}}
+      depth={${v.depth}}
+      edge={${v.edge}}
+      glow={${v.glow}}
+      shade={${v.shade}}
+      glint="#ffd9a0"
+      className="columns-2 gap-6 rounded-xl border p-6 text-[9.5px] leading-relaxed"
+    >
+      {/* any live DOM — press and hold to magnify it */}
+      <p>…</p>
+    </GlassLoupe>
   )
 }`,
 };
@@ -1070,6 +1129,58 @@ export const registry: RegistryItem[] = [
           </div>
         </div>
       </GlassLens>
+    ),
+  },
+  {
+    slug: 'glass-loupe',
+    title: 'Glass Loupe',
+    category: 'Effects',
+    icon: ZoomIn,
+    npm: '@liquidglassjs/react',
+    description:
+      'The iOS text magnifier: press and hold, and a glass capsule floats above the pointer showing the line beneath it, enlarged. Drag straight away and you get an ordinary selection instead.',
+    tune: LOUPE_TUNE,
+    code: LOUPE_TUNE.code(tuneDefaults(LOUPE_TUNE)),
+    Demo: ({ values: v = tuneDefaults(LOUPE_TUNE) }) => (
+      <GlassLoupe
+        zoom={v.zoom}
+        longPressMs={v.longPressMs}
+        width={v.width}
+        height={v.height}
+        radius={v.radius}
+        offsetY={v.offsetY}
+        strength={v.strength}
+        chroma={v.chroma}
+        blur={v.blur}
+        dome={v.dome}
+        depth={v.depth}
+        edge={v.edge}
+        glow={v.glow}
+        shade={v.shade}
+        glint="#ffd9a0"
+        // Two columns of genuinely small type: the case a magnifier is *for*, and
+        // the one that proves the clone reflows exactly like the original.
+        className="w-full max-w-[560px] columns-2 gap-6 rounded-xl bg-zinc-950 p-6 text-justify text-[9.5px] leading-relaxed text-white/70 ring-1 ring-white/10 max-sm:columns-1"
+      >
+        <span className="mb-3 block font-mono text-[8.5px] tracking-[0.14em] text-white/40 uppercase">
+          §14 · Refraction
+        </span>
+        <p className="mb-3">
+          Each pixel of the element beneath is displaced by the red and green channels of a
+          generated bitmap, red carrying the horizontal shift and green the vertical, so that the
+          rendered output bends as though seen through a dome of glass.
+        </p>
+        <p className="mb-3">
+          The map is neutral grey everywhere outside the lens, which encodes zero displacement, and
+          the content there passes through untouched and remains selectable, scrollable and
+          clickable in the ordinary way.
+        </p>
+        <p>
+          Magnification is not obtainable by displacement alone. It requires a second rendering of
+          the source at a larger scale, and where that rendering is retained as document content
+          rather than as a raster, the letterforms are rasterized at their final size.
+        </p>
+      </GlassLoupe>
     ),
   },
   {

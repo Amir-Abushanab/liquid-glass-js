@@ -349,4 +349,9 @@ document.querySelectorAll('svg[width="0"][height="0"][aria-hidden="true"]').forE
   if (holder && holder.tagName === 'DIV') holder.remove();
   else svg.remove();
 });
+// Same reasoning for the loupe: its root is built at runtime and holds a whole
+// cloned subtree, so a capture taken mid-gesture would bake in a frozen capsule —
+// plus duplicates of every id inside it. This module is imported before
+// showcase.js mounts the live one, so anything here is residue by definition.
+document.querySelectorAll('[data-ps-loupe]').forEach((el) => el.remove());
 document.querySelectorAll('[data-glass]').forEach(mount);
