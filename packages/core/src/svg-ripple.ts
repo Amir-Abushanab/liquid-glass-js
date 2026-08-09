@@ -19,6 +19,7 @@
 import { buildDisplacementMap } from './displacement';
 import { NEUTRAL } from './map-encode';
 import { SPLASH_COLORS, hexToRgb } from './color';
+import { applyGlassFilter, clearGlassFilter } from './filter-origin';
 
 // Live-tunable ripple params (the Glass Tuner mutates these via reconfigure()).
 export interface SvgRippleParams {
@@ -118,8 +119,7 @@ export function mountSvgRipple(o: SvgRippleOptions) {
     );
     if (p >= 1) {
       active = false;
-      o.target.style.filter = '';
-      o.target.style.removeProperty('-webkit-filter');
+      clearGlassFilter(o.target);
       return;
     }
     raf = requestAnimationFrame(frame);
@@ -136,8 +136,7 @@ export function mountSvgRipple(o: SvgRippleOptions) {
       col = hexToRgb(SPLASH_COLORS[colorIndex]);
       colorIndex = (colorIndex + 1) % SPLASH_COLORS.length;
       t0 = performance.now();
-      o.target.style.filter = `url(#${id})`;
-      o.target.style.setProperty('-webkit-filter', `url(#${id})`);
+      applyGlassFilter(o.target, id);
       if (!active) {
         active = true;
         raf = requestAnimationFrame(frame);
@@ -153,8 +152,7 @@ export function mountSvgRipple(o: SvgRippleOptions) {
     dispose() {
       cancelAnimationFrame(raf);
       holder.remove();
-      o.target.style.filter = '';
-      o.target.style.removeProperty('-webkit-filter');
+      clearGlassFilter(o.target);
     },
   };
 }

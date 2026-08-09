@@ -9,6 +9,7 @@
 import { type GlyphMap, type GlyphMapCache } from './glyph-map';
 import { specMaskValues, darkMaskValues } from './map-encode';
 import { parseCssColor } from './color';
+import { applyGlassFilter, clearGlassFilter } from './filter-origin';
 
 // The seven refraction params + shade (item 2). Same set for text and shapes.
 export interface AlphaGlassParams {
@@ -86,17 +87,21 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
     const [s1, s2, s3] = scales();
     const div = document.createElement('div');
     div.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
-    // The feImage carries NO x/y/width/height. WebKit drops any filter primitive that
-    // has an explicit subregion when the filter is applied to an HTML element — the
-    // primitive yields nothing at all, which is why the glass typeface and glass marks
-    // rendered as blank space there (an empty map, then `operator="in"` against
-    // SourceAlpha clipping it to nothing). Verified against webkit-2311: a primitive
-    // with a subregion is dropped, the same primitive without one paints correctly,
-    // and both Chromium and Gecko honour either.
+    // The feImage carries NO x/y/width/height: without a subregion it fills the
+    // filter region, so the region is set to exactly the map's extent — origin at
+    // -margin, sized cssW x cssH — and the two line up 1:1 with nothing to position.
     //
-    // A subregion-less feImage fills the filter region, so the region is set to exactly
-    // the map's extent — origin at -margin, sized cssW x cssH — and the two line up 1:1
-    // with nothing left to position.
+    // That region is in userSpaceOnUse, which Safari resolves against the page
+    // origin unless the target owns a coordinate system (see filter-origin.ts).
+    // Unpinned, the region sat elsewhere on the page, the map was empty here, and
+    // the closing `operator="in"` against SourceAlpha clipped the result to
+    // nothing — which is exactly why glass text and glass marks rendered as blank
+    // space in Safari. applyGlassFilter below pins it.
+    //
+    // The region must NOT be expressed as objectBoundingBox percentages instead:
+    // that box is the ink bbox, not the border box, and the engines disagree about
+    // it — for one 270x84 text element, webkit/firefox resolve 272x100 and chromium
+    // 270x99 — so a px-exact map extent cannot be written as a percentage.
     div.innerHTML =
       `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="${-map.margin}" y="${-map.margin}" width="${map.cssW}" height="${map.cssH}" color-interpolation-filters="sRGB">` +
       `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
@@ -121,8 +126,7 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
       `<feComposite in="litDark" in2="SourceAlpha" operator="in"></feComposite>` +
       `</filter></svg>`;
     core.host.appendChild(div);
-    core.target.style.filter = `url(#${id})`;
-    core.target.style.setProperty('-webkit-filter', `url(#${id})`);
+    applyGlassFilter(core.target, id);
     if (holder) holder.remove();
     holder = div;
     dispNodes = Array.from(div.querySelectorAll('feDisplacementMap'));
@@ -191,8 +195,7 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
       if (tid) clearTimeout(tid);
       ro?.disconnect();
       holder?.remove();
-      core.target.style.filter = '';
-      core.target.style.removeProperty('-webkit-filter');
+      clearGlassFilter(core.target);
     },
   };
 }

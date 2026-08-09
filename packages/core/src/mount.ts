@@ -17,6 +17,7 @@
 import { buildDisplacementMap } from './displacement';
 import { specMaskValues } from './map-encode';
 import type { GlassGL as GlassGLType } from './webgl';
+import { applyGlassFilter, clearGlassFilter } from './filter-origin';
 
 const MARGIN = 28; // bleed so the displacement doesn't sample past the lens rim
 const SPEC_LO = 0.25;
@@ -451,8 +452,7 @@ function mountDomRefract(el: HTMLElement, refract: HTMLElement, p: P): () => voi
       `<feComposite in="specMask" in2="lensResult" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite>` +
       `</filter></svg>`;
     el.appendChild(svg);
-    refract.style.filter = `url(#${id})`;
-    refract.style.setProperty('-webkit-filter', `url(#${id})`);
+    applyGlassFilter(refract, id);
     if (holder) holder.remove();
     holder = svg;
   };
@@ -462,8 +462,7 @@ function mountDomRefract(el: HTMLElement, refract: HTMLElement, p: P): () => voi
   return () => {
     ro.disconnect();
     if (holder) holder.remove();
-    refract.style.filter = '';
-    refract.style.removeProperty('-webkit-filter');
+    clearGlassFilter(refract);
   };
 }
 

@@ -18,6 +18,7 @@
 
 import { buildDisplacementMap } from './displacement';
 import { NEUTRAL } from './map-encode';
+import { applyGlassFilter, clearGlassFilter } from './filter-origin';
 
 // The live-tunable refraction params (everything except the box geometry).
 export interface GlassSurfaceParams {
@@ -179,8 +180,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
     dm = Array.from(div.querySelectorAll('feDisplacementMap'));
     spec = div.querySelector<SVGFEColorMatrixElement>('[result="specMask"]');
     if (active) {
-      o.target.style.filter = `url(#${id})`;
-      o.target.style.setProperty('-webkit-filter', `url(#${id})`);
+      applyGlassFilter(o.target, id);
     }
     if (holder) holder.remove();
     holder = div;
@@ -213,11 +213,9 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
     setActive(on) {
       active = on;
       if (on && curId) {
-        o.target.style.filter = `url(#${curId})`;
-        o.target.style.setProperty('-webkit-filter', `url(#${curId})`);
+        applyGlassFilter(o.target, curId);
       } else {
-        o.target.style.filter = '';
-        o.target.style.removeProperty('-webkit-filter');
+        clearGlassFilter(o.target);
       }
     },
     reconfigure(patch) {
@@ -229,8 +227,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
     },
     dispose() {
       holder?.remove();
-      o.target.style.filter = '';
-      o.target.style.removeProperty('-webkit-filter');
+      clearGlassFilter(o.target);
     },
   };
 }
