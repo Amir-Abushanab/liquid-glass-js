@@ -107,6 +107,37 @@ export function refreshGlassFilter(el: HTMLElement, filter: SVGFilterElement, id
   return id;
 }
 
+/**
+ * Multiplier to apply to every `primitiveUnits="userSpaceOnUse"` value in a filter
+ * targeting `el`. 1 for everything except the case below.
+ *
+ * When the filtered element is an inline <svg> carrying a viewBox whose units are
+ * not CSS px, WebKit resolves primitive values in the SVG's OWN user units while
+ * Chromium and Gecko use CSS px — and it does this to the whole primitive
+ * coordinate space, positions and lengths alike. On a 64-unit viewBox drawn at
+ * 200px (3.125x), measured:
+ *
+ *   feImage subregion x=20 y=20 100x100   webkit 112,112 (clipped 138)  others 70,70 100x100
+ *   feOffset dx=20 (a pure length)        webkit shifts 63px            others shift 20px
+ *
+ * So a glass mark got its map drawn 3x oversized and offset — the artwork lost its
+ * rim and showed a dark misplaced crescent — and its displacement and blur were
+ * scaled up to match. The filter REGION is unaffected: filterUnits resolves in CSS
+ * px in every engine, including WebKit, on the same element.
+ *
+ * Multiplying primitive values by viewBoxWidth/cssWidth cancels it exactly. The
+ * ratio is 1 for HTML targets, for an <svg> with no viewBox, and for a viewBox whose
+ * units already are CSS px, so the same code path serves every case.
+ */
+export function primitiveScale(el: Element): number {
+  if (!needsRefresh()) return 1; // same engine test — only WebKit rescales
+  if (typeof SVGSVGElement === 'undefined' || !(el instanceof SVGSVGElement)) return 1;
+  const vb = el.viewBox?.baseVal;
+  const r = el.getBoundingClientRect();
+  if (!vb || !vb.width || !vb.height || !r.width || !r.height) return 1;
+  return vb.width / r.width;
+}
+
 /** Remove the filter and any origin pin we added. */
 export function clearGlassFilter(el: HTMLElement): void {
   el.style.filter = '';

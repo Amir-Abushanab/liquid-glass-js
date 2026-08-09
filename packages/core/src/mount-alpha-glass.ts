@@ -9,7 +9,7 @@
 import { type GlyphMap, type GlyphMapCache } from './glyph-map';
 import { specMaskValues, darkMaskValues } from './map-encode';
 import { parseCssColor } from './color';
-import { applyGlassFilter, clearGlassFilter } from './filter-origin';
+import { applyGlassFilter, clearGlassFilter, primitiveScale } from './filter-origin';
 
 // The seven refraction params + shade (item 2). Same set for text and shapes.
 export interface AlphaGlassParams {
@@ -74,9 +74,10 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
 
   const applyAttrs = () => {
     if (!dispNodes.length) return;
+    const k = primitiveScale(core.target); // see regen(): 1 except viewBox'd svg on WebKit
     const s = scales();
-    dispNodes.forEach((d, i) => d.setAttribute('scale', String(s[i])));
-    blurNode?.setAttribute('stdDeviation', String(cur.blur));
+    dispNodes.forEach((d, i) => d.setAttribute('scale', String(s[i] * k)));
+    blurNode?.setAttribute('stdDeviation', String(cur.blur * k));
   };
 
   const regen = () => {
@@ -84,19 +85,32 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
     const map = core.buildMap(m, cur, cache);
     if (!map.url) return;
     const id = `${core.idPrefix}-${++n}`; // fresh id on every map change (Safari cache bust)
-    const [s1, s2, s3] = scales();
+    // Every primitiveUnits value below goes through k. It is 1 everywhere except an
+    // inline <svg> target with a non-css-px viewBox on WebKit — see primitiveScale.
+    const k = primitiveScale(core.target);
+    const [s1, s2, s3] = scales().map((v) => v * k);
     const div = document.createElement('div');
     div.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
-    // The feImage carries NO x/y/width/height: without a subregion it fills the
-    // filter region, so the region is set to exactly the map's extent — origin at
-    // -margin, sized cssW x cssH — and the two line up 1:1 with nothing to position.
+    // The feImage carries an EXPLICIT subregion, and it has to. Left without one it
+    // fills the filter region instead, which makes the map's scale and position
+    // hostage to whatever region the engine computed — and WebKit intersects the
+    // region with the element's own box when the target is an inline <svg>, as
+    // glass marks are. Measured on a 180x180 <svg>, region declared -20,-20 220x220:
     //
-    // That region is in userSpaceOnUse, which Safari resolves against the page
-    // origin unless the target owns a coordinate system (see filter-origin.ts).
-    // Unpinned, the region sat elsewhere on the page, the map was empty here, and
-    // the closing `operator="in"` against SourceAlpha clipped the result to
-    // nothing — which is exactly why glass text and glass marks rendered as blank
-    // space in Safari. applyGlassFilter below pins it.
+    //   chromium -> map painted 220x220 at the declared origin   (correct)
+    //   webkit   -> map painted 180x180 at the element origin    (clipped to the box)
+    //
+    // so the map got squeezed into the smaller box and shifted by the margin: the
+    // displacement field stopped lining up with the artwork, which is the glass mark
+    // losing its rim and showing a dark offset crescent. With a subregion the map is
+    // placed on its own terms and the region only clips — and the chain already ends
+    // in `operator="in"` against SourceAlpha, so clipping changes nothing visible.
+    //
+    // Both the subregion and the region are userSpaceOnUse, which Safari resolves
+    // against the page origin unless the target owns a coordinate system (see
+    // filter-origin.ts) — that is why glass text and glass marks rendered as blank
+    // space there. applyGlassFilter below pins it. Inline <svg> targets already own
+    // one, so they were never affected by that half.
     //
     // The region must NOT be expressed as objectBoundingBox percentages instead:
     // that box is the ink bbox, not the border box, and the engines disagree about
@@ -105,9 +119,9 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
     div.innerHTML =
       `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="${-map.margin}" y="${-map.margin}" width="${map.cssW}" height="${map.cssH}" color-interpolation-filters="sRGB">` +
       `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
-      `<feImage href="${map.url}" xlink:href="${map.url}" preserveAspectRatio="none" result="rawMap"></feImage>` +
+      `<feImage href="${map.url}" xlink:href="${map.url}" x="${-map.margin * k}" y="${-map.margin * k}" width="${map.cssW * k}" height="${map.cssH * k}" preserveAspectRatio="none" result="rawMap"></feImage>` +
       `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>` +
-      `<feGaussianBlur in="SourceGraphic" stdDeviation="${cur.blur}" result="blurred"></feGaussianBlur>` +
+      `<feGaussianBlur in="SourceGraphic" stdDeviation="${cur.blur * k}" result="blurred"></feGaussianBlur>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
       `<feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s2}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
