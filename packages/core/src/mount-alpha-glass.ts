@@ -84,13 +84,23 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
     if (!map.url) return;
     const id = `${core.idPrefix}-${++n}`; // fresh id on every map change (Safari cache bust)
     const [s1, s2, s3] = scales();
-    const pad = 16;
     const div = document.createElement('div');
     div.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
+    // The feImage carries NO x/y/width/height. WebKit drops any filter primitive that
+    // has an explicit subregion when the filter is applied to an HTML element — the
+    // primitive yields nothing at all, which is why the glass typeface and glass marks
+    // rendered as blank space there (an empty map, then `operator="in"` against
+    // SourceAlpha clipping it to nothing). Verified against webkit-2311: a primitive
+    // with a subregion is dropped, the same primitive without one paints correctly,
+    // and both Chromium and Gecko honour either.
+    //
+    // A subregion-less feImage fills the filter region, so the region is set to exactly
+    // the map's extent — origin at -margin, sized cssW x cssH — and the two line up 1:1
+    // with nothing left to position.
     div.innerHTML =
-      `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="${-pad}" y="${-pad}" width="${m.rectW + 2 * pad}" height="${m.rectH + 2 * pad}" color-interpolation-filters="sRGB">` +
+      `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="${-map.margin}" y="${-map.margin}" width="${map.cssW}" height="${map.cssH}" color-interpolation-filters="sRGB">` +
       `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
-      `<feImage href="${map.url}" xlink:href="${map.url}" x="${-map.margin}" y="${-map.margin}" width="${map.cssW}" height="${map.cssH}" preserveAspectRatio="none" result="rawMap"></feImage>` +
+      `<feImage href="${map.url}" xlink:href="${map.url}" preserveAspectRatio="none" result="rawMap"></feImage>` +
       `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>` +
       `<feGaussianBlur in="SourceGraphic" stdDeviation="${cur.blur}" result="blurred"></feGaussianBlur>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
