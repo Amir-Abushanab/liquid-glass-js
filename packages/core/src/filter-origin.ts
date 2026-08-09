@@ -66,6 +66,47 @@ export function applyGlassFilter(el: HTMLElement, id: string): void {
   el.style.setProperty('-webkit-filter', `url(#${id})`);
 }
 
+// WebKit, and not Chromium (which also ships AppleWebKit in its UA). Same shape as
+// supportsBackdropUrl()'s engine test in mount.ts: there is no feature test for "does
+// this engine re-run a filter when a primitive attribute changes" — reading that back
+// would need a rasterized readback of a DOM element — so the engine is the only signal.
+let _needsRefresh: boolean | null = null;
+function needsRefresh(): boolean {
+  if (_needsRefresh !== null) return _needsRefresh;
+  try {
+    const ua = navigator.userAgent;
+    _needsRefresh = /AppleWebKit/.test(ua) && !/Chrome|Chromium|Edg\//.test(ua);
+  } catch {
+    _needsRefresh = false;
+  }
+  return _needsRefresh;
+}
+
+/**
+ * Re-point `el` at `filter` under a fresh id, forcing Safari to re-evaluate it.
+ * Returns the id now in effect — assign it back to whatever the caller tracks.
+ *
+ * Safari caches filter output by id (the reason every map rebuild in this codebase
+ * already mints a new one). Mutating a primitive's attributes under an unchanged id
+ * therefore leaves the element painted with the *cached* result: the per-frame paths
+ * — lens setPos, ripple frame, morph setBox — freeze at whatever the filter produced
+ * when its id was created. That is the stuck second layer the lens leaves behind, the
+ * ripple that never animates, and the switch that won't follow a drag.
+ *
+ * Renaming only re-points; the map (the feImage href) is untouched, so no displacement
+ * map is rebuilt and no PNG is re-encoded. It is still not free — renaming every frame
+ * measurably worsens the frame-time tail (firefox p90 8.9ms -> 58.8ms, chromium 9.2ms
+ * -> 16.6ms, medians unchanged) — and Chromium and Gecko re-run the filter on an
+ * attribute change anyway, so they skip it and keep the cheap path.
+ */
+export function refreshGlassFilter(el: HTMLElement, filter: SVGFilterElement, id: string): string {
+  if (!needsRefresh()) return filter.id;
+  filter.setAttribute('id', id);
+  el.style.filter = `url(#${id})`;
+  el.style.setProperty('-webkit-filter', `url(#${id})`);
+  return id;
+}
+
 /** Remove the filter and any origin pin we added. */
 export function clearGlassFilter(el: HTMLElement): void {
   el.style.filter = '';

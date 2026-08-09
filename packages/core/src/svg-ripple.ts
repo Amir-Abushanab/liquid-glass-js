@@ -19,7 +19,7 @@
 import { buildDisplacementMap } from './displacement';
 import { NEUTRAL } from './map-encode';
 import { SPLASH_COLORS, hexToRgb } from './color';
-import { applyGlassFilter, clearGlassFilter } from './filter-origin';
+import { applyGlassFilter, clearGlassFilter, refreshGlassFilter } from './filter-origin';
 
 // Live-tunable ripple params (the Glass Tuner mutates these via reconfigure()).
 export interface SvgRippleParams {
@@ -37,7 +37,9 @@ export interface SvgRippleOptions extends Partial<SvgRippleParams> {
 }
 
 export function mountSvgRipple(o: SvgRippleOptions) {
-  const id = 'svgr-' + Math.random().toString(36).slice(2, 8);
+  const base = 'svgr-' + Math.random().toString(36).slice(2, 8);
+  let id = base;
+  let gen = 0;
   // Live params — frame() reads these each tick, so reconfigure() takes effect immediately.
   const cfg: SvgRippleParams = {
     duration: o.duration ?? 1100,
@@ -81,6 +83,7 @@ export function mountSvgRipple(o: SvgRippleOptions) {
     `</filter></svg>`;
   o.host.appendChild(holder);
 
+  const filterNode = holder.querySelector('filter')!;
   const feImage = holder.querySelector('feImage')!;
   const feBlur = holder.querySelector('feGaussianBlur')!;
   const dm = Array.from(holder.querySelectorAll('feDisplacementMap'));
@@ -122,6 +125,10 @@ export function mountSvgRipple(o: SvgRippleOptions) {
       clearGlassFilter(o.target);
       return;
     }
+    // Safari caches filter output by id: without a rename the ripple paints the
+    // frame the id was minted at and never advances, which reads as no ripple at
+    // all. Renaming re-runs the chain; the map is untouched, so nothing rebuilds.
+    id = refreshGlassFilter(o.target, filterNode, `${base}-${++gen}`);
     raf = requestAnimationFrame(frame);
   };
 

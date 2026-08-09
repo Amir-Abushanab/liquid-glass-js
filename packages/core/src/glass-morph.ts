@@ -18,7 +18,7 @@
 
 import { buildDisplacementMap } from './displacement';
 import { NEUTRAL } from './map-encode';
-import { applyGlassFilter, clearGlassFilter } from './filter-origin';
+import { applyGlassFilter, clearGlassFilter, refreshGlassFilter } from './filter-origin';
 
 // The live-tunable refraction params (everything except the box geometry).
 export interface GlassSurfaceParams {
@@ -126,6 +126,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
   let n = 0;
   let active = o.active ?? true;
   let curId = '';
+  let filterNode: SVGFilterElement | null = null;
   let holder: HTMLElement | null = null;
   let feImage: SVGFEImageElement | null = null;
   let dm: SVGFEDisplacementMapElement[] = [];
@@ -133,6 +134,14 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
   let ready: Promise<void> = Promise.resolve();
 
   // Push the current `frac` into the three displacement scales + the spec alpha.
+  // Safari caches filter output by id, so the per-frame paths below (which only
+  // mutate attributes) would keep painting the frame the id was minted at — the
+  // switch that won't follow a drag. Rename to force a re-run; the map is untouched.
+  const bump = () => {
+    if (!active || !filterNode) return;
+    curId = refreshGlassFilter(o.target, filterNode, `${base}-${++n}`);
+  };
+
   const applyScales = () => {
     const s = cur.strength * frac;
     dm[0]?.setAttribute('scale', String(s * (1 + 0.2 * cur.chroma)));
@@ -140,6 +149,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
     dm[2]?.setAttribute('scale', String(s));
     const a = cur.spec * frac;
     spec?.setAttribute('values', `0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 ${a} 0 ${-NEUTRAL * a}`);
+    bump();
   };
 
   const rebuild = () => {
@@ -177,6 +187,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
     o.host.appendChild(div);
     curId = id;
     feImage = div.querySelector('feImage');
+    filterNode = div.querySelector('filter');
     dm = Array.from(div.querySelectorAll('feDisplacementMap'));
     spec = div.querySelector<SVGFEColorMatrixElement>('[result="specMask"]');
     if (active) {
@@ -202,6 +213,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
       // wobble; `regenerate()` on settle restores an exact map.
       feImage?.setAttribute('width', String(Math.max(1, width)));
       feImage?.setAttribute('height', String(Math.max(1, height)));
+      bump();
     },
     setDisplScale(f) {
       // Ceiling above 1 so callers can briefly over-refract (the button's

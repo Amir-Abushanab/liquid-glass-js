@@ -19,7 +19,7 @@
 import { buildDisplacementMap } from './displacement';
 import { specMaskValues, darkMaskValues } from './map-encode';
 import { parseCssColor } from './color';
-import { applyGlassFilter, clearGlassFilter } from './filter-origin';
+import { applyGlassFilter, clearGlassFilter, refreshGlassFilter } from './filter-origin';
 
 export interface GlassLensOptions {
   target: HTMLElement; // live DOM to refract (receives filter:url())
@@ -91,6 +91,7 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
   let holder: HTMLElement | null = null;
   let feImage: SVGFEImageElement | null = null;
   let specNode: SVGFEColorMatrixElement | null = null;
+  let filterNode: SVGFilterElement | null = null;
 
   const rebuild = () => {
     const id = `${base}-${++n}`; // fresh id on every map change (Safari cache bust)
@@ -142,6 +143,7 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
     holder = div;
     feImage = div.querySelector('feImage');
     specNode = div.querySelector<SVGFEColorMatrixElement>('[result="specMask"]');
+    filterNode = div.querySelector('filter');
   };
 
   rebuild();
@@ -160,6 +162,11 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
       // the lens box instead of the whole filter region.
       specNode?.setAttribute('x', String(x - 1));
       specNode?.setAttribute('y', String(y - 1));
+      // Safari caches filter output by id, so those attribute writes alone leave it
+      // painting the cached lens at the position the id was minted at — the stuck
+      // layer the moving lens appears to leave behind. Rename to force a re-run; the
+      // map is untouched, so this costs no map rebuild.
+      if (active && filterNode) curId = refreshGlassFilter(o.target, filterNode, `${base}-${++n}`);
     },
     setSize(w, h) {
       w = Math.round(w);
