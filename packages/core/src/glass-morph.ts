@@ -18,7 +18,6 @@
 
 import { buildDisplacementMap } from './displacement';
 import { NEUTRAL } from './map-encode';
-import { mapStage } from './engine';
 
 // The live-tunable refraction params (everything except the box geometry).
 export interface GlassSurfaceParams {
@@ -88,9 +87,9 @@ function filterHTML(
 ): string {
   return (
     `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB">` +
-    mapStage(
-      `<feImage href="${mapUrl}" xlink:href="${mapUrl}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="none" result="rawMap"></feImage>`,
-    ) +
+    `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
+    `<feImage href="${mapUrl}" xlink:href="${mapUrl}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="none" result="rawMap"></feImage>` +
+    `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>` +
     `<feGaussianBlur in="SourceGraphic" stdDeviation="${blur}" result="blurred"></feGaussianBlur>` +
     `<feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
     `<feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix>` +

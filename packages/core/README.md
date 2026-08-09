@@ -1,19 +1,10 @@
 # @liquidglassjs/core
 
 SVG-first **liquid glass** for the web. The primary renderer is an SVG
-`feDisplacementMap` applied to **live DOM**, so the content underneath stays
-selectable, scrollable, and clickable. WebGL and a procedural QR are optional,
-code-split escape hatches for the two cases an SVG filter can't cover.
-
-> **Browser support.** The refraction itself is **Chromium-only**. The
-> displacement map reaches the filter through `<feImage>`, and only Chromium
-> renders that primitive: Firefox ignores data and external references outright,
-> WebKit renders something other than the map it was given. Off Chromium the
-> library detects this and leaves your content unfiltered — text, marks and
-> surfaces render plainly rather than being bent, and `mountGlass`'s `auto` mode
-> picks the frosted blur, which does work everywhere. Nothing disappears and
-> nothing needs handling at the call site; you just don't get refraction.
-> `supportsDisplacementMaps()` is exported if you want to branch on it yourself.
+`feDisplacementMap` applied to **live DOM**, so the glass runs in every modern
+browser (Chrome, Safari, Firefox) with no flags, while the content underneath
+stays selectable, scrollable, and clickable. WebGL and a procedural QR are
+optional, code-split escape hatches for the two cases an SVG filter can't cover.
 
 <p align="center">
   <a href="https://amir-abushanab.github.io/liquid-glass-js/">

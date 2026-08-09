@@ -16,7 +16,6 @@
 
 import { buildDisplacementMap } from './displacement';
 import { specMaskValues } from './map-encode';
-import { supportsDisplacementMaps, isChromium, mapStage } from './engine';
 import type { GlassGL as GlassGLType } from './webgl';
 
 const MARGIN = 28; // bleed so the displacement doesn't sample past the lens rim
@@ -288,12 +287,9 @@ function mountWebgl(
 // alone sent Safari/Firefox down the refractive branch — where they got no frost
 // at all, not even the blur() this function exists to fall back to.
 //
-// This was once written up as an asymmetry — backdrop-filter broken, `filter: url()`
-// over live DOM fine in all three engines. That second half was wrong. The filter is
-// *applied* everywhere, but the map inside it is delivered by `<feImage>`, which only
-// Chromium renders, so off Chromium the displacement is uniformly zero and the glass
-// silently stops bending. See engine.ts for the measurements. Both gates therefore
-// come down to the same question, and both answer it the same way.
+// Note the asymmetry that makes this specifically a *backdrop*-filter problem:
+// `filter: url()` over live DOM (mountDomRefract / mountGlassLens) works fine in
+// all three engines. It's only the backdrop variant WebKit/Gecko haven't shipped.
 //
 // There is no pixel readback for DOM, so no true capability probe exists here —
 // the engine is the only available signal. `navigator.userAgentData` is
@@ -303,7 +299,11 @@ function mountWebgl(
 function supportsBackdropUrl(): boolean {
   try {
     if (typeof CSS === 'undefined' || !CSS.supports('backdrop-filter', 'url("#a")')) return false;
-    return isChromium();
+    if (typeof navigator === 'undefined') return false;
+    const brands = (navigator as Navigator & { userAgentData?: { brands?: { brand: string }[] } })
+      .userAgentData?.brands;
+    if (brands) return brands.some((b) => /Chromium/i.test(b.brand));
+    return /Chrome\/|Chromium\//.test(navigator.userAgent);
   } catch {
     return false;
   }
@@ -365,9 +365,9 @@ function mountFrost(el: HTMLElement, surface: HTMLElement, p: P): () => void {
     svg.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
     svg.innerHTML =
       `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" x="0" y="0" width="1" height="1" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB">` +
-      mapStage(
-        `<feImage href="${map}" xlink:href="${map}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="none" result="rawMap"></feImage>`,
-      ) +
+      `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
+      `<feImage href="${map}" xlink:href="${map}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="none" result="rawMap"></feImage>` +
+      `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>` +
       `<feGaussianBlur in="SourceGraphic" stdDeviation="${frostBlur}" result="blurred"></feGaussianBlur>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
       `<feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix>` +
@@ -435,9 +435,9 @@ function mountDomRefract(el: HTMLElement, refract: HTMLElement, p: P): () => voi
     svg.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
     svg.innerHTML =
       `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" x="0" y="0" width="1" height="1" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB">` +
-      mapStage(
-        `<feImage href="${map}" xlink:href="${map}" preserveAspectRatio="none" result="rawMap"></feImage>`,
-      ) +
+      `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
+      `<feImage href="${map}" xlink:href="${map}" preserveAspectRatio="none" result="rawMap"></feImage>` +
+      `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>` +
       `<feGaussianBlur in="SourceGraphic" stdDeviation="${p.blur}" result="blurred"></feGaussianBlur>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
       `<feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix>` +
@@ -550,35 +550,16 @@ export function mountGlass(root: HTMLElement, opts: GlassOptions = {}): GlassIns
 
   // Decision tree (identical to the app): refract wins; else source+WebGL2;
   // else backdrop → SVG clone; else frost.
-  //
-  // …with one gate in front of it. Off Chromium the displacement chain doesn't just
-  // fail to bend, it degrades the content it's applied to: measured on WebKit, the
-  // refracted cards render as faint ghosts and the alpha-clipped ones vanish entirely,
-  // with the real map and with a neutral one alike. There is nothing to salvage in the
-  // chain there, so hand these surfaces to frost instead — `backdrop-filter: blur()`
-  // is supported in WebKit and Gecko, and a real blur is what makes a surface read as
-  // glass in the first place. It doesn't refract, but it looks like glass and it
-  // never eats the content.
   const refract = opts.refract ?? root.querySelector<HTMLElement>('.ps-glass__refract');
-  if (refract && supportsDisplacementMaps()) {
+  if (refract) {
     root.dataset.render = 'svg';
     cleanups.push(mountDomRefract(root, refract, p));
-    return { dispose };
-  }
-  if (refract) {
-    root.dataset.render = 'frost';
-    cleanups.push(mountFrost(root, surface, p));
     return { dispose };
   }
 
   let mode = opts.mode || 'auto';
   const canWebgl = !!sourceEl && webgl2OK();
-  // Auto used to prefer the SVG clone whenever a backdrop was supplied. Off Chromium
-  // that path can't bend anything (no `feImage`, so no map — see engine.ts), while
-  // frost still produces a real blur. Prefer the one that actually renders; an
-  // explicit `mode: 'svg'` is still honoured, since asking for it is a choice.
-  if (mode === 'auto')
-    mode = canWebgl ? 'webgl' : p.backdrop && supportsDisplacementMaps() ? 'svg' : 'frost';
+  if (mode === 'auto') mode = canWebgl ? 'webgl' : p.backdrop ? 'svg' : 'frost';
 
   if (mode === 'webgl' && sourceEl && webgl2OK()) {
     root.dataset.render = 'webgl';

@@ -18,7 +18,6 @@
 
 import { buildDisplacementMap } from './displacement';
 import { NEUTRAL } from './map-encode';
-import { mapStage } from './engine';
 import { SPLASH_COLORS, hexToRgb } from './color';
 
 // Live-tunable ripple params (the Glass Tuner mutates these via reconfigure()).
@@ -64,9 +63,9 @@ export function mountSvgRipple(o: SvgRippleOptions) {
   holder.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
   holder.innerHTML =
     `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB">` +
-    mapStage(
-      `<feImage href="${mapUrl}" xlink:href="${mapUrl}" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="rawMap"></feImage>`,
-    ) +
+    `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
+    `<feImage href="${mapUrl}" xlink:href="${mapUrl}" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="rawMap"></feImage>` +
+    `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>` +
     `<feGaussianBlur in="SourceGraphic" stdDeviation="${cfg.blur}" result="blurred"></feGaussianBlur>` +
     `<feDisplacementMap in="blurred" in2="map" scale="0" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
     `<feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix>` +
