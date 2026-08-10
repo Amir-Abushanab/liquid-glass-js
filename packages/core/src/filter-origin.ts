@@ -138,6 +138,40 @@ export function primitiveScale(el: Element): number {
   return vb.width / r.width;
 }
 
+// Below this, a pre-blur is a no-op in engines that blur correctly, and pure damage
+// in WebKit. See preBlur().
+const MIN_BLUR = 0.75;
+
+/**
+ * The optional pre-blur in front of a displacement chain, as `[markup, inputName]`.
+ * Feed `inputName` to whatever consumes the blurred source.
+ *
+ * WebKit's feGaussianBlur desaturates a partially transparent source, and it charges
+ * the full cost the moment the primitive exists at all rather than in proportion to
+ * stdDeviation — measured on a translucent canvas of colour emoji, mean saturation:
+ *
+ *   stdDeviation   0     0.2    0.35   0.5    0.75   1      1.5    2      3
+ *     webkit     124.1   95.9   95.9   95.9   95.9   95.9   95.9   82.3   73.9
+ *     chromium   123.8  123.8  123.8  123.8  123.8  102.7   95.7   86.0   76.1
+ *
+ * WebKit drops 23% at 0.2 and stays flat to 1.5; Chromium does not move until 0.75
+ * and then falls off gradually, as a real Gaussian should. The step is the cost of a
+ * premultiply round-trip, which is why it barely shows on opaque sources (52.6 ->
+ * 50.2) and wrecks translucent ones. That is what turned the emoji orb into grey
+ * silhouettes: a 0.4px blur nobody can see cost it a quarter of its colour.
+ *
+ * So skip the primitive when it is below the threshold where correct engines do
+ * anything at all. That is not a WebKit-only hack — it renders identically in
+ * Chromium and Gecko, and it stops Safari paying for a blur it was never asked for.
+ */
+export function preBlur(blur: number, result = 'blurred'): [string, string] {
+  if (!(blur >= MIN_BLUR)) return ['', 'SourceGraphic'];
+  return [
+    `<feGaussianBlur in="SourceGraphic" stdDeviation="${blur}" result="${result}"></feGaussianBlur>`,
+    result,
+  ];
+}
+
 /** Remove the filter and any origin pin we added. */
 export function clearGlassFilter(el: HTMLElement): void {
   el.style.filter = '';
