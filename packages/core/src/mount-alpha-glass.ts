@@ -106,18 +106,27 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
     // placed on its own terms and the region only clips — and the chain already ends
     // in `operator="in"` against SourceAlpha, so clipping changes nothing visible.
     //
-    // Both the subregion and the region are userSpaceOnUse, which Safari resolves
-    // against the page origin unless the target owns a coordinate system (see
-    // filter-origin.ts) — that is why glass text and glass marks rendered as blank
-    // space there. applyGlassFilter below pins it. Inline <svg> targets already own
-    // one, so they were never affected by that half.
+    // The REGION takes k as well as the primitives. WebKit reads every filter
+    // coordinate on an inline <svg> in the svg's own user units, the region
+    // included. That is easy to miss when the viewBox is coarser than css px: the
+    // region merely grows and is clipped back to the element, which looks correct.
+    // It only shows when the viewBox is FINER (128 units drawn at 90px, k>1), where
+    // the region shrinks to 90*0.703 = 63px and shears the right and bottom off any
+    // artwork that reaches its edges — the framework logos, while the droplet and
+    // sparkle float clear of theirs and looked fine.
+    //
+    // Both are also userSpaceOnUse, which Safari resolves against the page origin
+    // unless the target owns a coordinate system (see filter-origin.ts) — that is
+    // why glass text and glass marks rendered as blank space there. applyGlassFilter
+    // below pins it. Inline <svg> targets already own one, so they were never
+    // affected by that half.
     //
     // The region must NOT be expressed as objectBoundingBox percentages instead:
     // that box is the ink bbox, not the border box, and the engines disagree about
     // it — for one 270x84 text element, webkit/firefox resolve 272x100 and chromium
     // 270x99 — so a px-exact map extent cannot be written as a percentage.
     div.innerHTML =
-      `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="${-map.margin}" y="${-map.margin}" width="${map.cssW}" height="${map.cssH}" color-interpolation-filters="sRGB">` +
+      `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="${-map.margin * k}" y="${-map.margin * k}" width="${map.cssW * k}" height="${map.cssH * k}" color-interpolation-filters="sRGB">` +
       `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
       `<feImage href="${map.url}" xlink:href="${map.url}" x="${-map.margin * k}" y="${-map.margin * k}" width="${map.cssW * k}" height="${map.cssH * k}" preserveAspectRatio="none" result="rawMap"></feImage>` +
       `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>` +
