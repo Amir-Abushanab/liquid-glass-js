@@ -127,6 +127,8 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
   let active = o.active ?? true;
   let curId = '';
   let filterNode: SVGFilterElement | null = null;
+  let lastW = -1;
+  let lastH = -1;
   let holder: HTMLElement | null = null;
   let feImage: SVGFEImageElement | null = null;
   let dm: SVGFEDisplacementMapElement[] = [];
@@ -211,8 +213,16 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
       // `feImage` maps the whole map into x/y/width/height, so a differing
       // aspect momentarily distorts the dome — that transient IS the liquid
       // wobble; `regenerate()` on settle restores an exact map.
-      feImage?.setAttribute('width', String(Math.max(1, width)));
-      feImage?.setAttribute('height', String(Math.max(1, height)));
+      const w = Math.max(1, width);
+      const h = Math.max(1, height);
+      // Skip frames the box did not actually change on: bump() re-points the filter
+      // for Safari, which is a re-rasterization, and spending one where nothing moved
+      // buys nothing. Compare at the precision the attribute is written at.
+      if (w === lastW && h === lastH) return;
+      lastW = w;
+      lastH = h;
+      feImage?.setAttribute('width', String(w));
+      feImage?.setAttribute('height', String(h));
       bump();
     },
     setDisplScale(f) {

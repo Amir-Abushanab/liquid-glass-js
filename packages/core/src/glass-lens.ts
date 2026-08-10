@@ -152,6 +152,12 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
     setPos(x, y) {
       x = Math.round(x); // integer px — same anti-moiré reason as the size snap above
       y = Math.round(y);
+      // A drift that moves less than a pixel per frame rounds to the same spot for
+      // several frames running. Bail before touching anything: the attribute writes
+      // would be no-ops, but the Safari rename below is not — re-pointing the filter
+      // costs a re-rasterization, and doing it on frames that cannot have changed is
+      // pure artefact for nothing.
+      if (x === lx && y === ly) return;
       lx = x;
       ly = y;
       // just reposition the map — no regenerate (cheap, holds frame rate on drag)
