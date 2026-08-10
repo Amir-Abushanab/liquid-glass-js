@@ -1249,16 +1249,42 @@ if (gshapeStage) {
       { e: '🫧', a0: 2.6, rad: 44, s: 30 },
       { e: '🌈', a0: 1.1, rad: 28, s: 32 },
     ];
-    const drawOrb = (t) => {
-      octx.clearRect(0, 0, 150, 150);
-      const body = octx.createRadialGradient(75, 66, 8, 75, 80, 74);
+    // Bake the glass body once, into its OWN canvas, and blit it each frame.
+    //
+    // Painting a gradient into a context makes WebKit render every colour-bitmap
+    // glyph drawn into that context afterwards as a grey silhouette. Measured in
+    // Safari with no filters anywhere on the page:
+    //
+    //   gradient -> emoji            grey     <- what this used to do
+    //   emoji -> gradient            colour
+    //   gradient on a 2nd canvas,
+    //     drawImage -> emoji         colour   <- this
+    //   flat translucent fillRect
+    //     -> emoji                   colour
+    //
+    // A flat fill is fine; it is specifically a gradient that poisons the context.
+    // Blitting keeps the body behind the emoji, as designed, and keeps the emoji in
+    // colour. It is also less work per frame — the gradient is built once, not 60x
+    // a second. Nothing to do with the glass filter: the orb rendered grey with the
+    // filter removed entirely.
+    const orbBody = document.createElement('canvas');
+    orbBody.width = 150 * gdpr;
+    orbBody.height = 150 * gdpr;
+    {
+      const bctx = orbBody.getContext('2d');
+      bctx.setTransform(gdpr, 0, 0, gdpr, 0, 0);
+      const body = bctx.createRadialGradient(75, 66, 8, 75, 80, 74);
       body.addColorStop(0, 'rgba(255,255,255,0.18)');
       body.addColorStop(0.65, 'rgba(170,195,255,0.08)');
       body.addColorStop(1, 'rgba(170,195,255,0)');
-      octx.fillStyle = body;
-      octx.beginPath();
-      octx.arc(75, 75, 72, 0, Math.PI * 2);
-      octx.fill();
+      bctx.fillStyle = body;
+      bctx.beginPath();
+      bctx.arc(75, 75, 72, 0, Math.PI * 2);
+      bctx.fill();
+    }
+    const drawOrb = (t) => {
+      octx.clearRect(0, 0, 150, 150);
+      octx.drawImage(orbBody, 0, 0, 150, 150);
       for (const o of orbEmojis) {
         const ang = o.a0 + t * 0.00016;
         const r = o.rad + Math.sin(t * 0.0011 + o.a0 * 2) * 5;
