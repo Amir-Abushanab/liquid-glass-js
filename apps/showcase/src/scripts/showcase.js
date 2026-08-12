@@ -1237,6 +1237,7 @@ if (gshapeStage) {
   // canvas redraws each frame and the filter just re-refracts it — no per-frame
   // map regeneration. Gated offscreen and disabled for reduced motion.
   const orbCanvas = gshapeStage.querySelector('[data-gshape-orb]');
+  let orbLensRef = null;
   if (orbCanvas) {
     const octx = prep(orbCanvas).ctx;
     const orbEmojis = [
@@ -1293,11 +1294,10 @@ if (gshapeStage) {
       }
     };
     drawOrb(0);
-    mountGlassLens({
-      target: orbCanvas,
-      host: gshapeStage,
-      lensW: 150,
-      lensH: 150,
+    // Keep the instance: the orb is a lens like any other, so it belongs in the
+    // Tuner alongside the rest rather than being the one glass on the page nobody
+    // can adjust.
+    const orbOpts = {
       radius: 75,
       dome: 16,
       depth: 10,
@@ -1307,6 +1307,13 @@ if (gshapeStage) {
       glow: 0.35,
       blur: 0.4,
       shade: 0,
+    };
+    orbLensRef = mountGlassLens({
+      target: orbCanvas,
+      host: gshapeStage,
+      lensW: 150,
+      lensH: 150,
+      ...orbOpts,
     });
     if (!reduce) {
       let orbVisible = true,
@@ -1335,6 +1342,17 @@ if (gshapeStage) {
       params: FONT_PARAMS,
       opts: shapes[0].getOptions(),
       apply: (patch) => shapes.forEach((s) => s.reconfigure(patch)),
+    });
+  }
+  // The orb is a lens over a canvas, so it takes the lens params like the rest.
+  if (orbLensRef) {
+    cfgSections.push({
+      id: 'orb',
+      label: 'Emoji orb',
+      icon: CFG_ICONS.lens,
+      params: LENS_PARAMS,
+      opts: orbLensRef.getOptions(),
+      apply: (patch) => orbLensRef.reconfigure(patch),
     });
   }
 }
