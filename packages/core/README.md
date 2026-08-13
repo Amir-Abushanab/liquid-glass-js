@@ -106,15 +106,27 @@ consumer's dependency tree.
 Every renderer touches `document` / canvas / WebGL / SVG filters, so call them
 client-side only (never during SSR).
 
-## Safari: don't CSS-animate anything inside the glass
+## Gotchas
 
-Safari gives an element with a running CSS transform animation its own compositing
-layer, and a composited layer is left **out of an ancestor's SVG filter** — so that
-child floats above the glass unrefracted while its siblings bend correctly. Drive
-the motion from `requestAnimationFrame` (`el.style.transform = ...`) instead: a
-script-set transform doesn't promote the element, so it stays inside the filter.
-Only the animated element is affected, and it looks fine in screenshots — Safari's
-capture path differs from its compositing path, so check the live page.
+- **Don't CSS-animate anything inside the glass (Safari).** An element with a
+  running CSS transform animation gets its own compositing layer, and a composited
+  layer is left out of an ancestor's SVG filter — so that child floats above the
+  glass unrefracted while its siblings bend correctly. Drive the motion from
+  `requestAnimationFrame` (`el.style.transform = …`) instead; a script-set
+  transform doesn't promote the element. `will-change` alone is fine.
+- **Safari screenshots don't show what Safari renders.** The capture path isn't the
+  compositing path, so the above looks fine in an image. Verify on the live page.
+- **The filter bends pixels, it can't scale them** — that's why the loupe clones
+  and CSS-scales the source rather than magnifying in the filter.
+- **Glass needs bleed.** A filter can only bend pixels it was handed; a target that
+  ends at the visible rim has nothing outside to pull in, so the edge smears.
+- **Canvas / video sources re-filter every frame**, even when static — that's what
+  the WebGL entry point is for.
+- **`backdrop-filter: url(#…)` parses everywhere but paints only in Chromium**, so
+  the frost path gates on the engine and falls back to `blur()`.
+
+The [full README](https://github.com/amir-abushanab/liquid-glass-js#gotchas) has the
+measurements behind each.
 
 ## Links
 

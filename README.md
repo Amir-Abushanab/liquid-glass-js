@@ -237,45 +237,88 @@ nothing app-specific. Override per surface or globally:
 .ps-glass { --glass-paper: var(--paper); --glass-ink: var(--ink); }
 ```
 
-## Browser-only
+## Gotchas
 
-Every renderer touches `document` / canvas / WebGL / SVG filters. Guard adapters
-so they run client-side only (Astro `<script>` is fine; React needs `useEffect`;
-never call these during SSR).
+Hard-won, all measured. Most of these are things the library can't paper over,
+because they're properties of the page you build around the glass.
 
-## Safari: don't CSS-animate anything inside the glass
+### Don't CSS-animate anything inside the glass (Safari)
 
 Safari gives an element with a running CSS transform animation its own compositing
-layer, and a composited layer is left **out of an ancestor's SVG filter**. So a
-child that bobs, spins or pulses via `@keyframes` inside a glass element floats
-above the glass, sharp and unrefracted, while its siblings bend correctly.
+layer, and a composited layer is left **out of an ancestor's SVG filter**. A child
+that bobs, spins or pulses via `@keyframes` inside a glass element floats above the
+glass, sharp and unrefracted, while its siblings bend correctly.
 
 ```css
-/* the child will NOT refract in Safari */
-.card__badge {
-  animation: bob 4s ease-in-out infinite;
-}
+/* this child will NOT refract in Safari */
+.card__badge { animation: bob 4s ease-in-out infinite; }
 ```
 
 ```js
-/* the same motion, applied from script, DOES refract */
+/* the same motion, set from script, DOES refract */
 const step = (now) => {
-  const p = Math.sin((now / 4000) * Math.PI * 2);
-  badge.style.transform = `translateY(${p * 9}px)`;
+  badge.style.transform = `translateY(${Math.sin(now / 700) * 9}px)`;
   requestAnimationFrame(step);
 };
 requestAnimationFrame(step);
 ```
 
-Setting `transform` from script is an ordinary style change and doesn't promote the
-element, so it stays inside the filter. `will-change: transform` alone is fine — it
-is the running animation that promotes.
+A script-set `transform` is an ordinary style change and doesn't promote the
+element, so it stays inside the filter. `will-change: transform` **alone is fine** —
+the running animation is what promotes. Only the animated element is excluded; its
+siblings still refract. Chromium and Firefox refract either way.
 
-Only the animated element itself is excluded; its siblings still refract. And this
-is invisible in screenshots: Safari's capture path renders the child refracted even
-when the live page doesn't, so check it on screen rather than in an image.
+### Safari screenshots don't show what Safari renders
 
-Chromium and Firefox refract either way.
+Safari's capture path is not its compositing path. A screenshot renders the
+composited child *refracted* even when the live page doesn't. **Never verify glass
+in Safari from a still image** — check it on screen. (Playwright's WebKit is a
+third renderer again: it has neither the compositing behaviour above nor Safari's
+filter cache, so it can't reproduce either.)
+
+### The filter can bend pixels, never scale them
+
+`feDisplacementMap` displaces; there is no magnification in the primitive. That's
+why [the loupe](#the-loupe) clones the source and scales the *clone* with a CSS
+transform, then mounts the lens on that copy — and why the magnified content stays
+DOM rather than a rasterized snapshot, so glyphs stay sharp at any zoom.
+
+### Glass needs something outside itself to bend
+
+A filter can only bend pixels it was handed. If the filter target ends exactly at
+the visible rim there is nothing beyond it to pull inward, and the edge smears
+instead of refracting. Every renderer here insets its target by a bleed margin and
+clips the extra ring away — if you build your own target, do the same.
+
+### A canvas or video source is re-filtered every frame
+
+The browser caches filter output while the content behind it holds still, so glass
+over static DOM is essentially free and only costs a pass when that content
+changes. A `<canvas>` or `<video>` source is treated as volatile and re-filtered
+every frame even when nothing moved — which is exactly the case
+[`@liquidglassjs/core/webgl`](#entry-points-the-code-split) exists for.
+
+### `backdrop-filter: url(#…)` parses everywhere and paints only in Chromium
+
+Safari and Firefox accept an SVG filter reference in the `backdrop-filter` grammar
+and then paint nothing for it, so `CSS.supports()` can't gate on it
+([WebKit 245510](https://bugs.webkit.org/show_bug.cgi?id=245510)). `mountGlass`'s
+frost path checks the engine instead and falls back to a plain `blur()`. This
+affects only frost — `filter: url()` over live DOM works in all three engines.
+
+### A canvas gradient turns colour emoji grey (WebKit)
+
+Painting a gradient into a 2D context makes WebKit render every colour-bitmap glyph
+drawn into that context *afterwards* as a grey silhouette. A flat translucent
+`fillRect` is fine; it's specifically a gradient. Bake the gradient into its own
+canvas and `drawImage` it in — nothing to do with the glass filter, but it bites
+when you're compositing an emoji-laden source to refract.
+
+### Browser-only
+
+Every renderer touches `document` / canvas / WebGL / SVG filters. Guard adapters so
+they run client-side only (Astro `<script>` is fine; React needs `useEffect`; never
+call these during SSR).
 
 ## Credits
 

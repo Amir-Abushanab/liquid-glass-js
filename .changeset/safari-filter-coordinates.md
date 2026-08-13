@@ -64,6 +64,9 @@ Unaffected and unchanged: `mountSvg` and `mountDomRefract` carry no subregion an
 size their region in bbox units — which is why dom-refract was the one renderer
 that already worked in Safari — and the `url()` frost path is Chromium-gated.
 
-Both READMEs now document the one thing this can't fix from inside the library:
-Safari excludes an element with a running CSS transform animation from its
-ancestor's filter, so animate children of a glass element from script instead.
+Both READMEs gain a **Gotchas** section for the things the library can't fix from
+inside: Safari excluding a CSS-animated child from its ancestor's filter (animate
+from script instead), Safari's screenshot path not matching its compositing path,
+the filter bending rather than scaling, needing bleed outside the target, canvas and
+video sources re-filtering every frame, `backdrop-filter: url()` parsing everywhere
+but painting only in Chromium, and a canvas gradient greying out colour emoji.
