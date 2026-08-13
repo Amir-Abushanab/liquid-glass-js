@@ -243,6 +243,40 @@ Every renderer touches `document` / canvas / WebGL / SVG filters. Guard adapters
 so they run client-side only (Astro `<script>` is fine; React needs `useEffect`;
 never call these during SSR).
 
+## Safari: don't CSS-animate anything inside the glass
+
+Safari gives an element with a running CSS transform animation its own compositing
+layer, and a composited layer is left **out of an ancestor's SVG filter**. So a
+child that bobs, spins or pulses via `@keyframes` inside a glass element floats
+above the glass, sharp and unrefracted, while its siblings bend correctly.
+
+```css
+/* the child will NOT refract in Safari */
+.card__badge {
+  animation: bob 4s ease-in-out infinite;
+}
+```
+
+```js
+/* the same motion, applied from script, DOES refract */
+const step = (now) => {
+  const p = Math.sin((now / 4000) * Math.PI * 2);
+  badge.style.transform = `translateY(${p * 9}px)`;
+  requestAnimationFrame(step);
+};
+requestAnimationFrame(step);
+```
+
+Setting `transform` from script is an ordinary style change and doesn't promote the
+element, so it stays inside the filter. `will-change: transform` alone is fine — it
+is the running animation that promotes.
+
+Only the animated element itself is excluded; its siblings still refract. And this
+is invisible in screenshots: Safari's capture path renders the child refracted even
+when the live page doesn't, so check it on screen rather than in an image.
+
+Chromium and Firefox refract either way.
+
 ## Credits
 
 The filter-on-content idea comes from Aave's

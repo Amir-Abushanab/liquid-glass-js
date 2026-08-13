@@ -106,6 +106,16 @@ consumer's dependency tree.
 Every renderer touches `document` / canvas / WebGL / SVG filters, so call them
 client-side only (never during SSR).
 
+## Safari: don't CSS-animate anything inside the glass
+
+Safari gives an element with a running CSS transform animation its own compositing
+layer, and a composited layer is left **out of an ancestor's SVG filter** — so that
+child floats above the glass unrefracted while its siblings bend correctly. Drive
+the motion from `requestAnimationFrame` (`el.style.transform = ...`) instead: a
+script-set transform doesn't promote the element, so it stays inside the filter.
+Only the animated element is affected, and it looks fine in screenshots — Safari's
+capture path differs from its compositing path, so check the live page.
+
 ## Links
 
 - **Showcase & docs**: <https://amir-abushanab.github.io/liquid-glass-js/>
