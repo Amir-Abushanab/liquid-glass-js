@@ -23,7 +23,9 @@
     "check:fix": "oxfmt packages apps && oxlint --fix packages apps",
     "changeset": "changeset",
     "ncu": "pnpm dlx npm-check-updates",
-    "prepare": "simple-git-hooks"
+    "prepare": "simple-git-hooks",
+    "skill:validate": "intent validate packages/core/skills",
+    "skill:stale": "intent stale packages/core/skills"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm check"
@@ -31,6 +33,7 @@
   "devDependencies": {
     "@changesets/changelog-github": "^0.7.0",
     "@changesets/cli": "^2.31.1",
+    "@tanstack/intent": "^0.3.6",
     "dependency-cruiser": "^18.1.0",
     "knip": "^6.27.0",
     "oxfmt": "^0.59.0",

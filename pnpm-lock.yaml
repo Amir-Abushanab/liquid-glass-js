@@ -14,6 +14,9 @@ importers:
       '@changesets/cli':
         specifier: ^2.31.1
         version: 2.31.1(@types/node@26.0.1)
+      '@tanstack/intent':
+        specifier: ^0.3.6
+        version: 0.3.6
       dependency-cruiser:
         specifier: ^18.1.0
         version: 18.1.0
@@ -108,7 +111,11 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
 
-  packages/core: {}
+  packages/core:
+    devDependencies:
+      '@tanstack/intent':
+        specifier: ^0.3.6
+        version: 0.3.6
 
   packages/element:
     dependencies:
@@ -1876,6 +1883,10 @@ packages:
     peerDependencies:
       vite: ^5.2.0 || ^6 || ^7 || ^8
 
+  '@tanstack/intent@0.3.6':
+    resolution: {integrity: sha512-ylew/4T3layUXSfE/SDGUSAi1B3U/wuoNUE0adC3j/s6wzX7omV6e6hAv0WyMC52Inren8kqvwpHj+G/ZBbQHQ==}
+    hasBin: true
+
   '@tybys/wasm-util@0.10.3':
     resolution: {integrity: sha512-F3fo1MYrRJYL3zER0OUOmkutjr1Vp23m7OsSgp7nq4SP6OqX6C/56XFIPAl5bt3zaBRjmW7SGz3u/6LwFpYcOg==}
 
@@ -3159,6 +3170,9 @@ packages:
 
   sprintf-js@1.0.3:
     resolution: {integrity: sha512-D9cPgkvLlV3t3IzL0D0YLvGA9Ahk4PcvVwUbN0dSGr1aP0Nrt4AEnTUbuGvquEC0mA64Gqt1fzirlRs5ibXx8g==}
+
+  std-env@4.2.0:
+    resolution: {integrity: sha512-oCUKSupKTHX53EyjDtuZQ64pjLJ6yYCtpmEw0goYxtjG9KpbRe8KAsl2tBUGU9DyMcJ0RwJ8GqJAFzMXcXW1Rw==}
 
   string-width@4.2.3:
     resolution: {integrity: sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==}
@@ -4861,6 +4875,14 @@ snapshots:
       tailwindcss: 4.3.2
       vite: 8.1.0(@types/node@26.0.1)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)
 
+  '@tanstack/intent@0.3.6':
+    dependencies:
+      cac: 6.7.14
+      jsonc-parser: 3.3.1
+      semver: 7.8.5
+      std-env: 4.2.0
+      yaml: 2.9.0
+
   '@tybys/wasm-util@0.10.3':
     dependencies:
       tslib: 2.8.1
@@ -6304,6 +6326,8 @@ snapshots:
       signal-exit: 4.1.0
 
   sprintf-js@1.0.3: {}
+
+  std-env@4.2.0: {}
 
   string-width@4.2.3:
     dependencies:

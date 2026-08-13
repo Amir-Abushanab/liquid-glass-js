@@ -12,6 +12,7 @@
     "liquid-glass",
     "refraction",
     "svg-filter",
+    "tanstack-intent",
     "webgl",
     "withastro"
   ],
@@ -27,7 +28,8 @@
   "files": [
     "dist",
     "src/css",
-    "adapters"
+    "adapters",
+    "skills"
   ],
   "type": "module",
   "sideEffects": [
@@ -73,6 +75,9 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@tanstack/intent": "^0.3.6"
   },
   "peerDependencies": {
     "astro": ">=4"

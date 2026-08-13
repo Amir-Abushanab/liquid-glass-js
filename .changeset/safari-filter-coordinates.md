@@ -70,3 +70,8 @@ from script instead), Safari's screenshot path not matching its compositing path
 the filter bending rather than scaling, needing bleed outside the target, canvas and
 video sources re-filtering every frame, `backdrop-filter: url()` parsing everywhere
 but painting only in Chromium, and a canvas gradient greying out colour emoji.
+
+Ships a [TanStack Intent](https://github.com/TanStack/intent) skill at
+`packages/core/skills/liquid-glass/SKILL.md` (included in the published package), so
+an agent picking up the library gets the component-selection guidance and these
+pitfalls without rediscovering them.
