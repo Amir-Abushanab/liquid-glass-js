@@ -71,9 +71,11 @@
     "access": "public"
   },
   "scripts": {
-    "prepack": "node ../../scripts/sync-license.mjs",
     "build": "tsup",
     "dev": "tsup --watch",
+    "prepack": "node ../../scripts/sync-license.mjs",
+    "skill:stale": "intent stale skills",
+    "skill:validate": "intent validate skills",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

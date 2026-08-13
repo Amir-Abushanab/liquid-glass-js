@@ -11,9 +11,6 @@
     "packages/core": {
       "project": [
         "src/**/*.ts"
-      ],
-      "ignoreDependencies": [
-        "@tanstack/intent"
       ]
     },
     "packages/qr": {
