@@ -776,7 +776,18 @@ if (lstage && lcard && lensEl) {
   lstage.addEventListener('pointerleave', () => {
     hovering = false;
   });
-  const tick = () => {
+  // The droplet's bob is driven here rather than by a CSS animation. Safari gives an
+  // element with a running CSS transform animation its own compositing layer, and a
+  // composited layer is excluded from an ancestor's SVG filter — so the droplet rode
+  // above the lens unrefracted while the rest of the card bent correctly. Setting the
+  // transform from script does not promote it, so it stays inside the filter.
+  // Verified live in Safari: same motion, CSS-animated is not refracted, this is.
+  const drop = lstage.querySelector('.lcard__drop');
+  const tick = (now) => {
+    if (drop && !reduce) {
+      const p = Math.sin(((now || 0) / 4500) * Math.PI * 2);
+      drop.style.transform = `translateY(${(p * 9).toFixed(2)}px) rotate(${(p * 4).toFixed(2)}deg)`;
+    }
     if (hovering) {
       // stick to the cursor with a touch of lag — a magnetic "grab"
       lx += (mx - lx) * 0.15;

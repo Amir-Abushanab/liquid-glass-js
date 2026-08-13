@@ -2648,6 +2648,20 @@ a {
   padding-top: 1.5rem;
 }
 
+/* The bob is driven from rAF in showcase.js, NOT by a CSS animation, and this
+   deliberately declares no will-change.
+
+   Safari gives an element with a running CSS transform animation its own
+   compositing layer, and a composited layer is left OUT of an ancestor's SVG
+   filter — so the droplet floated above the lens, sharp and unrefracted, while
+   everything else on the card bent correctly. Measured live in Safari, same motion
+   both ways: CSS-animated droplet is not refracted, the identical bob applied from
+   JS each frame is. (Screenshots show both as refracted, which is why this took so
+   long to pin down — Safari's capture path is not its compositing path.)
+
+   Setting transform from script is an ordinary style change and does not promote,
+   so the droplet stays inside the filter. Same rule applies to anything else placed
+   inside a glass element: animate it from script, or it will not refract in Safari. */
 .lcard__drop {
   position: absolute;
   top: 50%;
@@ -2655,22 +2669,6 @@ a {
   width: 140px;
   height: 140px;
   margin-top: -70px;
-  will-change: transform;
-  animation: lcard-hover 4.5s ease-in-out infinite;
-}
-@keyframes lcard-hover {
-  0%,
-  100% {
-    transform: translateY(-9px) rotate(-4deg);
-  }
-  50% {
-    transform: translateY(9px) rotate(4deg);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .lcard__drop {
-    animation: none;
-  }
 }
 
 /* Glass typeface: font switcher + editable text. The displacement map is
