@@ -44,28 +44,6 @@
 // is already a stacking context and already a containing block for positioned
 // descendants, so an identity transform changes neither.
 
-const TRANSFORM_PROPS = ['transform', 'translate', 'scale', 'rotate'] as const;
-const PINNED = 'lgFilterOrigin';
-
-// Does the page already give this element its own coordinate system?
-function hasOwnOrigin(el: HTMLElement): boolean {
-  const cs = getComputedStyle(el) as unknown as Record<string, string | undefined>;
-  return TRANSFORM_PROPS.some((p) => {
-    const v = cs[p];
-    return !!v && v !== 'none';
-  });
-}
-
-/** Apply `filter: url(#id)` to `el`, pinning WebKit's filter origin to the element. */
-export function applyGlassFilter(el: HTMLElement, id: string): void {
-  if (!el.dataset[PINNED] && !hasOwnOrigin(el)) {
-    el.style.rotate = '0deg';
-    el.dataset[PINNED] = '1';
-  }
-  el.style.filter = `url(#${id})`;
-  el.style.setProperty('-webkit-filter', `url(#${id})`);
-}
-
 // WebKit, and not Chromium (which also ships AppleWebKit in its UA). Three separate
 // workarounds below gate on this. Same shape as supportsBackdropUrl()'s engine test
 // in mount.ts, and for the same reason: none of these have a feature test — observing
@@ -80,6 +58,38 @@ function isWebKit(): boolean {
     _isWebKit = false;
   }
   return _isWebKit;
+}
+
+const TRANSFORM_PROPS = ['transform', 'translate', 'scale', 'rotate'] as const;
+const PINNED = 'lgFilterOrigin';
+
+// Does the page already give this element its own coordinate system?
+function hasOwnOrigin(el: HTMLElement): boolean {
+  const cs = getComputedStyle(el) as unknown as Record<string, string | undefined>;
+  return TRANSFORM_PROPS.some((p) => {
+    const v = cs[p];
+    return !!v && v !== 'none';
+  });
+}
+
+/**
+ * Apply `filter: url(#id)` to `el`, pinning WebKit's filter origin to the element.
+ *
+ * The pin is WebKit-only, and deliberately so: it is not free. A transform makes an
+ * element the containing block for its own `background-attachment: fixed`, which
+ * detaches a fixed backdrop from the viewport and squeezes it into the element box —
+ * measured in all three engines, two panes at different page positions sampling
+ * identically instead of showing different parts of the scene. That is exactly the
+ * shape of the glass panes that clone the page backdrop, so engines that resolve the
+ * origin correctly on their own must not pay for it.
+ */
+export function applyGlassFilter(el: HTMLElement, id: string): void {
+  if (isWebKit() && !el.dataset[PINNED] && !hasOwnOrigin(el)) {
+    el.style.rotate = '0deg';
+    el.dataset[PINNED] = '1';
+  }
+  el.style.filter = `url(#${id})`;
+  el.style.setProperty('-webkit-filter', `url(#${id})`);
 }
 
 /**
