@@ -66,20 +66,20 @@ export function applyGlassFilter(el: HTMLElement, id: string): void {
   el.style.setProperty('-webkit-filter', `url(#${id})`);
 }
 
-// WebKit, and not Chromium (which also ships AppleWebKit in its UA). Same shape as
-// supportsBackdropUrl()'s engine test in mount.ts: there is no feature test for "does
-// this engine re-run a filter when a primitive attribute changes" — reading that back
-// would need a rasterized readback of a DOM element — so the engine is the only signal.
-let _needsRefresh: boolean | null = null;
-function needsRefresh(): boolean {
-  if (_needsRefresh !== null) return _needsRefresh;
+// WebKit, and not Chromium (which also ships AppleWebKit in its UA). Three separate
+// workarounds below gate on this. Same shape as supportsBackdropUrl()'s engine test
+// in mount.ts, and for the same reason: none of these have a feature test — observing
+// them needs a rasterized readback of a DOM element — so the engine is the only signal.
+let _isWebKit: boolean | null = null;
+function isWebKit(): boolean {
+  if (_isWebKit !== null) return _isWebKit;
   try {
     const ua = navigator.userAgent;
-    _needsRefresh = /AppleWebKit/.test(ua) && !/Chrome|Chromium|Edg\//.test(ua);
+    _isWebKit = /AppleWebKit/.test(ua) && !/Chrome|Chromium|Edg\//.test(ua);
   } catch {
-    _needsRefresh = false;
+    _isWebKit = false;
   }
-  return _needsRefresh;
+  return _isWebKit;
 }
 
 /**
@@ -100,7 +100,7 @@ function needsRefresh(): boolean {
  * attribute change anyway, so they skip it and keep the cheap path.
  */
 export function refreshGlassFilter(el: HTMLElement, filter: SVGFilterElement, id: string): string {
-  if (!needsRefresh()) return filter.id;
+  if (!isWebKit()) return filter.id;
   filter.setAttribute('id', id);
   el.style.filter = `url(#${id})`;
   el.style.setProperty('-webkit-filter', `url(#${id})`);
@@ -130,7 +130,7 @@ export function refreshGlassFilter(el: HTMLElement, filter: SVGFilterElement, id
  * units already are CSS px, so the same code path serves every case.
  */
 export function primitiveScale(el: Element): number {
-  if (!needsRefresh()) return 1; // same engine test — only WebKit rescales
+  if (!isWebKit()) return 1; // only WebKit rescales
   if (typeof SVGSVGElement === 'undefined' || !(el instanceof SVGSVGElement)) return 1;
   const vb = el.viewBox?.baseVal;
   const r = el.getBoundingClientRect();
@@ -138,8 +138,8 @@ export function primitiveScale(el: Element): number {
   return vb.width / r.width;
 }
 
-// Below this, a pre-blur is a no-op in engines that blur correctly, and pure damage
-// in WebKit. See preBlur().
+// Below this, a pre-blur is a no-op in Chromium and pure damage in WebKit — but NOT
+// a no-op in Gecko, which is why the skip is engine-gated. See preBlur().
 const MIN_BLUR = 0.75;
 
 /**
@@ -152,20 +152,23 @@ const MIN_BLUR = 0.75;
  *
  *   stdDeviation   0     0.2    0.35   0.5    0.75   1      1.5    2      3
  *     webkit     124.1   95.9   95.9   95.9   95.9   95.9   95.9   82.3   73.9
+ *     firefox    123.6  123.6  122.7  117.4  109.6  104.2   95.3   85.9   76.2
  *     chromium   123.8  123.8  123.8  123.8  123.8  102.7   95.7   86.0   76.1
  *
- * WebKit drops 23% at 0.2 and stays flat to 1.5; Chromium does not move until 0.75
- * and then falls off gradually, as a real Gaussian should. The step is the cost of a
- * premultiply round-trip, which is why it barely shows on opaque sources (52.6 ->
- * 50.2) and wrecks translucent ones. That is what turned the emoji orb into grey
- * silhouettes: a 0.4px blur nobody can see cost it a quarter of its colour.
+ * WebKit drops 23% at 0.2 and stays flat to 1.5 — a premultiply round-trip charged
+ * once, not a Gaussian. It barely shows on opaque sources (52.6 -> 50.2) and wrecks
+ * translucent ones: a 0.4px blur nobody can see cost the emoji orb a quarter of its
+ * colour.
  *
- * So skip the primitive when it is below the threshold where correct engines do
- * anything at all. That is not a WebKit-only hack — it renders identically in
- * Chromium and Gecko, and it stops Safari paying for a blur it was never asked for.
+ * The skip is gated to WebKit because the other two engines do not agree on what
+ * "negligible" means. Chromium is flat to 0.75, so dropping the primitive under that
+ * is genuinely invisible there — but Gecko starts responding around 0.35 and is down
+ * 5% at 0.5, which is the lens default. Skipping it everywhere would quietly remove a
+ * blur Firefox was really applying, so only the engine with the bug pays the
+ * workaround.
  */
 export function preBlur(blur: number, result = 'blurred'): [string, string] {
-  if (!(blur >= MIN_BLUR)) return ['', 'SourceGraphic'];
+  if (isWebKit() && !(blur >= MIN_BLUR)) return ['', 'SourceGraphic'];
   return [
     `<feGaussianBlur in="SourceGraphic" stdDeviation="${blur}" result="${result}"></feGaussianBlur>`,
     result,
