@@ -72,19 +72,53 @@ function hasOwnOrigin(el: HTMLElement): boolean {
   });
 }
 
+// A transform makes an element the containing block for its OWN
+// `background-attachment: fixed`, which detaches a fixed backdrop from the viewport
+// and squeezes it into the element box — measured in all three engines. The glass
+// panes that clone the page backdrop are exactly that shape, so those cannot be
+// pinned; they take the coordinate offset below instead.
+function hasFixedBackground(el: HTMLElement): boolean {
+  return getComputedStyle(el).backgroundAttachment.includes('fixed');
+}
+
+/** Would `applyGlassFilter` pin this element's origin with a transform? */
+function willPin(el: HTMLElement): boolean {
+  return isWebKit() && !hasOwnOrigin(el) && !hasFixedBackground(el);
+}
+
+/**
+ * Offset to ADD to every `userSpaceOnUse` position in a filter targeting `el`.
+ *
+ * Zero in the normal case. It is non-zero only where WebKit needs its origin fixed
+ * and the transform pin is unavailable — an element carrying a fixed-attachment
+ * backdrop, which a transform would break. There the coordinates are compensated
+ * arithmetically instead: WebKit resolves them against the DOCUMENT origin, so
+ * adding the element's document position lands them back on the element.
+ *
+ * Document, not viewport — measured. An element at document y=400 with a subregion
+ * at y=0 paints at viewport 0 when unscrolled and vanishes once scrolled, i.e. the
+ * map sits at document 0 and scrolls with the page. So this does not have to track
+ * scrolling; it only changes when layout moves the element, which is already when
+ * every renderer here rebuilds.
+ */
+export function glassOriginOffset(el: HTMLElement): { x: number; y: number } {
+  if (!isWebKit() || willPin(el) || hasOwnOrigin(el)) return { x: 0, y: 0 };
+  const r = el.getBoundingClientRect();
+  return {
+    x: r.left + (window.scrollX || 0),
+    y: r.top + (window.scrollY || 0),
+  };
+}
+
 /**
  * Apply `filter: url(#id)` to `el`, pinning WebKit's filter origin to the element.
  *
- * The pin is WebKit-only, and deliberately so: it is not free. A transform makes an
- * element the containing block for its own `background-attachment: fixed`, which
- * detaches a fixed backdrop from the viewport and squeezes it into the element box —
- * measured in all three engines, two panes at different page positions sampling
- * identically instead of showing different parts of the scene. That is exactly the
- * shape of the glass panes that clone the page backdrop, so engines that resolve the
- * origin correctly on their own must not pay for it.
+ * The pin is WebKit-only, and skipped even there for an element with a
+ * fixed-attachment background — see hasFixedBackground. Engines that resolve the
+ * origin correctly on their own never pay for it.
  */
 export function applyGlassFilter(el: HTMLElement, id: string): void {
-  if (isWebKit() && !el.dataset[PINNED] && !hasOwnOrigin(el)) {
+  if (willPin(el) && !el.dataset[PINNED]) {
     el.style.rotate = '0deg';
     el.dataset[PINNED] = '1';
   }

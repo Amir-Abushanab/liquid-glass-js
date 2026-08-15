@@ -18,7 +18,12 @@
 
 import { buildDisplacementMap } from './displacement';
 import { NEUTRAL } from './map-encode';
-import { applyGlassFilter, clearGlassFilter, refreshGlassFilter } from './filter-origin';
+import {
+  applyGlassFilter,
+  clearGlassFilter,
+  refreshGlassFilter,
+  glassOriginOffset,
+} from './filter-origin';
 
 // The live-tunable refraction params (everything except the box geometry).
 export interface GlassSurfaceParams {
@@ -85,11 +90,16 @@ function filterHTML(
   s2: number,
   s3: number,
   specAlpha: number,
+  // Usually 0,0. Non-zero only where WebKit needs its filter origin corrected and
+  // the transform pin would break a fixed-attachment backdrop — which is exactly
+  // this renderer's panes. See glassOriginOffset.
+  ox = 0,
+  oy = 0,
 ): string {
   return (
     `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB">` +
     `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
-    `<feImage href="${mapUrl}" xlink:href="${mapUrl}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="none" result="rawMap"></feImage>` +
+    `<feImage href="${mapUrl}" xlink:href="${mapUrl}" x="${ox}" y="${oy}" width="${w}" height="${h}" preserveAspectRatio="none" result="rawMap"></feImage>` +
     `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>` +
     `<feGaussianBlur in="SourceGraphic" stdDeviation="${blur}" result="blurred"></feGaussianBlur>` +
     `<feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
@@ -175,6 +185,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
     const s = cur.strength * frac;
     const div = document.createElement('div');
     div.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
+    const origin = glassOriginOffset(o.target);
     div.innerHTML = filterHTML(
       id,
       mapW,
@@ -185,6 +196,8 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
       s * (1 + 0.1 * cur.chroma),
       s,
       cur.spec * frac,
+      origin.x,
+      origin.y,
     );
     o.host.appendChild(div);
     curId = id;
