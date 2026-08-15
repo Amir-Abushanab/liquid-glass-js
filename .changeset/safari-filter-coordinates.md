@@ -35,7 +35,9 @@ squeezes it into the element box. That is exactly the shape of the panes that cl
 the page backdrop, so those are not pinned at all. They get the same correction
 arithmetically instead — `glassOriginOffset()` adds the element's document position
 to the filter's coordinates, WebKit's own frame of reference, which needs no scroll
-tracking because the map scrolls with the page.
+tracking because the map scrolls with the page. Both the alpha chain (glass text and
+marks) and the morph chain take it; the lens has no fixed backdrop, so it keeps the
+cheaper pin.
 
 **2. Filter output is cached by id.** Mutating a primitive's attributes under an
 unchanged id leaves Safari painting the result it cached when that id was created,
@@ -75,6 +77,11 @@ full desaturation, and Gecko applies a real blur — visibly softer text at 0.4,
 lens default. One value producing three different pictures is worse than it
 producing none, so it rounds down to no blur and the engines agree. Ask for >= 0.75
 to get a blur in all three.
+
+Also clips the WebGL canvas to the glass radius itself. The wrapper's overflow and
+border-radius are enough for ordinary content, but a WebGL canvas is its own
+compositing layer and Firefox does not clip a composited layer to an ancestor's
+ROUNDED corners — only to its box — so it kept square corners overhanging the rim.
 
 Unaffected and unchanged: `mountSvg` and `mountDomRefract` carry no subregion and
 size their region in bbox units — which is why dom-refract was the one renderer
