@@ -52,7 +52,7 @@ match. `primitiveScale()` multiplies by `viewBoxWidth / cssWidth` to cancel it,
 returning 1 for HTML targets, for an `<svg>` without a viewBox, and for a viewBox
 already in CSS px.
 
-Also: **in WebKit only**, the pre-blur is omitted below `stdDeviation` 0.75. WebKit
+Also: the pre-blur is omitted below `stdDeviation` 0.75. WebKit
 desaturates a partially transparent source the moment a blur primitive exists — the
 full cost at 0.2, flat to 1.5, a premultiply round-trip rather than physics.
 Measured on translucent colour emoji, mean saturation:
@@ -63,10 +63,12 @@ Measured on translucent colour emoji, mean saturation:
 | firefox      | 123.6 | 123.6 | 122.7 | 117.4 | 109.6 | 104.2 | 85.9 |
 | chromium     | 123.8 | 123.8 | 123.8 | 123.8 | 123.8 | 102.7 | 86.0 |
 
-The skip is engine-gated because Chromium and Gecko disagree about what
-"negligible" means: Chromium is flat to 0.75, but Gecko starts responding around
-0.35 and is down 5% at 0.5 — the lens default. Skipping it everywhere would quietly
-remove a blur Firefox was really applying, so only the engine with the bug pays.
+This is a normalisation, not just a WebKit workaround: the three disagree entirely
+about what a sub-pixel `stdDeviation` means. Chromium ignores it, WebKit charges the
+full desaturation, and Gecko applies a real blur — visibly softer text at 0.4, the
+lens default. One value producing three different pictures is worse than it
+producing none, so it rounds down to no blur and the engines agree. Ask for >= 0.75
+to get a blur in all three.
 
 Unaffected and unchanged: `mountSvg` and `mountDomRefract` carry no subregion and
 size their region in bbox units — which is why dom-refract was the one renderer

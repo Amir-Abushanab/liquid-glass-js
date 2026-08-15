@@ -148,8 +148,8 @@ export function primitiveScale(el: Element): number {
   return vb.width / r.width;
 }
 
-// Below this, a pre-blur is a no-op in Chromium and pure damage in WebKit — but NOT
-// a no-op in Gecko, which is why the skip is engine-gated. See preBlur().
+// Under this, the three engines disagree about what a blur even is, so it is dropped
+// everywhere rather than rendering three different pictures. See preBlur().
 const MIN_BLUR = 0.75;
 
 /**
@@ -170,15 +170,20 @@ const MIN_BLUR = 0.75;
  * translucent ones: a 0.4px blur nobody can see cost the emoji orb a quarter of its
  * colour.
  *
- * The skip is gated to WebKit because the other two engines do not agree on what
- * "negligible" means. Chromium is flat to 0.75, so dropping the primitive under that
- * is genuinely invisible there — but Gecko starts responding around 0.35 and is down
- * 5% at 0.5, which is the lens default. Skipping it everywhere would quietly remove a
- * blur Firefox was really applying, so only the engine with the bug pays the
- * workaround.
+ * Below MIN_BLUR the primitive is dropped in EVERY engine, and that is a
+ * normalisation rather than a WebKit workaround. The three disagree completely about
+ * what a sub-pixel stdDeviation means: Chromium ignores it, WebKit charges the full
+ * desaturation for it, and Gecko applies a real blur — visibly softer text and washed
+ * out hairlines at 0.4, the showcase lens default. One `blur` value producing three
+ * different pictures is worse than it producing none, so the library rounds the
+ * sub-threshold case down to "no blur" and the engines agree again.
+ *
+ * The cost is explicit: an author asking for 0.5 gets nothing anywhere, where before
+ * they got a real blur in Firefox alone. Ask for >= MIN_BLUR to get a blur in all
+ * three.
  */
 export function preBlur(blur: number, result = 'blurred'): [string, string] {
-  if (isWebKit() && !(blur >= MIN_BLUR)) return ['', 'SourceGraphic'];
+  if (!(blur >= MIN_BLUR)) return ['', 'SourceGraphic'];
   return [
     `<feGaussianBlur in="SourceGraphic" stdDeviation="${blur}" result="${result}"></feGaussianBlur>`,
     result,
