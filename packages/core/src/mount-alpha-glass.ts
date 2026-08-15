@@ -9,7 +9,12 @@
 import { type GlyphMap, type GlyphMapCache } from './glyph-map';
 import { specMaskValues, darkMaskValues } from './map-encode';
 import { parseCssColor } from './color';
-import { applyGlassFilter, clearGlassFilter, primitiveScale } from './filter-origin';
+import {
+  applyGlassFilter,
+  clearGlassFilter,
+  primitiveScale,
+  glassOriginOffset,
+} from './filter-origin';
 
 // The seven refraction params + shade (item 2). Same set for text and shapes.
 export interface AlphaGlassParams {
@@ -88,6 +93,15 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
     // Every primitiveUnits value below goes through k. It is 1 everywhere except an
     // inline <svg> target with a non-css-px viewBox on WebKit — see primitiveScale.
     const k = primitiveScale(core.target);
+    // ...and every userSpaceOnUse POSITION also takes the origin offset. It is 0,0
+    // unless WebKit needs this element's origin corrected and the transform pin is
+    // unavailable — which is the case for a target carrying a fixed-attachment
+    // background, as the glass wordmark does. Without it the region and the map land
+    // at the document origin, the map is empty here, and the closing
+    // `operator="in"` against SourceAlpha clips the result to nothing: blank text.
+    const org = glassOriginOffset(core.target);
+    const ox = (-map.margin + org.x) * k;
+    const oy = (-map.margin + org.y) * k;
     const [s1, s2, s3] = scales().map((v) => v * k);
     const div = document.createElement('div');
     div.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
@@ -126,9 +140,9 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
     // it — for one 270x84 text element, webkit/firefox resolve 272x100 and chromium
     // 270x99 — so a px-exact map extent cannot be written as a percentage.
     div.innerHTML =
-      `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="${-map.margin * k}" y="${-map.margin * k}" width="${map.cssW * k}" height="${map.cssH * k}" color-interpolation-filters="sRGB">` +
+      `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="${ox}" y="${oy}" width="${map.cssW * k}" height="${map.cssH * k}" color-interpolation-filters="sRGB">` +
       `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
-      `<feImage href="${map.url}" xlink:href="${map.url}" x="${-map.margin * k}" y="${-map.margin * k}" width="${map.cssW * k}" height="${map.cssH * k}" preserveAspectRatio="none" result="rawMap"></feImage>` +
+      `<feImage href="${map.url}" xlink:href="${map.url}" x="${ox}" y="${oy}" width="${map.cssW * k}" height="${map.cssH * k}" preserveAspectRatio="none" result="rawMap"></feImage>` +
       `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>` +
       `<feGaussianBlur in="SourceGraphic" stdDeviation="${cur.blur * k}" result="blurred"></feGaussianBlur>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
