@@ -28,8 +28,14 @@ clipped the result to nothing), and controls losing their backdrop while pressed
 Any transform-family property normalises it in every engine; `perspective` does
 not, which is what identifies this as a coordinate-system question. `applyGlassFilter`
 sets the `rotate` longhand — never clobbering a `transform` the page owns — and only
-when the element has no transform-family property of its own. It costs nothing: an
-element with a `filter` is already a stacking context and already a containing block.
+in WebKit, since Chromium and Gecko resolve the origin correctly on their own and the
+pin is not free: a transform makes an element the containing block for its own
+`background-attachment: fixed`, which detaches a fixed backdrop from the viewport and
+squeezes it into the element box. That is exactly the shape of the panes that clone
+the page backdrop, so those are not pinned at all. They get the same correction
+arithmetically instead — `glassOriginOffset()` adds the element's document position
+to the filter's coordinates, WebKit's own frame of reference, which needs no scroll
+tracking because the map scrolls with the page.
 
 **2. Filter output is cached by id.** Mutating a primitive's attributes under an
 unchanged id leaves Safari painting the result it cached when that id was created,
