@@ -81,7 +81,8 @@ function mountSvg(el, surface, p) {
 }
 async function mountWebgl(el, surface, p, src, reg) {
   const canvas = document.createElement('canvas');
-  canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block';
+  canvas.style.cssText =
+    'position:absolute;inset:0;width:100%;height:100%;display:block;border-radius:inherit';
   surface.appendChild(canvas);
   let glass;
   try {

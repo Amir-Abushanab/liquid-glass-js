@@ -190,7 +190,13 @@ function mountWebgl(
   cleanups: Array<() => void>,
 ): void {
   const canvas = document.createElement('canvas');
-  canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block';
+  // `border-radius: inherit` matters, and isn't redundant with the wrapper's
+  // overflow:hidden. A WebGL canvas is its own compositing layer, and Firefox does
+  // not clip a composited layer to an ancestor's ROUNDED corners — it clips to the
+  // box, so the canvas keeps square corners that overhang the glass rim. Carrying
+  // the radius on the canvas makes it clip itself, in every engine.
+  canvas.style.cssText =
+    'position:absolute;inset:0;width:100%;height:100%;display:block;border-radius:inherit';
   surface.appendChild(canvas);
   cleanups.push(() => canvas.remove());
   void (async () => {
