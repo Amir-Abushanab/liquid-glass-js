@@ -466,6 +466,10 @@ a {
    the parent's selector is. */
 .sc__title .lgf__text {
   font-family: 'Snell Roundhand', 'Apple Chancery', 'Segoe Script', 'Brush Script MT', cursive;
+  /* Regular, not the heading's 600. Snell Roundhand ships no bold, so a heavier weight
+     is synthesised by smearing the outline — which flattens the `q`'s tapered descender
+     into a blunt horizontal stub and reads as if something cut it off. */
+  font-weight: 400;
 }
 .sc__sub {
   color: var(--muted);

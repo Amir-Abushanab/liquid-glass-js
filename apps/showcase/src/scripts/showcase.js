@@ -92,7 +92,7 @@ if (document.querySelector('.lgf')) {
     // liquid-glass-font.js). A data attribute rather than a shared module because the
     // two run as separate entry scripts, and an attribute is inspectable besides.
     hover: {
-      label: 'strength on hover',
+      label: 'increase strength on hover',
       get: () => document.documentElement.dataset.lgfHover !== 'off',
       set: (on) => {
         if (on) delete document.documentElement.dataset.lgfHover;
