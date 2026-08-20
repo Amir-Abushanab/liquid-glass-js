@@ -40,14 +40,14 @@ export interface GlassText {
 }
 
 export const GLASS_TEXT_DEFAULTS: GlassTextParams = {
-  strength: 8,
-  chroma: 0.4,
-  blur: 0.3,
-  bevel: 2.5,
-  dome: 4,
-  edge: 0.9,
-  glow: 0.35,
-  shade: 0,
+  strength: 0.5,
+  chroma: 1,
+  blur: 1.2,
+  bevel: 1.3,
+  dome: 12,
+  edge: 1.5,
+  glow: 1,
+  shade: 1,
 };
 
 const PARAM_KEYS = [

@@ -775,14 +775,14 @@ if (lstage && lcard && lensEl) {
     LH = 150;
   const LENS_OPTS = {
     radius: 60,
-    depth: 6,
-    dome: 10,
-    edge: 0.9,
-    glow: 0.32,
-    strength: 18,
-    chroma: 0.14,
-    blur: 0,
-    shade: 0,
+    depth: 5,
+    dome: 30,
+    edge: 1,
+    glow: 1,
+    strength: 11,
+    chroma: 1.5,
+    blur: 0.55,
+    shade: 1,
   };
   // glint (item 6): a warm specular tint on the draggable lens
   const lens = mountGlassLens({
@@ -884,13 +884,13 @@ if (lstage && lcard && lensEl) {
 const loupeDoc = document.getElementById('loupedoc');
 if (loupeDoc) {
   const LOUPE_OPTS = {
-    zoom: 2.2, // the doc is set at ~9.5px, so it needs more than the iOS 1.5×
+    zoom: 3, // the doc is set at ~9.5px, so it needs a lot more than the iOS 1.5×
     width: 156,
     height: 50,
     radius: 25,
     offsetY: -58,
-    strength: 18,
-    chroma: 0.7,
+    strength: 17,
+    chroma: 0.2,
     dome: 8,
     longPressMs: 400,
   };
@@ -935,11 +935,12 @@ if (svgBtn && svgBg) {
   const ripple = mountSvgRipple({
     target: svgBg,
     host: svgBtn,
-    maxFrac: 0.85,
-    strength: 24,
-    chroma: 0.4,
-    spec: 0.7,
-    blur: 0.4,
+    maxFrac: 0.9,
+    strength: 60,
+    chroma: 1,
+    spec: 1,
+    blur: 0.6,
+    duration: 1500,
   });
   svgBtn.addEventListener('pointerdown', (e) => {
     const r = svgBtn.getBoundingClientRect();
@@ -1099,9 +1100,9 @@ const gmBtnEl = document.querySelector('[data-gm-btn]');
 if (gmBtnEl) {
   const btn = mountGlassButton(gmBtnEl, {
     ...GLASS_SURFACE_DEFAULTS,
-    strength: 18,
+    strength: 40,
     dome: 13,
-    chroma: 0.42,
+    chroma: 1,
     pulse: 0.55,
   });
   // A label node: an inline-flex row of an optional icon/spinner + text, with
@@ -1276,7 +1277,7 @@ if (gshapeStage) {
   };
   const shapeOpts = {
     ...GLASS_SHAPE_DEFAULTS,
-    strength: 11,
+    strength: 6,
     bevel: 3.2,
     dome: 5,
     edge: 1,
