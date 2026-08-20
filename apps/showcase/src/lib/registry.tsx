@@ -55,6 +55,12 @@ import { GlassQR } from '@liquidglassjs/qr/react';
 
 /** Where the registry JSON is hosted (served from the showcase's own deploy). */
 export const REGISTRY_URL = 'https://amir-abushanab.github.io/liquid-glass-js';
+// Slider ranges and shipped defaults for every glass component on this site — the
+// same source the vanilla showcase reads, so a retune lands in both.
+import { presetControls } from './glass-presets';
+
+// The lens preview sizes its own lens, so `radius` isn't a knob here.
+const LENS_KEYS = ['strength', 'chroma', 'blur', 'dome', 'depth', 'edge', 'glow', 'shade'];
 
 export type Category = 'Components' | 'Effects';
 
@@ -226,16 +232,7 @@ const swatches = [
 const SHAPE_TUNE: TuneConfig = {
   // Every GlassShape param, in interface order (see AlphaGlassParams): the
   // displacement knobs, then the map knobs (bevel/dome/edge/glow/shade).
-  params: [
-    { key: 'strength', min: 0, max: 40, step: 0.5, default: 6 },
-    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.4 },
-    { key: 'blur', min: 0, max: 3, step: 0.05, default: 0.3 },
-    { key: 'bevel', min: 0.5, max: 10, step: 0.1, default: 3.2 },
-    { key: 'dome', min: 0, max: 30, step: 0.5, default: 5 },
-    { key: 'edge', min: 0, max: 2, step: 0.05, default: 1 },
-    { key: 'glow', min: 0, max: 2, step: 0.05, default: 0.4 },
-    { key: 'shade', min: 0, max: 2, step: 0.05, default: 0 },
-  ],
+  params: presetControls('shape'),
   code: (v) => `import { GlassShape } from "@liquidglassjs/react"
 
 export function Example() {
@@ -250,16 +247,7 @@ export function Example() {
 };
 
 const LENS_TUNE: TuneConfig = {
-  params: [
-    { key: 'strength', min: 0, max: 40, step: 0.5, default: 11 },
-    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 1.5 },
-    { key: 'blur', min: 0, max: 3, step: 0.05, default: 0.55 },
-    { key: 'dome', min: 0, max: 30, step: 0.5, default: 30 },
-    { key: 'depth', min: 0, max: 30, step: 0.5, default: 5 },
-    { key: 'edge', min: 0, max: 2, step: 0.05, default: 1 },
-    { key: 'glow', min: 0, max: 2, step: 0.05, default: 1 },
-    { key: 'shade', min: 0, max: 1, step: 0.05, default: 1 },
-  ],
+  params: presetControls('lens', LENS_KEYS),
   code: (v) => `import { GlassLens } from "@liquidglassjs/react"
 
 export function Example() {
@@ -293,22 +281,7 @@ export function Example() {
 // rather than in `controls` because it reconfigures live like the rest — it's read
 // at pointerdown, so a change lands on the next gesture without a remount.
 const LOUPE_TUNE: TuneConfig = {
-  params: [
-    { key: 'zoom', min: 1.1, max: 3, step: 0.05, default: 3 },
-    { key: 'longPressMs', label: 'hold', min: 0, max: 900, step: 20, default: 400 },
-    { key: 'width', min: 60, max: 260, step: 2, default: 156 },
-    { key: 'height', min: 28, max: 120, step: 2, default: 50 },
-    { key: 'radius', min: 0, max: 60, step: 1, default: 25 },
-    { key: 'offsetY', min: -140, max: 0, step: 2, default: -58 },
-    { key: 'strength', min: 0, max: 30, step: 0.5, default: 17 },
-    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.2 },
-    { key: 'blur', min: 0, max: 2, step: 0.05, default: 0.15 },
-    { key: 'dome', min: 0, max: 24, step: 0.5, default: 8 },
-    { key: 'depth', min: 0, max: 30, step: 0.5, default: 5 },
-    { key: 'edge', min: 0, max: 2, step: 0.05, default: 0.9 },
-    { key: 'glow', min: 0, max: 2, step: 0.05, default: 0.4 },
-    { key: 'shade', min: 0, max: 1, step: 0.05, default: 0.12 },
-  ],
+  params: presetControls('loupe'),
   code: (v) => `import { GlassLoupe } from "@liquidglassjs/react"
 
 export function Example() {
@@ -339,16 +312,7 @@ export function Example() {
 };
 
 const TEXT_TUNE: TuneConfig = {
-  params: [
-    { key: 'strength', min: 0, max: 20, step: 0.5, default: 0.5 },
-    { key: 'chroma', min: 0, max: 1, step: 0.02, default: 1 },
-    { key: 'blur', min: 0, max: 3, step: 0.05, default: 1.2 },
-    { key: 'bevel', min: 0.5, max: 10, step: 0.1, default: 1.3 },
-    { key: 'dome', min: 0, max: 12, step: 0.5, default: 12 },
-    { key: 'edge', min: 0, max: 1.5, step: 0.05, default: 1.5 },
-    { key: 'glow', min: 0, max: 1, step: 0.05, default: 1 },
-    { key: 'shade', min: 0, max: 1, step: 0.05, default: 1 },
-  ],
+  params: presetControls('text'),
   code: (v) => `import { GlassText } from "@liquidglassjs/react"
 
 export function Example() {
@@ -372,18 +336,7 @@ export function Example() {
 
 const SURFACE_TUNE: TuneConfig = {
   needs: 'backdrop-url',
-  params: [
-    { key: 'strength', min: 0, max: 40, step: 0.5, default: 15 },
-    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 1 },
-    { key: 'blur', min: 0, max: 10, step: 0.05, default: 0.15 },
-    { key: 'dome', min: 0, max: 30, step: 0.5, default: 30 },
-    { key: 'depth', min: 0, max: 30, step: 0.5, default: 26 },
-    { key: 'edge', min: 0, max: 2, step: 0.05, default: 2 },
-    { key: 'glow', min: 0, max: 2, step: 0.05, default: 0.2 },
-    { key: 'spec', min: 0, max: 1.5, step: 0.02, default: 0.9 },
-    { key: 'tint', min: 0, max: 40, step: 1, default: 12 },
-    { key: 'vibrancy', min: 0, max: 1, step: 0.02, default: 0.15 },
-  ],
+  params: presetControls('surface'),
   code: (v) => `import { GlassSurface } from "@/components/liquid-glass/glass-surface"
 
 export function Example() {
@@ -437,19 +390,7 @@ export function Example() {
 
 const BUTTON_TUNE: TuneConfig = {
   // Surface knobs, then geometry + morph-animation (radius/duration/pulse re-mount).
-  params: [
-    { key: 'strength', min: 0, max: 40, step: 0.5, default: 40 },
-    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 1 },
-    { key: 'blur', min: 0, max: 3, step: 0.05, default: 0.4 },
-    { key: 'dome', min: 0, max: 30, step: 0.5, default: 13 },
-    { key: 'depth', min: 0, max: 30, step: 0.5, default: 10 },
-    { key: 'edge', min: 0, max: 2, step: 0.05, default: 0.9 },
-    { key: 'glow', min: 0, max: 2, step: 0.05, default: 0.3 },
-    { key: 'spec', min: 0, max: 1.5, step: 0.02, default: 0.7 },
-    { key: 'radius', min: 0, max: 40, step: 1, default: 16 },
-    { key: 'duration', label: 'morph ms', min: 100, max: 1000, step: 20, default: 460 },
-    { key: 'pulse', min: 0, max: 1, step: 0.05, default: 0.5 },
-  ],
+  params: presetControls('button'),
   code: (v) => `import { GlassButton } from "@liquidglassjs/react"
 
 export function Example() {
@@ -475,14 +416,7 @@ export function Example() {
 };
 
 const RIPPLE_TUNE: TuneConfig = {
-  params: [
-    { key: 'strength', min: 0, max: 60, step: 1, default: 60 },
-    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 1 },
-    { key: 'spec', min: 0, max: 1.5, step: 0.02, default: 1 },
-    { key: 'blur', min: 0, max: 3, step: 0.05, default: 0.6 },
-    { key: 'maxFrac', label: 'reach', min: 0.2, max: 1.5, step: 0.02, default: 0.9 },
-    { key: 'duration', label: 'ms', min: 200, max: 3000, step: 50, default: 1500 },
-  ],
+  params: presetControls('ripple'),
   code: (v) => `import { GlassRipple } from "@liquidglassjs/react"
 
 export function Example() {
@@ -646,21 +580,7 @@ const QR_TUNE: TuneConfig = {
   ],
   // Shape first (dots → squares, and how sharp the card is), then the refraction
   // knobs, then the click-bloom animation timings.
-  params: [
-    { key: 'moduleRadius', label: 'dot radius', min: 0, max: 1, step: 0.05, default: 1 },
-    { key: 'moduleScale', label: 'dot size', min: 0.3, max: 1, step: 0.02, default: 0.7 },
-    { key: 'eyeRadius', label: 'eye radius', min: 0, max: 1, step: 0.05, default: 0.55 },
-    { key: 'frameRadius', label: 'frame radius', min: 0, max: 56, step: 1, default: 56 },
-    { key: 'scaleX', min: 0, max: 0.25, step: 0.005, default: 0.08 },
-    { key: 'scaleY', min: 0, max: 0.25, step: 0.005, default: 0.08 },
-    { key: 'chromaAmount', label: 'chroma', min: 0, max: 3, step: 0.05, default: 1 },
-    { key: 'eyeRefractionScale', label: 'eye refract', min: 0, max: 1, step: 0.02, default: 0.16 },
-    { key: 'lensDepth', label: 'depth', min: 0, max: 80, step: 1, default: 30 },
-    { key: 'lensDuration', label: 'bloom ms', min: 1000, max: 12000, step: 250, default: 6000 },
-    { key: 'colorSplash', label: 'splash', min: 50, max: 1000, step: 10, default: 300 },
-    { key: 'ringStart', label: 'ring start', min: 0, max: 1, step: 0.05, default: 0.15 },
-    { key: 'ringEnd', label: 'ring end', min: 0, max: 1, step: 0.05, default: 0.9 },
-  ],
+  params: presetControls('qr'),
   code: (v, o = {}) => {
     const logoSrc = qrLogoSource(o.logo);
     const reserve = qrReserveCenter(o);
@@ -773,14 +693,7 @@ export function Example() {
 };
 
 const SLIDER_TUNE: TuneConfig = {
-  params: [
-    { key: 'strength', min: 0, max: 40, step: 0.5, default: 11 },
-    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.32 },
-    { key: 'dome', min: 0, max: 30, step: 0.5, default: 12 },
-    { key: 'depth', min: 0, max: 30, step: 0.5, default: 8 },
-    { key: 'edge', min: 0, max: 2, step: 0.05, default: 0.9 },
-    { key: 'glow', min: 0, max: 2, step: 0.05, default: 0.3 },
-  ],
+  params: presetControls('slider'),
   code: (v) => `import { GlassSlider } from "@/components/liquid-glass/glass-slider"
 
 export function Example() {
@@ -792,14 +705,7 @@ export function Example() {
 };
 
 const SWITCH_TUNE: TuneConfig = {
-  params: [
-    { key: 'strength', min: 0, max: 40, step: 0.5, default: 14 },
-    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.4 },
-    { key: 'dome', min: 0, max: 30, step: 0.5, default: 8 },
-    { key: 'depth', min: 0, max: 30, step: 0.5, default: 5 },
-    { key: 'edge', min: 0, max: 2, step: 0.05, default: 0.9 },
-    { key: 'glow', min: 0, max: 2, step: 0.05, default: 0.32 },
-  ],
+  params: presetControls('switch'),
   code: (v) => `import { GlassSwitch } from "@/components/liquid-glass/glass-switch"
 
 export function Example() {

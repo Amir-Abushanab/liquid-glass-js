@@ -1,4 +1,5 @@
 import { buildDisplacementMap, preBlurStd } from '@liquidglassjs/core';
+import { presetDefaults } from '../lib/glass-presets';
 const MARGIN = 28;
 // The three engines disagree completely about what a sub-pixel stdDeviation means —
 // WebKit softens as much at 0.2 as it does at 1.5, Chromium is still hard at 0.75 —
@@ -11,17 +12,21 @@ const n = (el, k, d) => {
   const v = Number(el.dataset[k]);
   return Number.isNaN(v) ? d : v;
 };
+// Defaults come from the shared preset, so a card only carries `data-*` for what it
+// deliberately does differently — which for the render-paths trio is the WebGL and
+// Frost cards, whose whole point is that they aren't tuned like the SVG one.
+const D = presetDefaults('surface');
 const params = (el) => ({
   radius: n(el, 'radius', 22),
-  depth: n(el, 'depth', 20),
-  dome: n(el, 'dome', 14),
-  strength: n(el, 'strength', 16),
-  edge: n(el, 'edge', 0.8),
-  glow: n(el, 'glow', 0.2),
-  chroma: n(el, 'chroma', 0.3),
-  blur: n(el, 'blur', 2),
-  spec: n(el, 'spec', 0.9),
-  vibrancy: n(el, 'vibrancy', 0.15),
+  depth: n(el, 'depth', D.depth),
+  dome: n(el, 'dome', D.dome),
+  strength: n(el, 'strength', D.strength),
+  edge: n(el, 'edge', D.edge),
+  glow: n(el, 'glow', D.glow),
+  chroma: n(el, 'chroma', D.chroma),
+  blur: n(el, 'blur', D.blur),
+  spec: n(el, 'spec', D.spec),
+  vibrancy: n(el, 'vibrancy', D.vibrancy),
   backdrop: el.dataset.backdrop || '',
   source: el.dataset.source || '',
 });

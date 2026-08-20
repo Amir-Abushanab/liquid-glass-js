@@ -1,61 +1,44 @@
 import { mountGlassLens, mountGlassLoupe } from '@liquidglassjs/core';
-import { reconfigureAllGlassText, GLASS_TEXT_DEFAULTS } from '@liquidglassjs/core';
+import { reconfigureAllGlassText } from '@liquidglassjs/core';
 import { cubicBezier } from '@liquidglassjs/core';
+import { presetControls, presetDefaults } from '../lib/glass-presets';
+
 const cfgSections = [];
-const LENS_PARAMS = [
-  { k: 'strength', min: 0, max: 40, step: 0.5 },
-  { k: 'chroma', min: 0, max: 1.5, step: 0.02 },
-  { k: 'blur', min: 0, max: 4, step: 0.05 },
-  { k: 'dome', min: 0, max: 30, step: 0.5 },
-  { k: 'depth', min: 0, max: 30, step: 0.5 },
-  { k: 'radius', min: 0, max: 80, step: 1 },
-  { k: 'edge', min: 0, max: 2, step: 0.05 },
-  { k: 'glow', min: 0, max: 2, step: 0.05 },
-  { k: 'shade', min: 0, max: 1, step: 0.05 },
+// Slider ranges and shipped defaults for every glass component on this site. The
+// registry pages read the same module, so a retune lands in both instead of having to
+// be applied twice — which is how the glass mark's chroma and the loupe's strength
+// ended up different in the two places.
+//
+// A `*_KEYS` list below is this page choosing which knobs to expose, not what a knob
+// is worth. Values live in glass-presets.ts.
+const LENS_PARAMS = presetControls('lens');
+const LOUPE_KEYS = [
+  'zoom',
+  'longPressMs',
+  'width',
+  'height',
+  'radius',
+  'offsetY',
+  'strength',
+  'chroma',
+  'dome',
 ];
-// The loupe adds its own geometry (how much to magnify, and the capsule's size and
-// offset) on top of the lens refraction params.
-const LOUPE_PARAMS = [
-  { k: 'zoom', min: 1.1, max: 3, step: 0.05 },
-  { k: 'longPressMs', label: 'hold', min: 0, max: 900, step: 20 },
-  { k: 'width', min: 60, max: 260, step: 2 },
-  { k: 'height', min: 28, max: 120, step: 2 },
-  { k: 'radius', min: 0, max: 60, step: 1 },
-  { k: 'offsetY', min: -140, max: 0, step: 2 },
-  { k: 'strength', min: 0, max: 30, step: 0.5 },
-  { k: 'chroma', min: 0, max: 1.5, step: 0.02 },
-  { k: 'dome', min: 0, max: 24, step: 0.5 },
-];
-// Render-paths tuner: the params `mountGlass` (the unified surface) accepts. Each of the
-// three cards honors a different subset — see the per-focus `dead` sets below.
-const RENDER_PARAMS = [
-  { k: 'strength', min: 0, max: 40, step: 0.5 },
-  { k: 'chroma', min: 0, max: 1.5, step: 0.02 },
-  { k: 'blur', min: 0, max: 4, step: 0.05 },
-  { k: 'dome', min: 0, max: 30, step: 0.5 },
-  { k: 'depth', min: 0, max: 30, step: 0.5 },
-  { k: 'edge', min: 0, max: 2, step: 0.05 },
-  { k: 'glow', min: 0, max: 2, step: 0.05 },
-];
-const RIPPLE_PARAMS = [
-  { k: 'strength', min: 0, max: 60, step: 1 },
-  { k: 'chroma', min: 0, max: 1.5, step: 0.02 },
-  { k: 'spec', min: 0, max: 1.5, step: 0.02 },
-  { k: 'blur', min: 0, max: 3, step: 0.05 },
-  { k: 'maxFrac', min: 0.2, max: 1.5, step: 0.02 },
-  { k: 'duration', min: 300, max: 2500, step: 50 },
-];
-const QR_PARAMS = [
-  { k: 'scaleX', min: 0, max: 0.25, step: 5e-3 },
-  { k: 'scaleY', min: 0, max: 0.25, step: 5e-3 },
-  { k: 'chromaAmount', label: 'chroma', min: 0, max: 3, step: 0.05 },
-  { k: 'eyeRefractionScale', label: 'eyeScale', min: 0, max: 0.5, step: 0.01 },
-  { k: 'lensDepth', label: 'depth', min: 0, max: 80, step: 1 },
-  { k: 'lensDuration', label: 'duration', min: 1e3, max: 12e3, step: 250 },
-  { k: 'colorSplash', label: 'splash', min: 100, max: 1e3, step: 10 },
-  { k: 'ringStart', label: 'ringIn', min: 0, max: 1, step: 0.02 },
-  { k: 'ringEnd', label: 'ringOut', min: 0, max: 1, step: 0.02 },
-];
+const LOUPE_PARAMS = presetControls('loupe', LOUPE_KEYS);
+// The three cards share one set of sliders; spec/tint/vibrancy aren't tunable here.
+const RENDER_KEYS = ['strength', 'chroma', 'blur', 'dome', 'depth', 'edge', 'glow'];
+const RENDER_PARAMS = presetControls('surface', RENDER_KEYS);
+const RIPPLE_PARAMS = presetControls('ripple');
+const QR_PARAMS = presetControls('qr', [
+  'scaleX',
+  'scaleY',
+  'chromaAmount',
+  'eyeRefractionScale',
+  'lensDepth',
+  'lensDuration',
+  'colorSplash',
+  'ringStart',
+  'ringEnd',
+]);
 const CFG_ICONS = {
   segmented:
     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="4.5" width="13" height="7" rx="3.3"/><line x1="8" y1="4.7" x2="8" y2="11.3"/></svg>',
@@ -82,31 +65,16 @@ const CFG_ICONS = {
   paths:
     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.5" y="3" width="8" height="5.5" rx="1.4"/><rect x="4" y="5.2" width="8" height="5.5" rx="1.4" opacity="0.6"/><rect x="6.5" y="7.4" width="8" height="5.5" rx="1.4" opacity="0.35"/></svg>',
 };
-const FONT_PARAMS = [
-  { k: 'strength', min: 0, max: 20, step: 0.5 },
-  // refraction reach, px
-  { k: 'chroma', min: 0, max: 1, step: 0.02 },
-  // per-channel split
-  { k: 'blur', min: 0, max: 2, step: 0.05 },
-  // fill pre-blur (frost)
-  { k: 'bevel', min: 0.5, max: 10, step: 0.1 },
-  // rim width (glyph-coverage blur)
-  { k: 'dome', min: 0, max: 12, step: 0.5 },
-  // interior meniscus swell
-  { k: 'edge', min: 0, max: 1.5, step: 0.05 },
-  // rim glint
-  { k: 'glow', min: 0, max: 1, step: 0.05 },
-  // soft wide sheen
-  { k: 'shade', min: 0, max: 1, step: 0.05 },
-  // dark occlusion rim
-];
+const FONT_PARAMS = presetControls('text');
+// Marks are arbitrary artwork rather than letterforms, so they get the wider ranges.
+const SHAPE_PARAMS = presetControls('shape');
 if (document.querySelector('.lgf')) {
   cfgSections.push({
     id: 'font',
     label: 'Glass typeface',
     icon: CFG_ICONS.font,
     params: FONT_PARAMS,
-    opts: { ...GLASS_TEXT_DEFAULTS },
+    opts: presetDefaults('text'),
     apply: (patch) => reconfigureAllGlassText(patch),
   });
 }
@@ -773,17 +741,7 @@ const lensEl = lstage?.querySelector('.lens-stage__lens');
 if (lstage && lcard && lensEl) {
   const LW = 150,
     LH = 150;
-  const LENS_OPTS = {
-    radius: 60,
-    depth: 5,
-    dome: 30,
-    edge: 1,
-    glow: 1,
-    strength: 11,
-    chroma: 1.5,
-    blur: 0.55,
-    shade: 1,
-  };
+  const LENS_OPTS = presetDefaults('lens');
   // glint (item 6): a warm specular tint on the draggable lens
   const lens = mountGlassLens({
     target: lcard,
@@ -883,17 +841,7 @@ if (lstage && lcard && lensEl) {
 // ── Magnifying loupe: the same lens, over a scaled clone of the fine print ──
 const loupeDoc = document.getElementById('loupedoc');
 if (loupeDoc) {
-  const LOUPE_OPTS = {
-    zoom: 3, // the doc is set at ~9.5px, so it needs a lot more than the iOS 1.5×
-    width: 156,
-    height: 50,
-    radius: 25,
-    offsetY: -58,
-    strength: 17,
-    chroma: 0.2,
-    dome: 8,
-    longPressMs: 400,
-  };
+  const LOUPE_OPTS = presetDefaults('loupe', LOUPE_KEYS);
   const loupe = mountGlassLoupe({
     source: loupeDoc,
     // A hold, not a press: a drag that sets off immediately cancels it, which is
@@ -935,12 +883,7 @@ if (svgBtn && svgBg) {
   const ripple = mountSvgRipple({
     target: svgBg,
     host: svgBtn,
-    maxFrac: 0.9,
-    strength: 60,
-    chroma: 1,
-    spec: 1,
-    blur: 0.6,
-    duration: 1500,
+    ...presetDefaults('ripple'),
   });
   svgBtn.addEventListener('pointerdown', (e) => {
     const r = svgBtn.getBoundingClientRect();
@@ -1086,24 +1029,14 @@ if (qrMount && !webgl2OK()) {
     });
 }
 import { mountGlassButton, mountGlassDropdown, GLASS_SURFACE_DEFAULTS } from '@liquidglassjs/core';
-const MORPH_PARAMS = [
-  { k: 'strength', min: 0, max: 40, step: 0.5 },
-  { k: 'chroma', min: 0, max: 1.5, step: 0.02 },
-  { k: 'blur', min: 0, max: 3, step: 0.05 },
-  { k: 'dome', min: 0, max: 24, step: 0.5 },
-  { k: 'depth', min: 0, max: 24, step: 0.5 },
-  { k: 'edge', min: 0, max: 2, step: 0.05 },
-  { k: 'glow', min: 0, max: 2, step: 0.05 },
-  { k: 'spec', min: 0, max: 1.5, step: 0.02 },
-];
+// The morph surface takes `radius` from CSS, so that control stays off this panel.
+const MORPH_KEYS = ['strength', 'chroma', 'blur', 'dome', 'depth', 'edge', 'glow', 'spec'];
+const MORPH_PARAMS = presetControls('button', MORPH_KEYS);
 const gmBtnEl = document.querySelector('[data-gm-btn]');
 if (gmBtnEl) {
   const btn = mountGlassButton(gmBtnEl, {
     ...GLASS_SURFACE_DEFAULTS,
-    strength: 40,
-    dome: 13,
-    chroma: 1,
-    pulse: 0.55,
+    ...presetDefaults('button', [...MORPH_KEYS, 'duration', 'pulse']),
   });
   // A label node: an inline-flex row of an optional icon/spinner + text, with
   // optional font family/size/weight overrides so the morph varies type + size.
@@ -1214,7 +1147,7 @@ if (gmDdEl) {
     });
   }
 }
-import { mountGlassShape, GLASS_SHAPE_DEFAULTS } from '@liquidglassjs/core';
+import { mountGlassShape } from '@liquidglassjs/core';
 const gshapeStage = document.querySelector('.gshape-stage');
 if (gshapeStage) {
   // Decouple the bob animation from the filtered marks: wrap each mark in a
@@ -1275,14 +1208,7 @@ if (gshapeStage) {
       ctx.restore();
     }
   };
-  const shapeOpts = {
-    ...GLASS_SHAPE_DEFAULTS,
-    strength: 6,
-    bevel: 3.2,
-    dome: 5,
-    edge: 1,
-    glow: 0.4,
-  };
+  const shapeOpts = presetDefaults('shape');
   const shapes = [];
   // inline SVG marks (droplet + sparkle): the SVG itself is the source
   gshapeStage.querySelectorAll('[data-gshape]').forEach((el) => {
@@ -1386,7 +1312,7 @@ if (gshapeStage) {
       id: 'shape',
       label: 'Glass mark',
       icon: CFG_ICONS.shape,
-      params: FONT_PARAMS,
+      params: SHAPE_PARAMS,
       opts: shapes[0].getOptions(),
       apply: (patch) => shapes.forEach((s) => s.reconfigure(patch)),
     });
@@ -1706,7 +1632,7 @@ function buildTuner(sections) {
   const nameEl = panel.querySelector('.cfg__name');
   const rows = panel.querySelector('.cfg__rows');
   const sectionJSON = () =>
-    '{ ' + active.params.map((p) => `${p.k}: ${fmt(active.opts[p.k])}`).join(', ') + ' }';
+    '{ ' + active.params.map((p) => `${p.key}: ${fmt(active.opts[p.key])}`).join(', ') + ' }';
   const tabs = sections.map((s) => {
     const t = document.createElement('button');
     t.className = 'cfg__tab';
@@ -1745,13 +1671,13 @@ function buildTuner(sections) {
       rows.appendChild(seg);
     }
     active.params.forEach((p) => {
-      const isDead = dead.includes(p.k);
+      const isDead = dead.includes(p.key);
       const row = document.createElement('label');
       row.className = 'cfg__row' + (isDead ? ' is-dead' : '');
-      row.innerHTML = `<span class="cfg__k" title="${p.k}">${p.label ?? p.k}</span><input type="range" min="${p.min}" max="${p.max}" step="${p.step}"><span class="cfg__v"></span>`;
+      row.innerHTML = `<span class="cfg__k" title="${p.key}">${p.label ?? p.key}</span><input type="range" min="${p.min}" max="${p.max}" step="${p.step}"><span class="cfg__v"></span>`;
       const input = row.querySelector('input');
       const val = row.querySelector('.cfg__v');
-      const v = active.opts[p.k];
+      const v = active.opts[p.key];
       input.value = String(Math.min(Math.max(v, p.min), p.max));
       val.textContent = fmt(v);
       if (isDead) {
@@ -1759,8 +1685,8 @@ function buildTuner(sections) {
       } else {
         input.addEventListener('input', () => {
           const nv = parseFloat(input.value);
-          active.opts[p.k] = nv;
-          active.apply({ [p.k]: nv });
+          active.opts[p.key] = nv;
+          active.apply({ [p.key]: nv });
           val.textContent = fmt(nv);
           save();
         });
@@ -1859,6 +1785,7 @@ function buildTuner(sections) {
   const els = { svg: pick('auto'), webgl: pick('webgl'), frost: pick('frost') };
   if (!els.svg && !els.webgl && !els.frost) return;
   const base = els.svg || els.webgl || els.frost;
+  const PATH_DEFAULTS = presetDefaults('surface', RENDER_KEYS);
   const rd = (k, d) => {
     const v = parseFloat(base.dataset[k]);
     return Number.isNaN(v) ? d : v;
@@ -1868,15 +1795,7 @@ function buildTuner(sections) {
     label: 'Render paths',
     icon: CFG_ICONS.paths,
     params: RENDER_PARAMS,
-    opts: {
-      strength: rd('strength', 16),
-      chroma: rd('chroma', 0.3),
-      blur: rd('blur', 2),
-      dome: rd('dome', 14),
-      depth: rd('depth', 20),
-      edge: rd('edge', 0.8),
-      glow: rd('glow', 0.2),
-    },
+    opts: Object.fromEntries(RENDER_KEYS.map((k) => [k, rd(k, PATH_DEFAULTS[k])])),
     focus: 0,
     focuses: [
       { id: 'svg', label: 'SVG', el: els.svg, dead: [] },
