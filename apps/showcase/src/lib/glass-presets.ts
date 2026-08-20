@@ -82,6 +82,20 @@ export const GLASS_PRESETS = {
     { key: 'shade', min: 0, max: 1, step: 0.05, default: 1 },
   ],
 
+  // The emoji orb: a lens like the one above, but parked over a dense little sphere
+  // of glyphs rather than a card, so it carries a lot more bend and a hard rim.
+  orb: [
+    { key: 'strength', min: 0, max: 40, step: 0.5, default: 30 },
+    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 1 },
+    { key: 'blur', min: 0, max: 4, step: 0.05, default: 0.1 },
+    { key: 'dome', min: 0, max: 30, step: 0.5, default: 11.5 },
+    { key: 'depth', min: 0, max: 30, step: 0.5, default: 18.5 },
+    { key: 'radius', min: 0, max: 80, step: 1, default: 80 },
+    { key: 'edge', min: 0, max: 2, step: 0.05, default: 2 },
+    { key: 'glow', min: 0, max: 2, step: 0.05, default: 0.3 },
+    { key: 'shade', min: 0, max: 1, step: 0.05, default: 0.15 },
+  ],
+
   // The iOS press-and-hold magnifier: lens refraction plus its own geometry.
   loupe: [
     { key: 'zoom', min: 1.1, max: 3, step: 0.05, default: 3 },
@@ -157,8 +171,10 @@ export const GLASS_PRESETS = {
     { key: 'ringEnd', label: 'ring end', min: 0, max: 1, step: 0.05, default: 0.9 },
   ],
 
-  // Registry-only shells. A thumb is a fraction of the size of the lens above, and
-  // dome and depth are px, so these do not inherit the lens preset.
+  // The glass-on-interaction controls: solid at rest, glass while dragged. A thumb is
+  // a fraction of the size of the lens above and dome/depth are px, so these do not
+  // inherit the lens preset. Shared by the showcase's slider and switch and by the
+  // registry shells of the same name.
   slider: [
     { key: 'strength', min: 0, max: 40, step: 0.5, default: 11 },
     { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.32 },

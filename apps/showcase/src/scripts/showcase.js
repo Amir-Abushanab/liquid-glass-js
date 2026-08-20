@@ -613,16 +613,19 @@ if (isld && isldTrack && isldThumb) {
     host: isld,
     lensW: LW,
     lensH: LH,
-    radius: 18,
-    depth: 8,
-    dome: 12,
-    edge: 0.9,
-    glow: 0.3,
-    strength: 9,
-    chroma: 0.28,
+    radius: 18, // the thumb's own corner, not a tunable
+    ...presetDefaults('slider'),
     blur: 0,
     active: false,
     // gentle — value stays readable
+  });
+  cfgSections.push({
+    id: 'slider',
+    label: 'Slider',
+    icon: CFG_ICONS.slider,
+    params: presetControls('slider'),
+    opts: presetDefaults('slider'),
+    apply: (patch) => lens.reconfigure(patch),
   });
   const place = () => {
     const r = isld.getBoundingClientRect();
@@ -682,16 +685,19 @@ if (isw && iswTrack && iswThumb) {
     host: isw,
     lensW: LW,
     lensH: LH,
-    radius: 14,
-    depth: 5,
-    dome: 8,
-    edge: 0.9,
-    glow: 0.32,
-    strength: 15,
-    chroma: 0.5,
+    radius: 14, // the thumb's own corner, not a tunable
+    ...presetDefaults('switch'),
     blur: 0,
     active: false,
     // stronger — it's just a moving highlight
+  });
+  cfgSections.push({
+    id: 'switch',
+    label: 'Switch',
+    icon: CFG_ICONS.switch,
+    params: presetControls('switch'),
+    opts: presetDefaults('switch'),
+    apply: (patch) => lens.reconfigure(patch),
   });
   const apply = () => {
     isw.style.setProperty('--p', String(p));
@@ -1286,17 +1292,7 @@ if (gshapeStage) {
     // Keep the instance: the orb is a lens like any other, so it belongs in the
     // Tuner alongside the rest rather than being the one glass on the page nobody
     // can adjust.
-    const orbOpts = {
-      radius: 75,
-      dome: 16,
-      depth: 10,
-      strength: 15,
-      chroma: 0.3,
-      edge: 0.9,
-      glow: 0.35,
-      blur: 0.4,
-      shade: 0,
-    };
+    const orbOpts = presetDefaults('orb');
     orbLensRef = mountGlassLens({
       target: orbEl,
       host: gshapeStage,
@@ -1338,8 +1334,8 @@ if (gshapeStage) {
     cfgSections.push({
       id: 'orb',
       label: 'Emoji orb',
-      icon: CFG_ICONS.lens,
-      params: LENS_PARAMS,
+      icon: CFG_ICONS.emoji,
+      params: presetControls('orb'),
       opts: orbLensRef.getOptions(),
       apply: (patch) => orbLensRef.reconfigure(patch),
     });
@@ -1857,10 +1853,13 @@ function buildTuner(sections) {
 const TUNER_ORDER = [
   'paths',
   'shape',
+  'orb', // lives in the Glass anything stage, so it follows the marks
   'lens',
   'loupe',
   'font',
   'segmented',
+  'slider', // Glass on interaction
+  'switch',
   'ripple',
   'button',
   'dropdown',
