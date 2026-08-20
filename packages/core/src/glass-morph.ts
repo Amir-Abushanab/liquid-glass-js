@@ -23,8 +23,8 @@ import {
   clearGlassFilter,
   refreshGlassFilter,
   glassOriginOffset,
-  preBlurStd,
 } from './filter-origin';
+import { preBlurStd } from './blur-quantize';
 
 // The live-tunable refraction params (everything except the box geometry).
 export interface GlassSurfaceParams {

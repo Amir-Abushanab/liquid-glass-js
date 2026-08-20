@@ -120,6 +120,10 @@ client-side only (never during SSR).
   and CSS-scales the source rather than magnifying in the filter.
 - **Glass needs bleed.** A filter can only bend pixels it was handed; a target that
   ends at the visible rim has nothing outside to pull in, so the edge smears.
+- **`blur` is quantised.** No engine applies a real Gaussian — all three approximate
+  one with integer-width box blurs, and WebKit can't go below ~1.4px at all. `blur` is
+  snapped to the radii all three can hit, so anything under ~0.7 becomes 0 and `1`
+  renders as `1.41`, but the same value renders the same in every browser.
 - **A live `<canvas>` under SVG glass doesn't refract in Safari** — same rule as
   above: an actively-redrawn canvas is composited onto its own layer and skipped by
   the ancestor's filter. Render that content as DOM, or pass it as `source` and take

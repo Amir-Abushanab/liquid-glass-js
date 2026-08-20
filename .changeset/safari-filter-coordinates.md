@@ -60,11 +60,48 @@ match. `primitiveScale()` multiplies by `viewBoxWidth / cssWidth` to cancel it,
 returning 1 for HTML targets, for an `<svg>` without a viewBox, and for a viewBox
 already in CSS px.
 
-Also: every displacement chain now zeroes its pre-blur below `stdDeviation` 0.75 —
-all six of them, where before only the lens did it. WebKit desaturates a partially
-transparent source the moment a blur primitive exists — the full cost at 0.2, flat to
-1.5, a premultiply round-trip rather than physics. Measured on translucent colour
-emoji, mean saturation:
+Also: **`blur` now renders the same in all three engines**, which it never did. Every
+displacement chain goes through one rule — all seven of them, where before only the
+lens normalised anything at all.
+
+Reading the sigma each engine actually applies off the rendered pixels (a Gaussian
+smears a hard edge over a 10%-90% rise of 2.563 sigma), sampled every 0.1:
+
+| stdDeviation | chromium | webkit | firefox      |
+| ------------ | -------- | ------ | ------------ |
+| 0            | 0        | 0      | 0            |
+| 0.1 – 0.7    | 0        | 1.47   | 0 → 0.76     |
+| 0.8 – 1.3    | 1.07     | 1.47   | 0.85 → 1.28  |
+| 1.4 – 1.8    | 1.47     | 1.47   | 1.42 → 1.79  |
+| 1.9 – 2.3    | 2.20     | 2.51   | 1.86 → 2.20  |
+| 2.4 – 2.9    | 2.51     | 2.51   | 2.51         |
+| 3.0 – 3.4    | 3.21     | 3.53   | 3.21         |
+| 3.5 – 3.9    | 3.53     | 3.53   | 3.53         |
+
+Nobody applies a Gaussian. The spec says to approximate one with three box blurs of
+size `d = floor(s * 3 * sqrt(2*PI) / 4 + 0.5)`, and those plateaus are that
+quantisation — every transition lands on an integer step of `d`, and the deliverable
+sigma is `sqrt(d² - 1) / 2` and nothing between. What differs is which `d` each engine
+will produce: **Chromium** any of them (`d <= 1` renders as nothing), **WebKit** odd
+`d` only and never below 3 — which is why every value from 0.1 to 1.8 gives the
+identical 1.47 there, and why Safari simply cannot blur by less than ~1.4px —
+**Gecko** a real Gaussian below `d = 4`, box-quantised above it.
+
+So the set all three can hit is WebKit's: 0, 1.414, 2.449, 3.464, 4.472, … The
+requested blur is snapped to the nearest of those rungs and a `stdDeviation` emitted
+that lands every engine on it. Verified by re-measuring: eighteen requested values
+from 0 to 8, all three engines identical on every row (worst spread 0.03, inside the
+measurement noise).
+
+The cost is explicit. The rungs are ~1px apart, so `blur: 1` renders as 1.41
+everywhere instead of 1.07 / 1.47 / 0.99 — there is no `stdDeviation` that makes
+Safari blur by 1.0, so agreeing means moving to a value it can reach. Below 0.71 the
+nearest rung is 0, which is where the old sub-pixel threshold went; it now falls out
+of the same rule rather than being a separate cutoff.
+
+That also fixes the colour half of it, which is how this was first found — WebKit
+desaturates a partially transparent source the moment the blur is non-zero, same
+plateaus, same edges, a premultiply round-trip rather than physics:
 
 | stdDeviation | 0     | 0.2   | 0.35  | 0.5   | 0.75  | 1     | 2    |
 | ------------ | ----- | ----- | ----- | ----- | ----- | ----- | ---- |
@@ -72,27 +109,13 @@ emoji, mean saturation:
 | firefox      | 123.6 | 123.6 | 122.7 | 117.4 | 109.6 | 104.2 | 85.9 |
 | chromium     | 123.8 | 123.8 | 123.8 | 123.8 | 123.8 | 102.7 | 86.0 |
 
-and the softening, as the width in px of the ramp a hard edge is smeared into:
-
-| stdDeviation | 0   | 0.2 | 0.35 | 0.5 | 0.75 | 1   | 1.5 | 2   |
-| ------------ | --- | --- | ---- | --- | ---- | --- | --- | --- |
-| webkit       | 0   | 4   | 4    | 4   | 4    | 4   | 4   | 6   |
-| firefox      | 0   | 0   | 0    | 2   | 2    | 2   | 4   | 6   |
-| chromium     | 0   | 0   | 0    | 0   | 0    | 4   | 4   | 6   |
-
-This is a normalisation, not just a WebKit workaround: the three disagree entirely
-about what a sub-pixel `stdDeviation` means. Chromium ignores it, WebKit softens at
-0.2 exactly as much as it does at 1.5, and Gecko lands in between. The default 0.4 —
-"a hair of glassiness" in Chromium — is a full, visible blur in Safari, which is what
-it looked like next to an unblurred WebGL card rendering the same content. One value
-producing three different pictures is worse than it producing none, so it rounds down
-to no blur and the engines agree. Ask for >= 0.75 to get a blur in all three.
+A 0.4px blur nobody asked to see cost the emoji orb a quarter of its colour.
 
 `preBlurStd()` zeroes the value rather than removing the primitive: measured through a
-real chain on a translucent colour-emoji source, "no `feGaussianBlur` at all" and
-"`feGaussianBlur stdDeviation=0`" are identical in every engine, so keeping it gives
-the chain one shape and lets a live blur change stay a single `setAttribute`. It is
-exported, because anyone hand-rolling a chain needs the same rule.
+real chain, "no `feGaussianBlur` at all" and "`feGaussianBlur stdDeviation=0`" are
+identical in every engine, so keeping it gives the chain one shape and lets a live
+blur change stay a single `setAttribute`. It lives in `blur-quantize.ts` with the
+measurements, and is exported — anyone hand-rolling a chain needs the same rule.
 
 Also clips the WebGL canvas to the glass radius itself. The wrapper's overflow and
 border-radius are enough for ordinary content, but a WebGL canvas is its own

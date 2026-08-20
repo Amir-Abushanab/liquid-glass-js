@@ -19,12 +19,8 @@
 import { buildDisplacementMap } from './displacement';
 import { specMaskValues, darkMaskValues } from './map-encode';
 import { parseCssColor } from './color';
-import {
-  applyGlassFilter,
-  clearGlassFilter,
-  refreshGlassFilter,
-  preBlurStd,
-} from './filter-origin';
+import { applyGlassFilter, clearGlassFilter, refreshGlassFilter } from './filter-origin';
+import { preBlurStd } from './blur-quantize';
 
 export interface GlassLensOptions {
   target: HTMLElement; // live DOM to refract (receives filter:url())

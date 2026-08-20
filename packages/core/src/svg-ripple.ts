@@ -19,12 +19,8 @@
 import { buildDisplacementMap } from './displacement';
 import { NEUTRAL } from './map-encode';
 import { SPLASH_COLORS, hexToRgb } from './color';
-import {
-  applyGlassFilter,
-  clearGlassFilter,
-  refreshGlassFilter,
-  preBlurStd,
-} from './filter-origin';
+import { applyGlassFilter, clearGlassFilter, refreshGlassFilter } from './filter-origin';
+import { preBlurStd } from './blur-quantize';
 
 // Live-tunable ripple params (the Glass Tuner mutates these via reconfigure()).
 export interface SvgRippleParams {

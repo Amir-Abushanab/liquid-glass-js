@@ -236,6 +236,18 @@ ring away; do the same if you build a custom target.
 mint a fresh filter id). Calling those per frame will tank the frame rate. Move
 position per frame, resize on settle.
 
+### MEDIUM — Expecting a small `blur` to do what you asked
+
+No engine applies a real Gaussian; all three approximate one with three integer-width
+box blurs, so the only radii available are `sqrt(d² - 1) / 2`. WebKit restricts itself
+to odd `d >= 3`, so **Safari cannot blur by less than ~1.4px** — every `stdDeviation`
+from 0.1 to 1.8 renders identically there, while Chromium renders nothing below 0.8.
+
+The library snaps `blur` to the rungs all three share so one value renders the same
+everywhere. So `blur: 0.4` gives you nothing (deliberately — it was a full blur in
+Safari and nothing in Chrome), and `blur: 1` gives you 1.41. Ask for 0 or >= 1.4 and
+you get exactly what you asked for.
+
 ### LOW — A canvas gradient greying out colour emoji (WebKit)
 
 Painting a gradient into a 2D context makes WebKit render every colour-bitmap glyph

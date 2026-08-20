@@ -290,6 +290,26 @@ the visible rim there is nothing beyond it to pull inward, and the edge smears
 instead of refracting. Every renderer here insets its target by a bleed margin and
 clips the extra ring away — if you build your own target, do the same.
 
+### `blur` is quantised, and Safari can't blur by less than ~1.4px
+
+No engine applies a real Gaussian. The SVG spec says to approximate one with three box
+blurs of integer width `d`, so the only blur radii any of them can produce are
+`sqrt(d² - 1) / 2` — 1.414, 2.449, 3.464 … and which `d` they'll produce differs:
+Chromium takes any, Gecko runs a true Gaussian for small values, and **WebKit uses odd
+`d` only and never below 3**, so every `stdDeviation` from 0.1 to 1.8 gives the
+identical 1.47px blur in Safari.
+
+The library snaps `blur` to the rungs all three share and emits a per-engine
+`stdDeviation` that lands on it, so the same value renders the same everywhere. Two
+consequences worth knowing:
+
+- **Anything under ~0.7 becomes 0.** A sub-pixel blur is nothing in Chromium and a
+  full blur in Safari; there is no value that splits the difference.
+- **`blur: 1` renders as 1.41.** The rungs are about a pixel apart and Safari can't
+  reach 1.0, so agreeing means rounding to what it can do.
+
+`preBlurStd()` is exported if you're hand-rolling your own filter chain.
+
 ### A live `<canvas>` under SVG glass doesn't refract in Safari
 
 The compositing rule above, triggered a different way and worth its own entry

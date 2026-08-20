@@ -14,8 +14,8 @@ import {
   clearGlassFilter,
   primitiveScale,
   glassOriginOffset,
-  preBlurStd,
 } from './filter-origin';
+import { preBlurStd } from './blur-quantize';
 
 // The seven refraction params + shade (item 2). Same set for text and shapes.
 export interface AlphaGlassParams {
