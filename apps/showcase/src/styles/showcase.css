@@ -458,6 +458,10 @@ a {
 }
 .sc__title {
   font-size: clamp(2.2rem, 5.5vw, 3.6rem);
+  /* The wordmark is script, and a script descender reaches far below the line box —
+     at the default 1.04 the `q` ran 26px INTO the line beneath it, which is what made
+     it look truncated. */
+  line-height: 1.5;
   margin: 1.2rem 0 1rem;
 }
 /* Only the wordmark is script — the headings around it read better in the sans. It has
@@ -470,6 +474,9 @@ a {
      is synthesised by smearing the outline — which flattens the `q`'s tapered descender
      into a blunt horizontal stub and reads as if something cut it off. */
   font-weight: 400;
+  /* Leave a quarter of the bottom padding uncancelled, so some of the paint area is
+     also real space under the descender rather than pure overlap. */
+  margin-bottom: -0.2em;
 }
 .sc__sub {
   color: var(--muted);
