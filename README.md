@@ -304,6 +304,13 @@ library — they're how the engines behave.
   artwork: mean stroke width is `2 × area / total variation` of the coverage, which is
   one pass over the alpha you already rasterized. This library holds it between 1/8 and
   1/3 of that, which is why one `bevel` works across families, weights and sizes.
+- **`background-clip: text` cuts glyphs at the element box.** Filling glass
+  letterforms with a gradient is the obvious way to make them read as glass, but the
+  gradient only paints inside the background positioning area — the padding box — so
+  any descender, swash or entry stroke that reaches past it is never filled and stops
+  dead in a straight line. It looks exactly like the filter clipped it, and it isn't.
+  Pad the element out to the ink and take the same amount off the margin, so the paint
+  area grows and the layout doesn't.
 - **Only three params are cheap to animate.** `strength`, `chroma` and `blur` land on
   a filter attribute, so driving them per frame costs about a `setAttribute` (~0.01ms).
   Everything else — `bevel`, `dome`, `depth`, `edge`, `glow`, `shade`, `radius`, and

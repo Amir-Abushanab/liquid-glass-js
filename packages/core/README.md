@@ -129,6 +129,10 @@ has the measurements behind each, plus the Firefox and testing ones.
 - **`strength`, `chroma` and `blur` are cheap to animate** — they set a filter
   attribute (~0.01ms). Every other param rebuilds the displacement map (~1.8ms on a
   lens), so don't sweep those per frame.
+- **`background-clip: text` cuts glyphs at the element box.** The gradient only paints
+  inside the padding box, so descenders and swashes that reach past it are never
+  filled — and it looks like the filter did it. Pad the element and take it back off
+  the margin.
 - **The filter bends pixels, it can't scale them.** There's no magnification in
   `feDisplacementMap`. To magnify, scale a copy of the content and filter the copy —
   which is what `mountGlassLoupe` does.

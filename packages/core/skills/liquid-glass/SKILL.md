@@ -269,6 +269,24 @@ The library ships no animation presets — curves and timings are yours — but 
 set above is safe in a plain `requestAnimationFrame` loop. Honour
 `prefers-reduced-motion` yourself.
 
+### MEDIUM — Gradient-filled glass text losing its descenders
+
+`background-clip: text` paints the gradient only inside the background positioning
+area — the padding box — so a glyph that reaches past it is never filled. Script `q`
+tails, swashes and italic entry strokes stop dead in a straight line, and it reads as
+the filter having clipped them. It hasn't; the fill just wasn't painted there.
+
+```css
+.glass-heading {
+  /* grow the paint area, keep the layout */
+  padding: 0.25em 0.25em 0.45em;
+  margin: -0.25em -0.25em -0.45em;
+}
+```
+
+The map itself already covers the ink — `mountGlassText` sizes its margin from the
+measured ink box, not from `line-height`.
+
 ### MEDIUM — Expecting one `bevel` to suit every face
 
 `bevel` is a rim width in px and a stroke's width is not fixed, so the library scales

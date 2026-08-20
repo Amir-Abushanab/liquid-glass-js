@@ -411,6 +411,14 @@ a {
 .lgf__text {
   display: inline-block;
   white-space: nowrap;
+  /* Pad the box out to the ink, then take it straight back off the margin.
+     `background-clip: text` paints the gradient only inside the background
+     positioning area — the padding box — so any glyph that reaches past it is never
+     filled and reads as cut off square. A script `q` at this size hangs 22px below
+     the line box, which is exactly what it looked like. The negative margin keeps the
+     line layout where it was, so this costs nothing but room to paint in. */
+  padding: 0.25em 0.25em 0.45em;
+  margin: -0.25em -0.25em -0.45em;
   font-family: var(--font-mono, ui-monospace, monospace);
   background: linear-gradient(
     115deg,
