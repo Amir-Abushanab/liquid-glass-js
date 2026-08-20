@@ -182,13 +182,13 @@ export function primitiveScale(el: Element): number {
   return vb.width / r.width;
 }
 
-// Under this, the three engines disagree about what a blur even is, so it is dropped
-// everywhere rather than rendering three different pictures. See preBlur().
+// Under this, the three engines disagree about what a blur even is, so it is zeroed
+// everywhere rather than rendering three different pictures. See preBlurStd().
 const MIN_BLUR = 0.75;
 
 /**
- * The optional pre-blur in front of a displacement chain, as `[markup, inputName]`.
- * Feed `inputName` to whatever consumes the blurred source.
+ * The `stdDeviation` to actually put on the pre-blur in front of a displacement chain.
+ * Returns `blur`, or 0 below the threshold. EVERY renderer here goes through it.
  *
  * WebKit's feGaussianBlur desaturates a partially transparent source, and it charges
  * the full cost the moment the primitive exists at all rather than in proportion to
@@ -204,24 +204,41 @@ const MIN_BLUR = 0.75;
  * translucent ones: a 0.4px blur nobody can see cost the emoji orb a quarter of its
  * colour.
  *
- * Below MIN_BLUR the primitive is dropped in EVERY engine, and that is a
- * normalisation rather than a WebKit workaround. The three disagree completely about
- * what a sub-pixel stdDeviation means: Chromium ignores it, WebKit charges the full
+ * Below MIN_BLUR the blur is zeroed in EVERY engine, and that is a normalisation
+ * rather than a WebKit workaround. The three disagree completely about what a
+ * sub-pixel stdDeviation means: Chromium ignores it, WebKit charges the full
  * desaturation for it, and Gecko applies a real blur — visibly softer text and washed
  * out hairlines at 0.4, the showcase lens default. One `blur` value producing three
  * different pictures is worse than it producing none, so the library rounds the
  * sub-threshold case down to "no blur" and the engines agree again.
  *
+ * The softening measured the same way — width in px of the ramp a hard black/white
+ * edge is smeared into:
+ *
+ *   stdDeviation   0     0.2    0.35   0.5    0.75   1      1.5    2
+ *     webkit       0      4      4      4      4      4      4      6
+ *     firefox      0      0      0      2      2      2      4      6
+ *     chromium     0      0      0      0      0      4      4      6
+ *
+ * WebKit at 0.2 softens exactly as much as it does at 1.5, while Chromium is still
+ * perfectly hard at 0.75. So a 0.4 that reads as "a hair of glassiness" in Chromium is
+ * a visible, full blur in Safari — which is what it looked like next to an unblurred
+ * WebGL card rendering the same content.
+ *
  * The cost is explicit: an author asking for 0.5 gets nothing anywhere, where before
  * they got a real blur in Firefox alone. Ask for >= MIN_BLUR to get a blur in all
  * three.
+ *
+ * This zeroes the value rather than removing the primitive, because `stdDeviation="0"`
+ * is a true pass-through — measured through a real chain on a translucent colour-emoji
+ * source, "no feGaussianBlur at all" and "feGaussianBlur stdDeviation=0" are identical
+ * in every engine (saturation 50.8/50.7/50.7, edge ramp 0 across the board), while the
+ * same chain at 0.4 already costs WebKit its full 4px ramp. Keeping the primitive means
+ * the chain has ONE shape, so a renderer that updates blur live still does it with a
+ * single setAttribute instead of rebuilding when the value crosses the threshold.
  */
-export function preBlur(blur: number, result = 'blurred'): [string, string] {
-  if (!(blur >= MIN_BLUR)) return ['', 'SourceGraphic'];
-  return [
-    `<feGaussianBlur in="SourceGraphic" stdDeviation="${blur}" result="${result}"></feGaussianBlur>`,
-    result,
-  ];
+export function preBlurStd(blur: number): number {
+  return blur >= MIN_BLUR ? blur : 0;
 }
 
 /** Remove the filter and any origin pin we added. */

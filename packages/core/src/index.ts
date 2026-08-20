@@ -14,6 +14,10 @@ export type { GlassOptions, GlassInstance } from './mount';
 
 // Displacement-map generator (SDF rounded-rect dome; R/G/B encoding)
 export { buildDisplacementMap, renderDisplacementMap, computeDomeConstants } from './displacement';
+// Exported for the same reason as the map builder: anyone hand-rolling a displacement
+// chain has to normalise the pre-blur or their sub-pixel `blur` renders three different
+// pictures in three engines. See filter-origin.ts for the measurements.
+export { preBlurStd } from './filter-origin';
 export type { GlassMapOptions } from './displacement';
 
 // Moving SVG lens over live DOM

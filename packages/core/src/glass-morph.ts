@@ -23,6 +23,7 @@ import {
   clearGlassFilter,
   refreshGlassFilter,
   glassOriginOffset,
+  preBlurStd,
 } from './filter-origin';
 
 // The live-tunable refraction params (everything except the box geometry).
@@ -101,7 +102,7 @@ function filterHTML(
     `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
     `<feImage href="${mapUrl}" xlink:href="${mapUrl}" x="${ox}" y="${oy}" width="${w}" height="${h}" preserveAspectRatio="none" result="rawMap"></feImage>` +
     `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>` +
-    `<feGaussianBlur in="SourceGraphic" stdDeviation="${blur}" result="blurred"></feGaussianBlur>` +
+    `<feGaussianBlur in="SourceGraphic" stdDeviation="${preBlurStd(blur)}" result="blurred"></feGaussianBlur>` +
     `<feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
     `<feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix>` +
     `<feDisplacementMap in="blurred" in2="map" scale="${s2}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
