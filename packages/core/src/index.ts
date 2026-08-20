@@ -74,6 +74,8 @@ export type {
 
 // Overshoot easing (used by switch/segmented snaps)
 export { cubicBezier } from './dynamics';
+export { glassTween } from './glass-tween';
+export type { GlassTween, GlassTweenOptions, GlassTweenTarget } from './glass-tween';
 
 // Shared colour utilities (hex/palette helpers; also consumed by @liquidglassjs/qr)
 export { hexToRgb, SPLASH_COLORS, nextColor } from './color';

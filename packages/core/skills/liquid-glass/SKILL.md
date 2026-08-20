@@ -142,6 +142,27 @@ Both rasterize a map shaped like the alpha, then clip back to `SourceAlpha` so t
 silhouette stays crisp. `mountGlassText` reads the element's **computed** font, so
 any loaded typeface works — await `document.fonts.ready` first.
 
+### Easing a param on hover or press
+
+```js
+import { mountGlassText, glassTween } from '@liquidglassjs/core';
+
+const glass = mountGlassText({ target: h1, host: h1, strength: 4 });
+const tween = glassTween(glass, { duration: 320 });
+
+h1.addEventListener('pointerenter', () => tween.to({ strength: 12.5 }));
+h1.addEventListener('pointerleave', () => tween.to({ strength: 4 }));
+```
+
+Retargets from the current value if it's called mid-flight, so hovering in and out
+faster than the duration stays continuous. Jumps straight to the target under
+`prefers-reduced-motion: reduce`. It tweens the cheap params and applies any others
+once, up front — see the pitfall below for which is which, and why a tween that didn't
+know the difference would drop frames.
+
+No presets ship with it: `duration` and `easing` are yours (`cubicBezier` is exported
+if you want the overshoot the built-in controls use).
+
 ## Pitfalls
 
 Ordered by how often they bite. The Safari ones are not theoretical: every one cost

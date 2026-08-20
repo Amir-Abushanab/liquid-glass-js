@@ -52,7 +52,14 @@ export const GLASS_PRESETS = {
       { key: 'glow', min: 0, max: 1, step: 0.05 },
       { key: 'shade', min: 0, max: 1, step: 0.05 },
     ],
-    GLASS_TEXT_DEFAULTS as unknown as Record<string, number>,
+    {
+      ...(GLASS_TEXT_DEFAULTS as unknown as Record<string, number>),
+      // The stage text eases 4 -> 12.5 on hover, so it has to REST at 4; at the
+      // library's 0.5 the first hover-out would settle somewhere it never started.
+      // The one place this page departs from the shipped text defaults, and only
+      // because it is demonstrating something the defaults don't.
+      strength: 4,
+    },
   ),
 
   // Glass shaped like a logo, mark or emoji. Same param set as text, wider ranges and

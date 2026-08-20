@@ -1,4 +1,5 @@
-import { mountGlassText } from '@liquidglassjs/core';
+import { mountGlassText, glassTween } from '@liquidglassjs/core';
+import { presetDefaults } from '../lib/glass-presets';
 // body.html is a saved live-DOM snapshot. If a re-capture ever bakes mounted
 // state back in (data-lgf-mounted + filter style + <filter id="gtext-…"> holder),
 // strip it before mounting — the guard below would otherwise skip the element,
@@ -18,12 +19,30 @@ document.querySelectorAll('.lgf__text').forEach((el) => {
   el.classList.add('is-pending');
   const clear = () => el.classList.remove('is-pending');
   const safety = setTimeout(clear, 1500); // don't strand it dimmed if fonts.ready hangs
-  mountGlassText({
+  // Mount from the shared preset, not from the library defaults. The tuner reads the
+  // same preset for what it displays, so without this the panel would open on numbers
+  // the glass was never mounted with — and the typeface's resting strength is the one
+  // value this page deliberately departs on, for the hover below.
+  const glass = mountGlassText({
     target: el,
     host: el.closest('.lgf') ?? el,
+    ...presetDefaults('text'),
     onReady: () => {
       clearTimeout(safety);
       clear();
     },
   });
+  // Deepen the refraction on hover. `strength` is one of the params that only sets a
+  // filter attribute, so this is a tween of an attribute rather than sixty
+  // displacement maps a second — see glassTween.
+  const REST = glass.getOptions().strength; // whatever it mounted at
+  const HOVER = 12.5;
+  const tween = glassTween(glass, { duration: 320 });
+  const hot = () => tween.to({ strength: HOVER });
+  const cold = () => tween.to({ strength: REST });
+  el.addEventListener('pointerenter', hot);
+  el.addEventListener('pointerleave', cold);
+  // keyboard and touch reach it too — the stage text is focusable (contenteditable)
+  el.addEventListener('focus', hot);
+  el.addEventListener('blur', cold);
 });
