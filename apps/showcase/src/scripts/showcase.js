@@ -88,6 +88,18 @@ if (document.querySelector('.lgf')) {
     id: 'font',
     label: 'Glass typeface',
     picker: lgfFontPicker,
+    // The stage text deepens its refraction under the pointer (see
+    // liquid-glass-font.js). A data attribute rather than a shared module because the
+    // two run as separate entry scripts, and an attribute is inspectable besides.
+    hover: {
+      label: 'strength on hover',
+      get: () => document.documentElement.dataset.lgfHover !== 'off',
+      set: (on) => {
+        if (on) delete document.documentElement.dataset.lgfHover;
+        else document.documentElement.dataset.lgfHover = 'off';
+        document.dispatchEvent(new CustomEvent('lgf-hover-change', { detail: on }));
+      },
+    },
     icon: CFG_ICONS.font,
     params: FONT_PARAMS,
     opts: presetDefaults('text'),
@@ -1652,64 +1664,16 @@ function buildTuner(sections) {
     t.title = s.label;
     t.innerHTML = s.icon;
     t.addEventListener('click', () => {
-      if (s !== active) animStop();
       active = s;
       sync();
     });
     tabsEl.appendChild(t);
     return { s, t };
   });
-  // ── Animate: sweep one param instead of dragging its slider ──────────────────
-  // Only the params that are a filter attribute are eligible. Sweeping a map input
-  // would re-encode a PNG every frame (~1.8ms on a lens) and the panel would be
-  // offering a way to drop half the frame rate. Order is preference, not priority:
-  // strength is what most sections are about.
-  // chromaAmount is the QR's: that path is a shader, so every uniform is live.
-  const ANIMATABLE = ['strength', 'chroma', 'blur', 'spec', 'chromaAmount'];
-  let animKey = null;
-  let animFrom = 0;
-  let animRaf = 0;
-  let animInput = null;
-  let animVal = null;
-  const animParam = () =>
-    ANIMATABLE.map((k) => active.params.find((p) => p.key === k)).find(Boolean);
-  const animStop = (restore = true) => {
-    if (animRaf) cancelAnimationFrame(animRaf);
-    animRaf = 0;
-    if (restore && animKey) {
-      active.opts[animKey] = animFrom;
-      active.apply({ [animKey]: animFrom });
-      if (animInput) animInput.value = String(animFrom);
-      if (animVal) animVal.textContent = fmt(animFrom);
-    }
-    animKey = null;
-    animInput = null;
-    animVal = null;
-    renderRows();
-  };
-  const animStart = (p) => {
-    animKey = p.key;
-    animFrom = active.opts[p.key];
-    const sec = active;
-    // Ease between where it sits and the top of its range — the same shape as
-    // dragging the slider up and back, on a 2.6s round trip.
-    const lo = animFrom;
-    const hi = p.max;
-    const t0 = performance.now();
-    const tick = (now) => {
-      if (sec !== active) return animStop();
-      const k = 0.5 - 0.5 * Math.cos(((now - t0) / 1300) * Math.PI);
-      const v = +(lo + (hi - lo) * k).toFixed(3);
-      sec.opts[p.key] = v;
-      sec.apply({ [p.key]: v });
-      if (animInput) animInput.value = String(v);
-      if (animVal) animVal.textContent = fmt(v);
-      animRaf = requestAnimationFrame(tick);
-    };
-    animRaf = requestAnimationFrame(tick);
-    renderRows(); // rebind animInput so the slider tracks the sweep
-  };
-
+  // ── Animate on hover ────────────────────────────────────────────────────────
+  // Not a sweep of the slider: a switch for whether the glass responds to the pointer
+  // at all. The section owns the behaviour and exposes it as `hover`; the panel only
+  // turns it on and off, and a section with nothing to hover doesn't show the row.
   function renderRows() {
     rows.innerHTML = '';
     // Sections with `focuses` (Render paths) get a path selector; params a focused path
@@ -1756,17 +1720,16 @@ function buildTuner(sections) {
       });
       rows.appendChild(seg);
     }
-    const anim = animParam();
-    const animLbl = document.createElement('label');
-    animLbl.className = 'cfg__anim' + (anim ? '' : ' is-off');
-    animLbl.innerHTML = `<input type="checkbox"${anim ? '' : ' disabled'}><span>animate${anim ? ` ${anim.label ?? anim.key}` : ''}</span>`;
-    const animBox = animLbl.querySelector('input');
-    animBox.checked = !!animKey;
-    animBox.addEventListener('change', () => {
-      if (animBox.checked && anim) animStart(anim);
-      else animStop();
-    });
-    rows.appendChild(animLbl);
+    if (active.hover) {
+      const hv = active.hover;
+      const lbl = document.createElement('label');
+      lbl.className = 'cfg__anim';
+      lbl.innerHTML = `<input type="checkbox"><span>${hv.label}</span>`;
+      const box = lbl.querySelector('input');
+      box.checked = hv.get();
+      box.addEventListener('change', () => hv.set(box.checked));
+      rows.appendChild(lbl);
+    }
 
     active.params.forEach((p) => {
       const isDead = dead.includes(p.key);
@@ -1788,10 +1751,6 @@ function buildTuner(sections) {
           val.textContent = fmt(nv);
           save();
         });
-      }
-      if (p.key === animKey) {
-        animInput = input;
-        animVal = val;
       }
       rows.appendChild(row);
     });

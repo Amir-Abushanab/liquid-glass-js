@@ -38,11 +38,23 @@ document.querySelectorAll('.lgf__text').forEach((el) => {
   const REST = glass.getOptions().strength; // whatever it mounted at
   const HOVER = 12.5;
   const tween = glassTween(glass, { duration: 320 });
-  const hot = () => tween.to({ strength: HOVER });
-  const cold = () => tween.to({ strength: REST });
+  // The tuner's "strength on hover" checkbox flips this attribute; honour it live so
+  // unticking mid-hover eases back rather than stranding the glass deepened.
+  const on = () => document.documentElement.dataset.lgfHover !== 'off';
+  let over = false;
+  const settle = () => tween.to({ strength: over && on() ? HOVER : REST });
+  const hot = () => {
+    over = true;
+    settle();
+  };
+  const cold = () => {
+    over = false;
+    settle();
+  };
   el.addEventListener('pointerenter', hot);
   el.addEventListener('pointerleave', cold);
   // keyboard and touch reach it too — the stage text is focusable (contenteditable)
   el.addEventListener('focus', hot);
   el.addEventListener('blur', cold);
+  document.addEventListener('lgf-hover-change', settle);
 });
