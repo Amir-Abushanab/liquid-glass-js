@@ -242,98 +242,96 @@ nothing app-specific. Override per surface or globally:
 
 ## Gotchas
 
-Every one of these cost real debugging time. If you write your own SVG glass you will
-hit most of them, so they're here in plain terms.
+Things that bite when you put an SVG filter over live DOM. Most aren't specific to this
+library — they're how the engines behave.
 
 ### Safari
 
 - **Filter coordinates land in the wrong place.** Anything positioned with
   `userSpaceOnUse` — the filter region, an `feImage` subregion — resolves against the
-  top-left of the _page_ instead of the element. The further down the page the element
-  sits, the further off your map lands. Give the element any transform and it snaps
-  back; `rotate: 0deg` is enough. `perspective` doesn't count, which is the tell that
-  this is about owning a coordinate system.
-- **That transform breaks `background-attachment: fixed` on the same element**, so the
-  fix above isn't free. A transformed element becomes the containing block for its own
-  fixed backdrop, which squeezes the backdrop into the element box. If the element has
-  one, add the element's document position to the filter's coordinates instead.
+  top-left of the page instead of the element, so the further down the page the element
+  sits, the further off the map lands. Any transform on the element fixes it;
+  `rotate: 0deg` is enough. `perspective` doesn't, which is the tell that this is about
+  owning a coordinate system.
+- **That transform breaks `background-attachment: fixed` on the same element.** A
+  transformed element becomes the containing block for its own fixed backdrop, which
+  squeezes the backdrop into the element box. If the element has one, add the element's
+  document position to the filter's coordinates instead of transforming it.
 - **Filter output is cached by id.** Change a primitive's attributes and Safari keeps
-  painting the result it cached when that id was created. Re-inserting the node doesn't
-  help and neither does nudging the element. The only thing that works is renaming the
-  filter and pointing the element at the new name. This is why a lens froze where it
-  mounted and a ripple never animated.
-- **Composited layers get skipped by an ancestor's filter.** The layer floats above the
+  painting the result it cached when that id was created, so anything driven through
+  the filter per frame freezes at whatever it looked like on the first one. Re-inserting
+  the node doesn't help and neither does nudging the element. Rename the filter and
+  point the element at the new name.
+- **Composited layers are skipped by an ancestor's filter.** The layer floats above the
   glass, sharp, while everything beside it bends. Two things promote an element: a
-  running CSS transform animation, and a `<canvas>` you redraw every frame. Drive the
-  animation from script instead — setting `el.style.transform` each frame is an
-  ordinary style change and doesn't promote, and `will-change` on its own is fine.
-  For the canvas, render that content as DOM, or hand it to the WebGL path.
-- **On an inline `<svg>`, filter coordinates are read in viewBox units.** Every other
-  engine uses CSS px, and so does Safari on an HTML element. A 64-unit viewBox drawn at
-  200px makes every number in your filter three times too big. Multiply by
+  running CSS transform animation, and a `<canvas>` redrawn every frame. Animate from
+  script instead — setting `el.style.transform` each frame doesn't promote, and
+  `will-change` on its own is fine — and either render canvas content as DOM or sample
+  the canvas in WebGL.
+- **On an inline `<svg>`, filter coordinates are read in viewBox units.** Everywhere
+  else they're CSS px, including Safari on an HTML element. A 64-unit viewBox drawn at
+  200px makes every number in the filter three times too big. Multiply by
   `viewBoxWidth / cssWidth`.
-- **Safari can't blur by less than about 1.4px.** See the blur note below.
-- **A gradient painted into a 2D canvas turns colour emoji grey.** Any emoji drawn into
-  that context afterwards comes out a grey silhouette. A flat translucent `fillRect` is
-  fine, so it's gradients specifically. Bake the gradient into its own canvas and
-  `drawImage` it in.
+- **Blurs below about 1.4px don't exist.** See the blur bullet below.
+- **A gradient painted into a 2D canvas turns colour emoji grey.** Every emoji drawn
+  into that context afterwards comes out a grey silhouette. A flat translucent
+  `fillRect` is fine, so it's gradients specifically. Bake the gradient into its own
+  canvas and `drawImage` it in.
 
 ### Firefox
 
 - **A WebGL canvas keeps square corners inside a rounded box.** Overflow and
-  `border-radius` on the wrapper aren't enough: a canvas is its own compositing layer
-  and Firefox only clips those to the ancestor's _box_, not its rounded corners. Put
+  `border-radius` on the wrapper aren't enough: a canvas is its own compositing layer,
+  and Firefox clips those to the ancestor's box but not to its rounded corners. Put
   `border-radius: inherit` on the canvas.
 - **`repeating-linear-gradient` washes out 1px lines.** A hairline grid built that way
-  goes faint or vanishes. Use a plain `linear-gradient` with `background-size` to
-  repeat it.
+  goes faint or disappears. Use a plain `linear-gradient` and repeat it with
+  `background-size`.
 
 ### Every browser
 
 - **`feGaussianBlur` isn't a Gaussian.** All three approximate one with three
-  integer-width box blurs, so the only blur radii that exist are `sqrt(d² - 1) / 2` —
-  1.41, 2.45, 3.46 and so on. Chromium will use any width, Firefox runs a real Gaussian
-  for small values, and Safari uses odd widths only and never below 3. That last one is
-  why `blur: 0.4` is invisible in Chrome and a full blur in Safari. This library snaps
-  `blur` to the radii all three can hit, so under ~0.7 you get 0 and `blur: 1` renders
-  as 1.41, but the same number looks the same everywhere.
+  integer-width box blurs, so the only radii that exist are `sqrt(d² - 1) / 2` — 1.41,
+  2.45, 3.46 and up. Chromium will use any width, Firefox runs a real Gaussian for
+  small values, and Safari uses odd widths only and never below 3. That's why a
+  `stdDeviation` of 0.4 is invisible in Chrome and a full blur in Safari. Pick a radius
+  all three can hit or you get three different pictures. This library snaps `blur` for
+  you, so under ~0.7 you get 0 and `blur: 1` renders as 1.41.
 - **The filter bends pixels, it can't scale them.** There's no magnification in
-  `feDisplacementMap`. [The loupe](#the-loupe) clones the source and CSS-scales the
-  clone, then mounts a lens on the copy.
-- **A filter can only bend what you hand it.** If your target ends exactly at the
-  visible rim there's nothing outside to pull inward and the edge smears. Inset the
-  target by a bleed margin and clip the extra ring away.
+  `feDisplacementMap`. To magnify, scale a copy of the content and put the filter over
+  the copy.
+- **A filter can only bend what you hand it.** If the target ends exactly at the visible
+  rim there's nothing outside to pull inward, so the edge smears instead of refracting.
+  Inset the target by a bleed margin and clip the extra ring away.
 - **`backdrop-filter: url(#…)` parses everywhere and paints only in Chromium.** Safari
   and Firefox accept it and then draw nothing
-  ([WebKit 245510](https://bugs.webkit.org/show_bug.cgi?id=245510)), so
-  `CSS.supports()` can't tell you. You have to check the engine.
+  ([WebKit 245510](https://bugs.webkit.org/show_bug.cgi?id=245510)), so `CSS.supports()`
+  can't tell you. You have to check the engine.
 - **A `<canvas>` or `<video>` behind glass re-filters every frame**, even when nothing
-  moved. Glass over static DOM is free at rest because the browser caches the filter
-  output; volatile sources throw that away. This is what the WebGL path is for.
-- **Sizing a filter region in `objectBoundingBox` units doesn't do what you want.**
-  That box is the _ink_ bounding box, not the border box, and the engines disagree
-  about it — for one 270×84 text element, Safari and Firefox say 272×100 and Chromium
-  says 270×99. If you need px-exact, use `userSpaceOnUse`.
+  moved. Over static DOM the browser caches filter output and the glass is free at rest;
+  a volatile source throws that away.
+- **A filter region in `objectBoundingBox` units isn't the border box.** It's the ink
+  bounding box, and the engines disagree about it by a pixel or two. If the size has to
+  be exact, use `userSpaceOnUse`.
 - **Give `feImage` an explicit subregion.** Without one it fills the filter region, so
-  your map's size and position depend on whatever region the engine computed, and they
+  the map's size and position depend on whatever region the engine computed — and they
   don't compute the same one.
-- **Round your lens dimensions.** A fractional size makes the map resample at about
-  1.0002, and that near-unity scale beats into faint moiré scanlines.
-- **It's all browser-only.** Every renderer touches `document`, canvas or SVG. Call
-  them from `useEffect`, `onMount` or a client `<script>`, never at module scope.
+- **Round your dimensions.** A fractional size makes the map resample at about 1.0002,
+  and that near-unity scale beats into faint moiré scanlines.
+- **It's all browser-only.** Filters, canvas and `document` don't exist during SSR. Call
+  from `useEffect`, `onMount` or a client `<script>`, never at module scope.
 
 ### Testing this
 
-- **Don't trust a Safari screenshot.** Its capture path isn't its compositing path, so
-  a screenshot shows the composited child _refracted_ even when the live page doesn't.
-  Every conclusion drawn from a still image can be exactly backwards. Look at the
-  screen.
+- **Don't trust a Safari screenshot.** Its capture path isn't its compositing path, so a
+  screenshot shows a composited child refracted even when the live page doesn't. A
+  conclusion drawn from a still image can be exactly backwards.
 - **Playwright's WebKit is a third browser.** It has neither the filter cache nor the
-  compositing behaviour, so it reproduces neither bug and will pass code that's broken
-  in Safari. Fine for geometry, useless for these.
-- **Anything that animates ruins a comparison.** Two screenshots of a particle field
-  from different engines are at different points in the animation, so they always look
-  different and it means nothing. Freeze it first.
+  compositing behaviour, so it reproduces neither and will happily pass code that's
+  broken in Safari. Fine for geometry, useless for these.
+- **Don't compare screenshots of anything animating.** Two captures from different
+  engines are at different points in the animation, so they always differ and it tells
+  you nothing. Freeze it first.
 
 ## Credits
 

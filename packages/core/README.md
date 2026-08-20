@@ -120,14 +120,15 @@ has the measurements behind each, plus the Firefox and testing ones.
 - **Safari resolves `userSpaceOnUse` filter coordinates against the page**, not the
   element, unless the element has a transform. It also caches filter output by id, so
   changing a primitive does nothing until you rename the filter. And on an inline
-  `<svg>` it reads every coordinate in viewBox units. The library handles all three;
-  you'll need to if you roll your own chain.
+  `<svg>` it reads every coordinate in viewBox units. The library handles all three.
+  You'll have to if you roll your own chain.
 - **`blur` is quantised.** No engine applies a real Gaussian — all three approximate
   one with integer-width box blurs, and Safari can't go below ~1.4px. `blur` is snapped
   to the radii all three can hit, so anything under ~0.7 becomes 0 and `1` renders as
   `1.41`, but the same number looks the same in every browser.
-- **The filter bends pixels, it can't scale them.** That's why the loupe clones and
-  CSS-scales the source instead of magnifying in the filter.
+- **The filter bends pixels, it can't scale them.** There's no magnification in
+  `feDisplacementMap`. To magnify, scale a copy of the content and filter the copy —
+  which is what `mountGlassLoupe` does.
 - **Glass needs bleed.** A filter can only bend pixels it was handed. A target that
   ends at the visible rim has nothing outside to pull in, so the edge smears.
 - **A `<canvas>` or `<video>` behind glass re-filters every frame**, even when static.
