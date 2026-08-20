@@ -1430,10 +1430,14 @@ a {
   letter-spacing: 0.09em;
   color: var(--muted, #9a94a8);
 }
+/* Wrap, don't march off the edge. One row of equal columns was fine at eight
+   sections; at thirteen the tabs are narrower than their own 16px icon and the last
+   few (Glass QR among them) sit outside the panel with no way to reach them. auto-fill
+   fits as many as the width allows and flows the rest onto another row, so adding a
+   section can't push one off again. */
 .cfg__tabs {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
+  grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
   gap: 4px;
 }
 .cfg__tab {
