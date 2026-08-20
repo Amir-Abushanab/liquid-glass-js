@@ -161,7 +161,46 @@ export function buildAlphaDisplacementMap(o: AlphaMapOptions, cache: GlyphMapCac
   const tmp = cache.tmp!;
   const N = w * h;
   for (let i = 0; i < N; i++) hn[i] = src[i * 4 + 3] / 255;
-  const sn = Math.max(0.5, o.bevel * o.dpr);
+
+  // ── how thick is the ink? ─────────────────────────────────────────────────────
+  //
+  // `bevel` is a Gaussian sigma in px, but a stroke's width is not. The same 1.3px
+  // rim that reads as a highlight down a 24px display stem swallows a 3px one whole,
+  // and a stroke with no flat core left is ALL rim: every pixel is a gradient, so the
+  // edge glint and the sheen fire across the whole glyph and it washes out to a
+  // ghost. That is what makes one bevel look wrong at another weight, family or size
+  // — the parameter is absolute and the artwork is not.
+  //
+  // Mean stroke width falls out of the coverage for free. For a stroke-like shape
+  // area ≈ width × length and total variation ≈ perimeter ≈ 2 × length, so
+  // width ≈ 2·area/TV. Exact for an axis-aligned bar, about √2 low on 45° diagonals,
+  // which errs toward a thinner rim — the safe direction.
+  let area = 0;
+  let tv = 0;
+  for (let y = 0; y < h; y++) {
+    const row = y * w;
+    for (let x = 0; x < w; x++) {
+      const a = hn[row + x];
+      area += a;
+      if (x + 1 < w) tv += Math.abs(a - hn[row + x + 1]);
+      if (y + 1 < h) tv += Math.abs(a - hn[row + w + x]);
+    }
+  }
+  const strokePx = tv > 1e-6 ? (2 * area) / tv : 0;
+
+  // Hold the rim to a fraction of that. Blurring a stem of width W by W/3 leaves its
+  // centre at erf(3/(2√2)) ≈ 0.86 — still a distinct interior for the dome to swell
+  // and for the glint to run around — while W/8 is thin enough to still read as an
+  // edge rather than a hairline. Between those two `bevel` is honoured exactly, so
+  // artwork that was already in proportion is untouched; it only bites where the
+  // requested rim was going to eat the stroke or vanish against it.
+  //
+  // The upper bound also can't outrun the raster: the margin was sized for 3·bevel,
+  // and a sigma wider than margin/3 would have its ramp clipped at the edge.
+  const want = Math.max(0.5, o.bevel * o.dpr);
+  const hi = strokePx > 0 ? Math.min(strokePx / 3, (margin * o.dpr) / 3) : want;
+  const lo = Math.min(strokePx / 8, hi);
+  const sn = Math.max(0.5, Math.min(Math.max(want, lo), hi));
   gaussBlur(hn, tmp, w, h, sn);
   hw.set(hn);
   gaussBlur(hw, tmp, w, h, sn * Math.sqrt(8)); // total sigma = 3·sn

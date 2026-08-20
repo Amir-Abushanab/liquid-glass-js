@@ -297,6 +297,13 @@ library — they're how the engines behave.
   `stdDeviation` of 0.4 is invisible in Chrome and a full blur in Safari. Pick a radius
   all three can hit or you get three different pictures. This library snaps `blur` for
   you, so under ~0.7 you get 0 and `blur: 1` renders as 1.41.
+- **A rim width in px only looks right at one stroke width.** Bevel a glyph or a mark
+  with a fixed blur and it reads as a highlight on a heavy display face and swallows a
+  light one whole — once the blur is wider than the stroke there's no flat interior
+  left, so every pixel is an edge and the whole shape washes out. Scale the rim to the
+  artwork: mean stroke width is `2 × area / total variation` of the coverage, which is
+  one pass over the alpha you already rasterized. This library holds it between 1/8 and
+  1/3 of that, which is why one `bevel` works across families, weights and sizes.
 - **The filter bends pixels, it can't scale them.** There's no magnification in
   `feDisplacementMap`. To magnify, scale a copy of the content and put the filter over
   the copy.

@@ -236,6 +236,15 @@ ring away; do the same if you build a custom target.
 mint a fresh filter id). Calling those per frame will tank the frame rate. Move
 position per frame, resize on settle.
 
+### MEDIUM — Expecting one `bevel` to suit every face
+
+`bevel` is a rim width in px and a stroke's width is not fixed, so the library scales
+it to the artwork — mean stroke width read off the coverage, with the rim held between
+1/8 and 1/3 of it. Between those bounds your value is used exactly. That is what lets
+`mountGlassText` keep one setting across families, weights and sizes instead of
+needing a tweak per face; if you are hand-rolling an alpha map, do the same or a
+letterform that is thinner than 3× your bevel will wash out to a ghost.
+
 ### MEDIUM — Expecting a small `blur` to do what you asked
 
 No engine applies a real Gaussian; all three approximate one with three integer-width
