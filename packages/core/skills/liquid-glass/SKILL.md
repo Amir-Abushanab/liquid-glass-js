@@ -226,10 +226,13 @@ A canvas that is painted once and then left alone is not affected.
 composited child _refracted_ even when the live page doesn't. Any conclusion drawn
 from a still image can be exactly backwards. Check it on screen.
 
-Playwright's WebKit is a **third** renderer again: it has neither the compositing
-behaviour above nor Safari's filter-output cache, so it reproduces neither bug and
-will happily green-light broken code. Automated cross-engine checks are fine for
-geometry, useless for these.
+And "WebKit" is not one renderer. Playwright's has neither the compositing behaviour
+above nor Safari's filter-output cache, so it reproduces neither bug and will happily
+green-light broken code. The embedded WebKit inside a dev tool or desktop app differs
+again, and can show glass bugs Safari does not have — glass that only comes right after
+something forces a rebuild is a known example. Confirm in Safari itself before fixing:
+a workaround for a behaviour only your harness has costs frame time and buys nothing.
+Automated cross-engine checks are fine for geometry, useless for these.
 
 ### HIGH — Calling a renderer during SSR
 

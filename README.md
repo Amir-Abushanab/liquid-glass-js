@@ -348,9 +348,13 @@ library — they're how the engines behave.
 - **Don't trust a Safari screenshot.** Its capture path isn't its compositing path, so a
   screenshot shows a composited child refracted even when the live page doesn't. A
   conclusion drawn from a still image can be exactly backwards.
-- **Playwright's WebKit is a third browser.** It has neither the filter cache nor the
-  compositing behaviour, so it reproduces neither and will happily pass code that's
-  broken in Safari. Fine for geometry, useless for these.
+- **"WebKit" is not one renderer, and only Safari is Safari.** Playwright's WebKit has
+  neither the filter cache nor the compositing behaviour, so it reproduces neither and
+  will happily pass code that's broken in Safari. The embedded WebKit inside a dev tool
+  or desktop app is a third variant again, and it can show you glass bugs Safari does
+  not have — a filter that only renders correctly after something forces a rebuild, for
+  instance. Before chasing a WebKit bug, check it in Safari itself: a fix for a
+  behaviour only the harness has is a cost with no benefit.
 - **Don't compare screenshots of anything animating.** Two captures from different
   engines are at different points in the animation, so they always differ and it tells
   you nothing. Freeze it first.
