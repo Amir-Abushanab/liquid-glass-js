@@ -2808,18 +2808,25 @@ a {
   font-weight: 600;
 }
 .lgf-fonts__opt[data-lgf-font='serif'],
-.lgfdemo[data-font='serif'] {
+.lgfdemo[data-font='serif'],
+.lgfdemo[data-font='serif'] .lgf__text {
   font-family: ui-serif, Georgia, 'Times New Roman', serif;
 }
 .lgf-fonts__opt[data-lgf-font='black'],
-.lgfdemo[data-font='black'] {
+.lgfdemo[data-font='black'],
+.lgfdemo[data-font='black'] .lgf__text {
   font-family: var(--font-sans, system-ui);
   font-weight: 900;
 }
 .lgf-fonts__opt[data-lgf-font='script'],
-.lgfdemo[data-font='script'] {
+.lgfdemo[data-font='script'],
+.lgfdemo[data-font='script'] .lgf__text {
   font-family: 'Snell Roundhand', 'Apple Chancery', 'Segoe Script', 'Brush Script MT', cursive;
 }
+/* The rules above have to name .lgf__text as well as .lgfdemo. .lgf__text sets its
+   own font-family, and a child's own declaration beats an inherited value however
+   specific the parent's selector is — so restyling only the wrapper left the glass
+   text in mono and the chips looked like they did nothing. */
 .lgfdemo[data-font='black'] {
   letter-spacing: -0.03em;
 }

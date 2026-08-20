@@ -3,6 +3,21 @@ import { reconfigureAllGlassText } from '@liquidglassjs/core';
 import { cubicBezier } from '@liquidglassjs/core';
 import { presetControls, presetDefaults } from '../lib/glass-presets';
 
+// The typeface section's one non-numeric control. Declared up here because the
+// section object is built long before the switcher it drives; `apply` is only ever
+// called from a click, by which point setLgfFont exists.
+const lgfFontPicker = {
+  label: 'font',
+  value: 'mono',
+  options: [
+    { value: 'mono', label: 'Mono' },
+    { value: 'serif', label: 'Serif' },
+    { value: 'black', label: 'Black' },
+    { value: 'script', label: 'Script' },
+  ],
+  apply: (v) => setLgfFont(v),
+};
+
 const cfgSections = [];
 // Slider ranges and shipped defaults for every glass component on this site. The
 // registry pages read the same module, so a retune lands in both instead of having to
@@ -72,6 +87,7 @@ if (document.querySelector('.lgf')) {
   cfgSections.push({
     id: 'font',
     label: 'Glass typeface',
+    picker: lgfFontPicker,
     icon: CFG_ICONS.font,
     params: FONT_PARAMS,
     opts: presetDefaults('text'),
@@ -1652,6 +1668,28 @@ function buildTuner(sections) {
     // can't honor gray out — the SVG/WebGL/Frost tradeoff made visible.
     const focus = active.focuses ? active.focuses[active.focus || 0] : null;
     const dead = focus ? focus.dead : [];
+    // A section can also offer a non-numeric choice — the typeface's font, say.
+    // Same segmented row as the focus selector, so it needs no styling of its own.
+    if (active.picker) {
+      const pk = active.picker;
+      const seg = document.createElement('div');
+      seg.className = 'cfg__focus';
+      pk.options.forEach((o) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'cfg__focusbtn';
+        b.textContent = o.label;
+        b.setAttribute('aria-selected', String(o.value === pk.value));
+        b.addEventListener('click', () => {
+          pk.value = o.value;
+          pk.apply(o.value);
+          renderRows();
+          save();
+        });
+        seg.appendChild(b);
+      });
+      rows.appendChild(seg);
+    }
     if (active.focuses) {
       const seg = document.createElement('div');
       seg.className = 'cfg__focus';
@@ -1833,22 +1871,58 @@ cfgSections.sort((a, b) => {
     ib = TUNER_ORDER.indexOf(b.id);
   return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
 });
-buildTuner(cfgSections); // ── Glass typeface: font switcher + editable stage text ──
+// ── Glass typeface: font switcher + editable stage text ──
 // The engine rasterizes the element's computed font, so flipping font-family is
 // the whole trick: the glyph-width change trips mountGlassText's ResizeObserver,
 // which re-measures (re-reading the computed font) and rebuilds the map.
 const lgfDemo = document.querySelector('.lgfdemo');
 const lgfFontBtns = document.querySelectorAll('.lgf-fonts__opt');
-lgfFontBtns.forEach((btn) => {
-  btn.addEventListener('click', () => {
-    if (lgfDemo) {
-      const f = btn.dataset.lgfFont;
-      if (f === 'mono') delete lgfDemo.dataset.font;
-      else lgfDemo.dataset.font = f;
-    }
-    lgfFontBtns.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
-  });
-});
+
+// Fit the line to the stage. .lgfstage clips (overflow:hidden) and .lgf__text never
+// wraps — the map draws ONE fillText baseline, so wrapping would desync the raster
+// from the DOM — which means a wider face or a longer string just ran off the edge
+// and got cut. Serif and Script are both meaningfully wider than Mono at the same
+// size, so switching face was enough to lose the end of the word. Scale the size
+// down until it fits, leaving room for the glass to bleed past the glyphs.
+const LGF_BLEED = 20; // the filter reaches ~14px beyond the text box; round up
+function fitLgfText() {
+  const text = lgfDemo?.querySelector('.lgf__text');
+  const stage = lgfDemo?.closest('.lgfstage');
+  if (!text || !stage) return;
+  lgfDemo.style.fontSize = ''; // back to the clamp, then measure honestly
+  const cs = getComputedStyle(stage);
+  const avail =
+    stage.clientWidth -
+    parseFloat(cs.paddingLeft || '0') -
+    parseFloat(cs.paddingRight || '0') -
+    2 * LGF_BLEED;
+  const w = text.getBoundingClientRect().width;
+  if (!(w > 0) || !(avail > 0) || w <= avail) return;
+  const base = parseFloat(getComputedStyle(lgfDemo).fontSize) || 16;
+  lgfDemo.style.fontSize = `${Math.max(16, Math.floor(base * (avail / w)))}px`;
+}
+
+function setLgfFont(f) {
+  if (lgfDemo) {
+    if (f === 'mono') delete lgfDemo.dataset.font;
+    else lgfDemo.dataset.font = f;
+  }
+  lgfFontBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lgfFont === f)));
+  if (lgfFontPicker) lgfFontPicker.value = f;
+  fitLgfText();
+}
+lgfFontBtns.forEach((btn) => btn.addEventListener('click', () => setLgfFont(btn.dataset.lgfFont)));
+if (lgfDemo) {
+  // the text is editable, so a long enough string overflows for the same reason
+  lgfDemo.addEventListener('input', fitLgfText);
+  window.addEventListener('resize', fitLgfText);
+  fitLgfText();
+  // the first measure can land before the webfont does, and a fallback face is a
+  // different width — remeasure once the real one is in
+  void document.fonts?.ready.then(fitLgfText);
+}
+
+buildTuner(cfgSections);
 // Keep the editable glass text a single plain-text line: the map draws one
 // baseline (fillText), so Enter/rich paste would desync canvas raster from DOM.
 // contenteditable="plaintext-only" covers modern engines; the input normalize
