@@ -79,6 +79,7 @@ interface TextMeasured {
   rectW: number;
   rectH: number;
   baseline: number;
+  padLeft: number;
   fontCss: string;
   letterSpacing: string;
   fontSizePx: number;
@@ -115,7 +116,13 @@ function fontScale(el: HTMLElement, cs: CSSStyleDeclaration, sizePx: number): nu
   try {
     const clone = el.cloneNode(true) as HTMLElement;
     clone.removeAttribute('id');
-    clone.style.cssText = `${el.getAttribute('style') || ''};position:absolute;left:-99999px;top:0;visibility:hidden;white-space:pre;letter-spacing:0;width:auto;max-width:none`;
+    // Padding and border have to go, along with letter-spacing: this is comparing the
+    // width of the GLYPHS against what the canvas makes of them, and a box that carries
+    // any of those measures wider than its text. Padding on the target is not
+    // hypothetical — it is how you stop `background-clip: text` cutting descenders off
+    // — and left in, it inflates the ratio and rasterizes the map oversized, which
+    // reads as the glass sliding off the letters.
+    clone.style.cssText = `${el.getAttribute('style') || ''};position:absolute;left:-99999px;top:0;visibility:hidden;white-space:pre;letter-spacing:0;padding:0;border:0;width:auto;max-width:none`;
     (el.parentNode ?? document.body).appendChild(clone);
     domW = clone.getBoundingClientRect().width;
     clone.remove();
@@ -186,6 +193,7 @@ export function mountGlassText(o: GlassTextOptions): GlassText {
       rectW: rect.width,
       rectH: rect.height,
       baseline,
+      padLeft: parseFloat(cs.paddingLeft) || 0,
       fontCss,
       letterSpacing,
       fontSizePx,
@@ -207,6 +215,7 @@ export function mountGlassText(o: GlassTextOptions): GlassText {
         {
           ...mm,
           dpr,
+          padLeft: mm.padLeft,
           bevel: cur.bevel,
           dome: cur.dome,
           edge: cur.edge,

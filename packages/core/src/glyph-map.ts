@@ -19,6 +19,13 @@ export interface GlyphMapOptions {
   rectW: number; // target border-box, CSS px
   rectH: number;
   baseline: number; // alphabetic baseline offset from border-box top, CSS px
+  // Where the text starts across, from the border-box left. Everything else here is
+  // measured against the border box, and the glyphs are not: they begin at the content
+  // box. Zero for an unpadded target, and padding a glass heading is the ordinary way
+  // to keep `background-clip: text` from cutting its descenders, so this is not an
+  // edge case — miss it and the whole map is drawn one padding to the left of the
+  // letters it is supposed to be shaped like.
+  padLeft?: number;
   fontCss: string; // canvas font shorthand composed from computed longhands
   letterSpacing: string; // computed letter-spacing px string ('' = normal)
   fontSizePx: number;
@@ -291,8 +298,8 @@ function inkOverflow(o: GlyphMapOptions): number {
     return Math.max(
       m.actualBoundingBoxAscent - o.baseline, // above the box top
       m.actualBoundingBoxDescent - (o.rectH - o.baseline), // below the bottom
-      m.actualBoundingBoxLeft, // left of the origin (script entry strokes)
-      m.actualBoundingBoxRight - o.rectW, // past the advance (swashes, italics)
+      m.actualBoundingBoxLeft - (o.padLeft ?? 0), // left of the text origin
+      m.actualBoundingBoxRight + (o.padLeft ?? 0) - o.rectW, // past the advance
     );
   } catch {
     return 0;
@@ -319,7 +326,7 @@ export function buildGlyphDisplacementMap(o: GlyphMapOptions, cache: GlyphMapCac
         ctx.font = o.fontCss;
         ctx.textBaseline = 'alphabetic';
         ctx.fillStyle = '#fff';
-        const bx = margin;
+        const bx = margin + (o.padLeft ?? 0);
         const by = margin + o.baseline;
         // ctx.letterSpacing shipped later than the rest (and TS 5.3's lib.dom lacks
         // it) — feature-detect on a cast expression (not `ctx` directly, or newer
