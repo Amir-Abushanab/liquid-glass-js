@@ -120,8 +120,12 @@ client-side only (never during SSR).
   and CSS-scales the source rather than magnifying in the filter.
 - **Glass needs bleed.** A filter can only bend pixels it was handed; a target that
   ends at the visible rim has nothing outside to pull in, so the edge smears.
-- **Canvas / video sources re-filter every frame**, even when static — that's what
-  the WebGL entry point is for.
+- **A live `<canvas>` under SVG glass doesn't refract in Safari** — same rule as
+  above: an actively-redrawn canvas is composited onto its own layer and skipped by
+  the ancestor's filter. Render that content as DOM, or pass it as `source` and take
+  the WebGL path, which re-samples it as a texture. A canvas painted once is fine.
+- **Canvas / video sources also re-filter every frame**, even when static — the
+  other reason the WebGL entry point exists.
 - **`backdrop-filter: url(#…)` parses everywhere but paints only in Chromium**, so
   the frost path gates on the engine and falls back to `blur()`.
 

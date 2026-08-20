@@ -175,6 +175,30 @@ element. `will-change: transform` **alone is fine** — the running animation is
 promotes. Only the animated element is excluded; siblings still refract. Chromium
 and Firefox refract either way.
 
+### HIGH — Putting a live `<canvas>` under SVG glass (Safari)
+
+The same rule, triggered a different way. An **actively-redrawn canvas** gets its own
+compositing layer in WebKit, so it too drops out of an ancestor's SVG filter: the
+canvas rides over the glass dead flat while the DOM beside it bends correctly. Nothing
+in the filter is wrong, and the filter chain has no way to detect it.
+
+```js
+/* ✗ in Safari the glass has nothing to bend — the canvas is on its own layer */
+mountGlassLens({ target: myLiveCanvas, host: document.body, lensW: 150, lensH: 150 });
+```
+
+Two ways out, both fine:
+
+- **Render that content as DOM instead.** Spans/divs positioned from script stay in
+  the filtered subtree, and they refract in every engine.
+- **Pass it as `source` and take the WebGL path.** `mountGlass({ source })` with
+  `mode: 'auto'` re-samples the canvas as a texture, where compositing is irrelevant.
+  You want this anyway: a canvas or video is volatile, so the SVG path re-runs the
+  filter _every frame_ even when nothing moved — the one case where glass is not free
+  at rest.
+
+A canvas that is painted once and then left alone is not affected.
+
 ### HIGH — Verifying Safari glass from a screenshot
 
 **Safari's capture path is not its compositing path.** A screenshot shows the
@@ -205,12 +229,6 @@ A filter can only bend pixels it was handed. If the target ends exactly at the
 visible rim there is nothing outside to pull inward and the edge smears instead of
 refracting. The built-in renderers inset their target by a bleed margin and clip the
 ring away; do the same if you build a custom target.
-
-### MEDIUM — Putting a `<canvas>` or `<video>` behind SVG glass
-
-Those sources are volatile, so the browser re-runs the filter every frame even when
-nothing moved — the one case where glass is not free at rest. Pass `source` and let
-`mode: 'auto'` take the WebGL path instead.
 
 ### MEDIUM — Rebuilding the map in an animation loop
 

@@ -290,13 +290,32 @@ the visible rim there is nothing beyond it to pull inward, and the edge smears
 instead of refracting. Every renderer here insets its target by a bleed margin and
 clips the extra ring away — if you build your own target, do the same.
 
-### A canvas or video source is re-filtered every frame
+### A live `<canvas>` under SVG glass doesn't refract in Safari
 
-The browser caches filter output while the content behind it holds still, so glass
-over static DOM is essentially free and only costs a pass when that content
-changes. A `<canvas>` or `<video>` source is treated as volatile and re-filtered
-every frame even when nothing moved — which is exactly the case
+The compositing rule above, triggered a different way and worth its own entry
+because nothing about the code looks wrong. An **actively-redrawn canvas** gets its
+own layer in WebKit, so it drops out of an ancestor's SVG filter exactly as an
+animated child does: the canvas rides over the glass dead flat while the DOM beside
+it bends correctly.
+
+```js
+// in Safari the glass has nothing to bend — the canvas is on its own layer
+mountGlassLens({ target: liveCanvas, host: document.body, lensW: 150, lensH: 150 });
+```
+
+Two ways out. **Render that content as DOM** — spans positioned from script stay in
+the filtered subtree and refract in every engine. Or **pass it as `source` and take
+the WebGL path**, which re-samples the canvas as a texture, where compositing is
+irrelevant.
+
+You want the second one anyway on performance grounds. The browser caches filter
+output while the content behind it holds still, so glass over static DOM is
+essentially free and only costs a pass when that content changes; a `<canvas>` or
+`<video>` is treated as volatile and re-filtered *every frame* even when nothing
+moved — which is exactly the case
 [`@liquidglassjs/core/webgl`](#entry-points-the-code-split) exists for.
+
+A canvas painted once and then left alone is unaffected by either problem.
 
 ### `backdrop-filter: url(#…)` parses everywhere and paints only in Chromium
 

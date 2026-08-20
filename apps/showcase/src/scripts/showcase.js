@@ -216,7 +216,9 @@ const pathGlSrc = document.getElementById('pathglsrc');
 const pathGlCtx = pathGlSrc?.getContext('2d');
 if (pathGlSrc && pathGlCtx) {
   const gdpr = Math.min(window.devicePixelRatio || 1, 2);
-  const pfx = ['svg', 'frost']
+  // Only the Frost card takes a canvas blit. The SVG card renders the SAME particles
+  // as DOM spans instead — see domFx below and .pathfx--dom in the stylesheet.
+  const pfx = ['frost']
     .map((k) => document.querySelector(`[data-pathfx="${k}"]`))
     .filter(Boolean)
     .map((c) => ({ c, x: c.getContext('2d') }));
@@ -415,6 +417,60 @@ if (pathGlSrc && pathGlCtx) {
     return c;
   };
   const parts = [];
+
+  // The SVG card renders that same field as DOM spans instead of a canvas blit.
+  // WebKit gives an actively-redrawn <canvas> its own compositing layer, and a
+  // composited layer is left OUT of an ancestor's SVG filter — the same rule that
+  // dropped the CSS-animated droplet out of the lens — so in Safari the emojis rode
+  // over this card's glass dead flat while the text beside them bent correctly.
+  // Spans positioned from script stay in the filtered subtree, because a script-set
+  // transform promotes nothing. They read from the SAME `parts` array, so it is still
+  // one stream treated three ways; each card simply renders it the way its own path
+  // would. WebGL re-samples its canvas as a texture and Frost blurs its canvas
+  // directly, so neither of those is affected and both keep theirs.
+  const domLayer = document.querySelector('.pathfx--dom');
+  const domFree = [];
+  let dw = 0,
+    dh = 0;
+  if (domLayer) {
+    new ResizeObserver(() => {
+      const r = domLayer.getBoundingClientRect();
+      dw = r.width;
+      dh = r.height;
+    }).observe(domLayer);
+  }
+  const release = (p) => {
+    if (!p.el) return;
+    p.el.style.display = 'none';
+    domFree.push(p.el);
+    p.el = null;
+  };
+  const drawDom = () => {
+    if (!domLayer || !dw) return;
+    const sx = dw / LW,
+      sy = dh / LH;
+    for (const p of parts) {
+      if (!p.el) {
+        const el = domFree.pop() || document.createElement('span');
+        if (!el.parentNode) {
+          el.className = 'pathfx__e';
+          domLayer.appendChild(el);
+        }
+        el.textContent = p.e;
+        el.style.display = '';
+        p.el = el;
+      }
+      const t = p.life / p.maxLife,
+        pop = Math.min(1, p.life / 6);
+      p.el.style.opacity = t < 0.12 ? t / 0.12 : t > 0.6 ? Math.max(0, (1 - t) / 0.4) : 1;
+      p.el.style.fontSize = `${p.size * pop}px`;
+      // the same transform the canvas builds by hand: place, spin, mirror, then centre
+      p.el.style.transform =
+        `translate(${p.x * sx}px,${p.y * sy}px) rotate(${p.rot}rad)` +
+        `${p.flip ? ' scaleX(-1)' : ''} translate(-50%,-50%)`;
+    }
+  };
+
   const drawParticles = (dt) => {
     octx.setTransform(1, 0, 0, 1, 0, 0);
     octx.clearRect(0, 0, off.width, off.height);
@@ -422,6 +478,7 @@ if (pathGlSrc && pathGlCtx) {
       const p = parts[i];
       p.life += dt;
       if (p.life >= p.maxLife) {
+        release(p);
         parts.splice(i, 1);
         continue;
       }
@@ -483,6 +540,7 @@ if (pathGlSrc && pathGlCtx) {
     const active = parts.length > 0;
     if (active) {
       drawParticles(dt);
+      drawDom();
       pathGlCtx.drawImage(off, 0, 0, pathGlSrc.width, pathGlSrc.height);
       for (const { c, x } of pfx) {
         x.setTransform(1, 0, 0, 1, 0, 0);
@@ -1243,66 +1301,43 @@ if (gshapeStage) {
       }),
     );
   }
-  // the emoji orb: a fixed circular glass LENS over a live canvas whose emojis
-  // orbit + wobble amongst themselves. The lens map stays static, so only the
-  // canvas redraws each frame and the filter just re-refracts it — no per-frame
-  // map regeneration. Gated offscreen and disabled for reduced motion.
-  const orbCanvas = gshapeStage.querySelector('[data-gshape-orb]');
+  // the emoji orb: a fixed circular glass LENS over live DOM emoji that orbit +
+  // wobble amongst themselves. The lens map stays static, so only the spans move
+  // each frame and the filter just re-refracts them — no per-frame map regeneration.
+  // Gated offscreen and disabled for reduced motion.
+  //
+  // Those spans used to be a <canvas> redrawn every frame, and that is precisely why
+  // the orb never refracted in Safari: WebKit composites an actively-redrawn canvas
+  // onto its own layer, and a composited layer is left OUT of an ancestor's SVG
+  // filter, so the lens had nothing to bend. Moving a span from script promotes
+  // nothing, so DOM emoji stay inside the filter. It also retires the canvas gradient
+  // that used to grey out colour emoji in WebKit — the body is a CSS radial-gradient
+  // now, which never poisoned anything — and the glyphs are sharp at any DPR.
+  const orbEl = gshapeStage.querySelector('[data-gshape-orb]');
   let orbLensRef = null;
-  if (orbCanvas) {
-    const octx = prep(orbCanvas).ctx;
+  if (orbEl) {
     const orbEmojis = [
-      { e: '🌊', a0: 0.0, rad: 7, s: 50 },
-      { e: '🎉', a0: 0.4, rad: 38, s: 38 },
-      { e: '💎', a0: 1.9, rad: 40, s: 36 },
-      { e: '🔥', a0: 3.1, rad: 36, s: 40 },
-      { e: '✨', a0: 4.4, rad: 42, s: 34 },
-      { e: '💧', a0: 5.4, rad: 33, s: 30 },
-      { e: '🫧', a0: 2.6, rad: 44, s: 30 },
-      { e: '🌈', a0: 1.1, rad: 28, s: 32 },
+      { a0: 0.0, rad: 7, s: 50 },
+      { a0: 0.4, rad: 38, s: 38 },
+      { a0: 1.9, rad: 40, s: 36 },
+      { a0: 3.1, rad: 36, s: 40 },
+      { a0: 4.4, rad: 42, s: 34 },
+      { a0: 5.4, rad: 33, s: 30 },
+      { a0: 2.6, rad: 44, s: 30 },
+      { a0: 1.1, rad: 28, s: 32 },
     ];
-    // Bake the glass body once, into its OWN canvas, and blit it each frame.
-    //
-    // Painting a gradient into a context makes WebKit render every colour-bitmap
-    // glyph drawn into that context afterwards as a grey silhouette. Measured in
-    // Safari with no filters anywhere on the page:
-    //
-    //   gradient -> emoji            grey     <- what this used to do
-    //   emoji -> gradient            colour
-    //   gradient on a 2nd canvas,
-    //     drawImage -> emoji         colour   <- this
-    //   flat translucent fillRect
-    //     -> emoji                   colour
-    //
-    // A flat fill is fine; it is specifically a gradient that poisons the context.
-    // Blitting keeps the body behind the emoji, as designed, and keeps the emoji in
-    // colour. It is also less work per frame — the gradient is built once, not 60x
-    // a second. Nothing to do with the glass filter: the orb rendered grey with the
-    // filter removed entirely.
-    const orbBody = document.createElement('canvas');
-    orbBody.width = 150 * gdpr;
-    orbBody.height = 150 * gdpr;
-    {
-      const bctx = orbBody.getContext('2d');
-      bctx.setTransform(gdpr, 0, 0, gdpr, 0, 0);
-      const body = bctx.createRadialGradient(75, 66, 8, 75, 80, 74);
-      body.addColorStop(0, 'rgba(255,255,255,0.18)');
-      body.addColorStop(0.65, 'rgba(170,195,255,0.08)');
-      body.addColorStop(1, 'rgba(170,195,255,0)');
-      bctx.fillStyle = body;
-      bctx.beginPath();
-      bctx.arc(75, 75, 72, 0, Math.PI * 2);
-      bctx.fill();
-    }
+    const orbSpans = [...orbEl.querySelectorAll('.gshape-orb__e')];
+    orbSpans.forEach((el, i) => {
+      if (orbEmojis[i]) el.style.fontSize = `${orbEmojis[i].s}px`;
+    });
     const drawOrb = (t) => {
-      octx.clearRect(0, 0, 150, 150);
-      octx.drawImage(orbBody, 0, 0, 150, 150);
-      for (const o of orbEmojis) {
+      orbSpans.forEach((el, i) => {
+        const o = orbEmojis[i];
+        if (!o) return;
         const ang = o.a0 + t * 0.00016;
         const r = o.rad + Math.sin(t * 0.0011 + o.a0 * 2) * 5;
-        octx.font = `${o.s}px "Apple Color Emoji","Segoe UI Emoji",sans-serif`;
-        octx.fillText(o.e, 75 + Math.cos(ang) * r, 75 + Math.sin(ang) * r);
-      }
+        el.style.transform = `translate(${75 + Math.cos(ang) * r}px,${75 + Math.sin(ang) * r}px) translate(-50%,-50%)`;
+      });
     };
     drawOrb(0);
     // Keep the instance: the orb is a lens like any other, so it belongs in the
@@ -1320,7 +1355,7 @@ if (gshapeStage) {
       shade: 0,
     };
     orbLensRef = mountGlassLens({
-      target: orbCanvas,
+      target: orbEl,
       host: gshapeStage,
       lensW: 150,
       lensH: 150,
@@ -1341,7 +1376,7 @@ if (gshapeStage) {
           if (orbVisible && !orbRaf) orbRaf = requestAnimationFrame(loop);
         },
         { rootMargin: '120px' },
-      ).observe(orbCanvas);
+      ).observe(orbEl);
       orbRaf = requestAnimationFrame(loop); // kick once; self-gates on orbVisible (off-screen → stops)
     }
   }
@@ -1355,7 +1390,7 @@ if (gshapeStage) {
       apply: (patch) => shapes.forEach((s) => s.reconfigure(patch)),
     });
   }
-  // The orb is a lens over a canvas, so it takes the lens params like the rest.
+  // The orb is a lens like any other, so it takes the lens params like the rest.
   if (orbLensRef) {
     cfgSections.push({
       id: 'orb',

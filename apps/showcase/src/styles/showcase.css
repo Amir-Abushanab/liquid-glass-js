@@ -2016,6 +2016,29 @@ a {
   width: 150px;
   height: 150px;
 }
+/* The orb is a <div> of emoji spans rather than a canvas, for the same reason as
+   .pathfx--dom above: a canvas redrawn every frame is composited out of the glass
+   in Safari, so the lens had nothing to refract. As a bonus it drops the canvas
+   gradient that used to grey out colour emoji in WebKit — the body is now a plain
+   CSS radial-gradient, which never poisoned anything. */
+.gshape-orb {
+  position: relative;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 44%,
+    rgb(255 255 255 / 18%) 0,
+    rgb(170 195 255 / 8%) 62%,
+    rgb(170 195 255 / 0%) 96%
+  );
+}
+.gshape-orb__e {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  line-height: 1;
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', serif;
+}
 /* The bob lives on a wrapper span (.gshape-bob), NOT on the filtered mark.
    Transform-animating an element that carries filter:url() makes the browser
    re-rasterize the glass every frame; on fine, high-contrast artwork — the React
@@ -2199,6 +2222,29 @@ a {
 /* the SVG card text panel is opaque, so lift the emoji layer above it to be seen */
 .pathfx[data-pathfx='svg'] {
   z-index: 1;
+}
+/* The SVG card's emoji layer is real DOM, not a <canvas> — deliberately, and it is
+   the difference between the card working and not working in Safari. WebKit gives an
+   actively-redrawn canvas its own compositing layer, and a composited layer is left
+   OUT of an ancestor's SVG filter (the same rule that dropped the CSS-animated
+   droplet out of the lens), so the emojis slid over the glass dead flat while the
+   text beside them bent correctly. Spans moved by script stay in the filtered
+   subtree — a script-set transform doesn't promote anything. It also suits the card
+   better: this is the "feDisplacementMap on live DOM" path, so its content should be
+   live DOM. WebGL re-samples the canvas as a texture and Frost blurs the canvas
+   itself, so neither of those cards is affected and both keep theirs. */
+.pathfx--dom {
+  overflow: hidden;
+  border-radius: inherit;
+}
+.pathfx__e {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  line-height: 1;
+  white-space: pre;
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', serif;
 }
 /* Frost = CSS blur: the .ps-glass isolation hides a backdrop canvas, so blur the
    emoji layer directly and float it over the card — that IS the frost treatment. */

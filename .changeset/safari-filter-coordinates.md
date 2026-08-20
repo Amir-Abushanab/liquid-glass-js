@@ -89,10 +89,13 @@ that already worked in Safari — and the `url()` frost path is Chromium-gated.
 
 Both READMEs gain a **Gotchas** section for the things the library can't fix from
 inside: Safari excluding a CSS-animated child from its ancestor's filter (animate
-from script instead), Safari's screenshot path not matching its compositing path,
-the filter bending rather than scaling, needing bleed outside the target, canvas and
-video sources re-filtering every frame, `backdrop-filter: url()` parsing everywhere
-but painting only in Chromium, and a canvas gradient greying out colour emoji.
+from script instead), Safari excluding a **live `<canvas>`** for the same reason — an
+actively-redrawn canvas is composited onto its own layer, so the glass has nothing to
+bend and the canvas rides over it flat, with DOM rendering or the WebGL `source` path
+as the two ways out — Safari's screenshot path not matching its compositing path, the
+filter bending rather than scaling, needing bleed outside the target, canvas and video
+sources re-filtering every frame, `backdrop-filter: url()` parsing everywhere but
+painting only in Chromium, and a canvas gradient greying out colour emoji.
 
 Ships a [TanStack Intent](https://github.com/TanStack/intent) skill at
 `packages/core/skills/liquid-glass/SKILL.md` (included in the published package), so
