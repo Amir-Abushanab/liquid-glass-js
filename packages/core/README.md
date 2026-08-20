@@ -108,30 +108,36 @@ client-side only (never during SSR).
 
 ## Gotchas
 
-- **Don't CSS-animate anything inside the glass (Safari).** An element with a
-  running CSS transform animation gets its own compositing layer, and a composited
-  layer is left out of an ancestor's SVG filter — so that child floats above the
-  glass unrefracted while its siblings bend correctly. Drive the motion from
-  `requestAnimationFrame` (`el.style.transform = …`) instead; a script-set
-  transform doesn't promote the element. `will-change` alone is fine.
-- **Safari screenshots don't show what Safari renders.** The capture path isn't the
-  compositing path, so the above looks fine in an image. Verify on the live page.
-- **The filter bends pixels, it can't scale them** — that's why the loupe clones
-  and CSS-scales the source rather than magnifying in the filter.
-- **Glass needs bleed.** A filter can only bend pixels it was handed; a target that
-  ends at the visible rim has nothing outside to pull in, so the edge smears.
+The short list. The [full README](https://github.com/amir-abushanab/liquid-glass-js#gotchas)
+has the measurements behind each, plus the Firefox and testing ones.
+
+- **Safari skips composited layers inside the glass.** A child with a running CSS
+  transform animation, or a `<canvas>` you redraw every frame, gets its own layer and
+  drops out of the ancestor's filter — it floats above the glass, sharp, while
+  everything beside it bends. Drive animation from script instead (`el.style.transform`
+  per frame doesn't promote; `will-change` alone is fine), and render canvas content as
+  DOM or pass it as `source` to take the WebGL path. A canvas painted once is fine.
+- **Safari resolves `userSpaceOnUse` filter coordinates against the page**, not the
+  element, unless the element has a transform. It also caches filter output by id, so
+  changing a primitive does nothing until you rename the filter. And on an inline
+  `<svg>` it reads every coordinate in viewBox units. The library handles all three;
+  you'll need to if you roll your own chain.
 - **`blur` is quantised.** No engine applies a real Gaussian — all three approximate
-  one with integer-width box blurs, and WebKit can't go below ~1.4px at all. `blur` is
-  snapped to the radii all three can hit, so anything under ~0.7 becomes 0 and `1`
-  renders as `1.41`, but the same value renders the same in every browser.
-- **A live `<canvas>` under SVG glass doesn't refract in Safari** — same rule as
-  above: an actively-redrawn canvas is composited onto its own layer and skipped by
-  the ancestor's filter. Render that content as DOM, or pass it as `source` and take
-  the WebGL path, which re-samples it as a texture. A canvas painted once is fine.
-- **Canvas / video sources also re-filter every frame**, even when static — the
-  other reason the WebGL entry point exists.
-- **`backdrop-filter: url(#…)` parses everywhere but paints only in Chromium**, so
-  the frost path gates on the engine and falls back to `blur()`.
+  one with integer-width box blurs, and Safari can't go below ~1.4px. `blur` is snapped
+  to the radii all three can hit, so anything under ~0.7 becomes 0 and `1` renders as
+  `1.41`, but the same number looks the same in every browser.
+- **The filter bends pixels, it can't scale them.** That's why the loupe clones and
+  CSS-scales the source instead of magnifying in the filter.
+- **Glass needs bleed.** A filter can only bend pixels it was handed. A target that
+  ends at the visible rim has nothing outside to pull in, so the edge smears.
+- **A `<canvas>` or `<video>` behind glass re-filters every frame**, even when static.
+  Glass over live DOM is free at rest; that's the other reason the WebGL entry point
+  exists.
+- **`backdrop-filter: url(#…)` parses everywhere and paints only in Chromium**, so the
+  frost path checks the engine and falls back to `blur()`.
+- **Don't verify Safari from a screenshot.** Its capture path isn't its compositing
+  path, so the first bullet looks fine in an image and broken on screen. Playwright's
+  WebKit doesn't reproduce it either.
 
 The [full README](https://github.com/amir-abushanab/liquid-glass-js#gotchas) has the
 measurements behind each.

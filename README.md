@@ -64,7 +64,7 @@ renderer (`mode: 'auto'`):
 is unavailable or the renderer throws.
 
 Paths 1–3 (`filter: url()`) render in every engine. Path 4 is the one that
-varies: on Chromium the frost *refracts* the live page through the same
+varies: on Chromium the frost _refracts_ the live page through the same
 displacement map, while Safari and Firefox get a plain `blur()` — they parse
 `backdrop-filter: url()` but paint nothing for it ([WebKit 245510][wk245510]).
 
@@ -195,12 +195,12 @@ wrap the same mount.
 
 ## Entry points (the code-split)
 
-| Import | Ships | Notes |
-|---|---|---|
-| `@liquidglassjs/core` | `mountGlass` + every SVG-path renderer (`mountGlassLens`, `mountSvgRipple`, `mountGlassText`, …) | **No WebGL, no `qrcode`.** WebGL is lazy-imported at runtime only if a surface hits that path. |
-| `@liquidglassjs/core/webgl` | `GlassGL` (the WebGL renderer) | Its own chunk. |
-| `@liquidglassjs/qr` *(separate package)* | `mountGlassQR` + the QR internals | The only package that depends on `qrcode`; built on `@liquidglassjs/core`. |
-| `@liquidglassjs/core/css` | the `.ps-glass*` styles | Import once per app. |
+| Import                                   | Ships                                                                                            | Notes                                                                                          |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| `@liquidglassjs/core`                    | `mountGlass` + every SVG-path renderer (`mountGlassLens`, `mountSvgRipple`, `mountGlassText`, …) | **No WebGL, no `qrcode`.** WebGL is lazy-imported at runtime only if a surface hits that path. |
+| `@liquidglassjs/core/webgl`              | `GlassGL` (the WebGL renderer)                                                                   | Its own chunk.                                                                                 |
+| `@liquidglassjs/qr` _(separate package)_ | `mountGlassQR` + the QR internals                                                                | The only package that depends on `qrcode`; built on `@liquidglassjs/core`.                     |
+| `@liquidglassjs/core/css`                | the `.ps-glass*` styles                                                                          | Import once per app.                                                                           |
 
 The split relies on the **consumer's** bundler (Vite / webpack / Rollup split by
 default; esbuild needs `--splitting`). The `webgl` subpath is belt-and-suspenders
@@ -226,138 +226,114 @@ import LiquidGlassFont from '@liquidglassjs/core/astro/LiquidGlassFont.astro';
 The CSS is de-themed: it reads namespaced vars with sane fallbacks and assumes
 nothing app-specific. Override per surface or globally:
 
-| Var | Role | Default |
-|---|---|---|
-| `--glass-paper` | base "paper" behind the tint + SVG clone | `#fff` |
-| `--glass-ink` | rim ink | `#000` |
-| `--glass-frost-bg` | frosted-fallback background | 55% of `--glass-paper` |
-| `--glass-backdrop` | default backdrop for the SVG-clone path | consumer-supplied |
+| Var                | Role                                     | Default                |
+| ------------------ | ---------------------------------------- | ---------------------- |
+| `--glass-paper`    | base "paper" behind the tint + SVG clone | `#fff`                 |
+| `--glass-ink`      | rim ink                                  | `#000`                 |
+| `--glass-frost-bg` | frosted-fallback background              | 55% of `--glass-paper` |
+| `--glass-backdrop` | default backdrop for the SVG-clone path  | consumer-supplied      |
 
 ```css
-.ps-glass { --glass-paper: var(--paper); --glass-ink: var(--ink); }
+.ps-glass {
+  --glass-paper: var(--paper);
+  --glass-ink: var(--ink);
+}
 ```
 
 ## Gotchas
 
-Hard-won, all measured. Most of these are things the library can't paper over,
-because they're properties of the page you build around the glass.
+Every one of these cost real debugging time. If you write your own SVG glass you will
+hit most of them, so they're here in plain terms.
 
-### Don't CSS-animate anything inside the glass (Safari)
+### Safari
 
-Safari gives an element with a running CSS transform animation its own compositing
-layer, and a composited layer is left **out of an ancestor's SVG filter**. A child
-that bobs, spins or pulses via `@keyframes` inside a glass element floats above the
-glass, sharp and unrefracted, while its siblings bend correctly.
+- **Filter coordinates land in the wrong place.** Anything positioned with
+  `userSpaceOnUse` — the filter region, an `feImage` subregion — resolves against the
+  top-left of the _page_ instead of the element. The further down the page the element
+  sits, the further off your map lands. Give the element any transform and it snaps
+  back; `rotate: 0deg` is enough. `perspective` doesn't count, which is the tell that
+  this is about owning a coordinate system.
+- **That transform breaks `background-attachment: fixed` on the same element**, so the
+  fix above isn't free. A transformed element becomes the containing block for its own
+  fixed backdrop, which squeezes the backdrop into the element box. If the element has
+  one, add the element's document position to the filter's coordinates instead.
+- **Filter output is cached by id.** Change a primitive's attributes and Safari keeps
+  painting the result it cached when that id was created. Re-inserting the node doesn't
+  help and neither does nudging the element. The only thing that works is renaming the
+  filter and pointing the element at the new name. This is why a lens froze where it
+  mounted and a ripple never animated.
+- **Composited layers get skipped by an ancestor's filter.** The layer floats above the
+  glass, sharp, while everything beside it bends. Two things promote an element: a
+  running CSS transform animation, and a `<canvas>` you redraw every frame. Drive the
+  animation from script instead — setting `el.style.transform` each frame is an
+  ordinary style change and doesn't promote, and `will-change` on its own is fine.
+  For the canvas, render that content as DOM, or hand it to the WebGL path.
+- **On an inline `<svg>`, filter coordinates are read in viewBox units.** Every other
+  engine uses CSS px, and so does Safari on an HTML element. A 64-unit viewBox drawn at
+  200px makes every number in your filter three times too big. Multiply by
+  `viewBoxWidth / cssWidth`.
+- **Safari can't blur by less than about 1.4px.** See the blur note below.
+- **A gradient painted into a 2D canvas turns colour emoji grey.** Any emoji drawn into
+  that context afterwards comes out a grey silhouette. A flat translucent `fillRect` is
+  fine, so it's gradients specifically. Bake the gradient into its own canvas and
+  `drawImage` it in.
 
-```css
-/* this child will NOT refract in Safari */
-.card__badge { animation: bob 4s ease-in-out infinite; }
-```
+### Firefox
 
-```js
-/* the same motion, set from script, DOES refract */
-const step = (now) => {
-  badge.style.transform = `translateY(${Math.sin(now / 700) * 9}px)`;
-  requestAnimationFrame(step);
-};
-requestAnimationFrame(step);
-```
+- **A WebGL canvas keeps square corners inside a rounded box.** Overflow and
+  `border-radius` on the wrapper aren't enough: a canvas is its own compositing layer
+  and Firefox only clips those to the ancestor's _box_, not its rounded corners. Put
+  `border-radius: inherit` on the canvas.
+- **`repeating-linear-gradient` washes out 1px lines.** A hairline grid built that way
+  goes faint or vanishes. Use a plain `linear-gradient` with `background-size` to
+  repeat it.
 
-A script-set `transform` is an ordinary style change and doesn't promote the
-element, so it stays inside the filter. `will-change: transform` **alone is fine** —
-the running animation is what promotes. Only the animated element is excluded; its
-siblings still refract. Chromium and Firefox refract either way.
+### Every browser
 
-### Safari screenshots don't show what Safari renders
+- **`feGaussianBlur` isn't a Gaussian.** All three approximate one with three
+  integer-width box blurs, so the only blur radii that exist are `sqrt(d² - 1) / 2` —
+  1.41, 2.45, 3.46 and so on. Chromium will use any width, Firefox runs a real Gaussian
+  for small values, and Safari uses odd widths only and never below 3. That last one is
+  why `blur: 0.4` is invisible in Chrome and a full blur in Safari. This library snaps
+  `blur` to the radii all three can hit, so under ~0.7 you get 0 and `blur: 1` renders
+  as 1.41, but the same number looks the same everywhere.
+- **The filter bends pixels, it can't scale them.** There's no magnification in
+  `feDisplacementMap`. [The loupe](#the-loupe) clones the source and CSS-scales the
+  clone, then mounts a lens on the copy.
+- **A filter can only bend what you hand it.** If your target ends exactly at the
+  visible rim there's nothing outside to pull inward and the edge smears. Inset the
+  target by a bleed margin and clip the extra ring away.
+- **`backdrop-filter: url(#…)` parses everywhere and paints only in Chromium.** Safari
+  and Firefox accept it and then draw nothing
+  ([WebKit 245510](https://bugs.webkit.org/show_bug.cgi?id=245510)), so
+  `CSS.supports()` can't tell you. You have to check the engine.
+- **A `<canvas>` or `<video>` behind glass re-filters every frame**, even when nothing
+  moved. Glass over static DOM is free at rest because the browser caches the filter
+  output; volatile sources throw that away. This is what the WebGL path is for.
+- **Sizing a filter region in `objectBoundingBox` units doesn't do what you want.**
+  That box is the _ink_ bounding box, not the border box, and the engines disagree
+  about it — for one 270×84 text element, Safari and Firefox say 272×100 and Chromium
+  says 270×99. If you need px-exact, use `userSpaceOnUse`.
+- **Give `feImage` an explicit subregion.** Without one it fills the filter region, so
+  your map's size and position depend on whatever region the engine computed, and they
+  don't compute the same one.
+- **Round your lens dimensions.** A fractional size makes the map resample at about
+  1.0002, and that near-unity scale beats into faint moiré scanlines.
+- **It's all browser-only.** Every renderer touches `document`, canvas or SVG. Call
+  them from `useEffect`, `onMount` or a client `<script>`, never at module scope.
 
-Safari's capture path is not its compositing path. A screenshot renders the
-composited child *refracted* even when the live page doesn't. **Never verify glass
-in Safari from a still image** — check it on screen. (Playwright's WebKit is a
-third renderer again: it has neither the compositing behaviour above nor Safari's
-filter cache, so it can't reproduce either.)
+### Testing this
 
-### The filter can bend pixels, never scale them
-
-`feDisplacementMap` displaces; there is no magnification in the primitive. That's
-why [the loupe](#the-loupe) clones the source and scales the *clone* with a CSS
-transform, then mounts the lens on that copy — and why the magnified content stays
-DOM rather than a rasterized snapshot, so glyphs stay sharp at any zoom.
-
-### Glass needs something outside itself to bend
-
-A filter can only bend pixels it was handed. If the filter target ends exactly at
-the visible rim there is nothing beyond it to pull inward, and the edge smears
-instead of refracting. Every renderer here insets its target by a bleed margin and
-clips the extra ring away — if you build your own target, do the same.
-
-### `blur` is quantised, and Safari can't blur by less than ~1.4px
-
-No engine applies a real Gaussian. The SVG spec says to approximate one with three box
-blurs of integer width `d`, so the only blur radii any of them can produce are
-`sqrt(d² - 1) / 2` — 1.414, 2.449, 3.464 … and which `d` they'll produce differs:
-Chromium takes any, Gecko runs a true Gaussian for small values, and **WebKit uses odd
-`d` only and never below 3**, so every `stdDeviation` from 0.1 to 1.8 gives the
-identical 1.47px blur in Safari.
-
-The library snaps `blur` to the rungs all three share and emits a per-engine
-`stdDeviation` that lands on it, so the same value renders the same everywhere. Two
-consequences worth knowing:
-
-- **Anything under ~0.7 becomes 0.** A sub-pixel blur is nothing in Chromium and a
-  full blur in Safari; there is no value that splits the difference.
-- **`blur: 1` renders as 1.41.** The rungs are about a pixel apart and Safari can't
-  reach 1.0, so agreeing means rounding to what it can do.
-
-`preBlurStd()` is exported if you're hand-rolling your own filter chain.
-
-### A live `<canvas>` under SVG glass doesn't refract in Safari
-
-The compositing rule above, triggered a different way and worth its own entry
-because nothing about the code looks wrong. An **actively-redrawn canvas** gets its
-own layer in WebKit, so it drops out of an ancestor's SVG filter exactly as an
-animated child does: the canvas rides over the glass dead flat while the DOM beside
-it bends correctly.
-
-```js
-// in Safari the glass has nothing to bend — the canvas is on its own layer
-mountGlassLens({ target: liveCanvas, host: document.body, lensW: 150, lensH: 150 });
-```
-
-Two ways out. **Render that content as DOM** — spans positioned from script stay in
-the filtered subtree and refract in every engine. Or **pass it as `source` and take
-the WebGL path**, which re-samples the canvas as a texture, where compositing is
-irrelevant.
-
-You want the second one anyway on performance grounds. The browser caches filter
-output while the content behind it holds still, so glass over static DOM is
-essentially free and only costs a pass when that content changes; a `<canvas>` or
-`<video>` is treated as volatile and re-filtered *every frame* even when nothing
-moved — which is exactly the case
-[`@liquidglassjs/core/webgl`](#entry-points-the-code-split) exists for.
-
-A canvas painted once and then left alone is unaffected by either problem.
-
-### `backdrop-filter: url(#…)` parses everywhere and paints only in Chromium
-
-Safari and Firefox accept an SVG filter reference in the `backdrop-filter` grammar
-and then paint nothing for it, so `CSS.supports()` can't gate on it
-([WebKit 245510](https://bugs.webkit.org/show_bug.cgi?id=245510)). `mountGlass`'s
-frost path checks the engine instead and falls back to a plain `blur()`. This
-affects only frost — `filter: url()` over live DOM works in all three engines.
-
-### A canvas gradient turns colour emoji grey (WebKit)
-
-Painting a gradient into a 2D context makes WebKit render every colour-bitmap glyph
-drawn into that context *afterwards* as a grey silhouette. A flat translucent
-`fillRect` is fine; it's specifically a gradient. Bake the gradient into its own
-canvas and `drawImage` it in — nothing to do with the glass filter, but it bites
-when you're compositing an emoji-laden source to refract.
-
-### Browser-only
-
-Every renderer touches `document` / canvas / WebGL / SVG filters. Guard adapters so
-they run client-side only (Astro `<script>` is fine; React needs `useEffect`; never
-call these during SSR).
+- **Don't trust a Safari screenshot.** Its capture path isn't its compositing path, so
+  a screenshot shows the composited child _refracted_ even when the live page doesn't.
+  Every conclusion drawn from a still image can be exactly backwards. Look at the
+  screen.
+- **Playwright's WebKit is a third browser.** It has neither the filter cache nor the
+  compositing behaviour, so it reproduces neither bug and will pass code that's broken
+  in Safari. Fine for geometry, useless for these.
+- **Anything that animates ruins a comparison.** Two screenshots of a particle field
+  from different engines are at different points in the animation, so they always look
+  different and it means nothing. Freeze it first.
 
 ## Credits
 
