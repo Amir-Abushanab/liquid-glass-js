@@ -452,6 +452,12 @@ a {
   font-size: clamp(2.2rem, 5.5vw, 3.6rem);
   margin: 1.2rem 0 1rem;
 }
+/* The wordmark reads as a serif. It has to name .lgf__text, not just the heading:
+   .lgf__text declares its own font-family and a child's own declaration beats an
+   inherited value however specific the parent's selector is. */
+.sc__title .lgf__text {
+  font-family: ui-serif, Georgia, 'Times New Roman', serif;
+}
 .sc__sub {
   color: var(--muted);
   font-size: 1.1rem;
@@ -1503,6 +1509,35 @@ a {
 }
 .cfg__copy {
   margin-left: auto;
+}
+/* Animate toggle: sits with the section's controls, not the buttons, because it acts
+   on the section rather than on the panel. */
+.cfg__anim {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 2px 0 1px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--muted, #9a94a8);
+  font-size: 12px;
+}
+.cfg__anim input {
+  accent-color: #8a7bff;
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  cursor: pointer;
+}
+.cfg__anim:hover {
+  color: var(--ink, #fff);
+}
+.cfg__anim.is-off {
+  opacity: 0.4;
+  cursor: default;
+}
+.cfg__anim.is-off input {
+  cursor: default;
 }
 .cfg__btn {
   all: unset;
