@@ -14,6 +14,7 @@ import {
   clearGlassFilter,
   primitiveScale,
   glassOriginOffset,
+  refreshGlassFilter,
 } from './filter-origin';
 import { preBlurStd } from './blur-quantize';
 
@@ -68,7 +69,9 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
   let holder: HTMLElement | null = null;
   let dispNodes: SVGFEDisplacementMapElement[] = [];
   let blurNode: SVGFEGaussianBlurElement | null = null;
+  let filterNode: SVGFilterElement | null = null;
   let ro: ResizeObserver | null = null;
+  let io: IntersectionObserver | null = null;
   let m: M | null = null;
   let firstRegen = true;
 
@@ -86,7 +89,16 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
     blurNode?.setAttribute('stdDeviation', String(preBlurStd(cur.blur * k)));
   };
 
-  const regen = () => {
+  // The map is a data-URL PNG handed to feImage, and an feImage that hasn't decoded
+  // yet contributes nothing: `feComposite in="rawMap" in2="mapBg" operator="over"`
+  // falls through to the neutral flood, every displacement is zero, and the glyphs
+  // paint flat and unrefracted. It stays that way, because this chain is built once
+  // and never re-runs on its own — which is why a section could look wrong on first
+  // sight and come good the moment anything rebuilt it (switching typeface, say).
+  //
+  // So decode before applying. Awaiting means a newer regen can overtake an older one,
+  // hence the generation check.
+  const regen = async () => {
     if (disposed || !m) return;
     const map = core.buildMap(m, cur, cache);
     if (!map.url) return;
@@ -163,12 +175,22 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
       // on purpose — inward-biased bevel light, crisp silhouette, no halo bleed.
       `<feComposite in="litDark" in2="SourceAlpha" operator="in"></feComposite>` +
       `</filter></svg>`;
+    const gen = n;
+    try {
+      const img = new Image();
+      img.src = map.url;
+      await img.decode();
+    } catch {
+      /* no decode() here, or an undecodable map: fall through and let it paint */
+    }
+    if (disposed || n !== gen) return; // a newer map landed while we waited
     core.host.appendChild(div);
     applyGlassFilter(core.target, id);
     if (holder) holder.remove();
     holder = div;
     dispNodes = Array.from(div.querySelectorAll('feDisplacementMap'));
     blurNode = div.querySelector('feGaussianBlur');
+    filterNode = div.querySelector('filter');
     if (firstRegen) {
       firstRegen = false;
       core.onReady?.(); // the filter has landed — let the consumer un-dim (item 5)
@@ -183,7 +205,7 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
         clearTimeout(tid);
         tid = 0;
       }
-      regen();
+      void regen();
     };
     raf = requestAnimationFrame(flush);
     // rAF freezes entirely on hidden tabs — the timeout keeps a deferred regen
@@ -206,7 +228,7 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
     }
     if (disposed) return;
     m = core.measure();
-    regen();
+    await regen();
     ro = new ResizeObserver(() => {
       if (disposed) return;
       const r = core.target.getBoundingClientRect();
@@ -215,6 +237,19 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
       scheduleRegen();
     });
     ro.observe(core.target);
+
+    // Safari keys filter output by id, and this chain is built once and then left
+    // alone — so an element that mounted below the fold can be painted from whatever
+    // was cached before it was ever on screen, and nothing here would ever ask for it
+    // again. Re-point it when it comes into view: a rename, not a rebuild, so no map
+    // is re-encoded, and refreshGlassFilter is a no-op off WebKit.
+    if (typeof IntersectionObserver !== 'undefined') {
+      io = new IntersectionObserver((es) => {
+        if (disposed || !filterNode || !es.some((e) => e.isIntersecting)) return;
+        refreshGlassFilter(core.target, filterNode, `${core.idPrefix}-${++n}`);
+      });
+      io.observe(core.target);
+    }
   };
   void init();
 
@@ -232,6 +267,7 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
       if (raf) cancelAnimationFrame(raf);
       if (tid) clearTimeout(tid);
       ro?.disconnect();
+      io?.disconnect();
       holder?.remove();
       clearGlassFilter(core.target);
     },
