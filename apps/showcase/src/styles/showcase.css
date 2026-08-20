@@ -452,12 +452,21 @@ a {
   font-size: clamp(2.2rem, 5.5vw, 3.6rem);
   margin: 1.2rem 0 1rem;
 }
-/* The wordmark is set in the script face — the same stack the typeface demo's Script
-   chip uses. It has to name .lgf__text, not just the heading: .lgf__text declares its
-   own font-family and a child's own declaration beats an inherited value however
-   specific the parent's selector is. */
-.sc__title .lgf__text {
+/* Headings are set in the script face — the same stack the typeface demo's Script chip
+   uses. .lgf__text has to be named separately from the heading it sits in: it declares
+   its own font-family, and a child's own declaration beats an inherited value however
+   specific the parent's selector is.
+
+   Script faces run small for their em and lean, so they take a size bump and a little
+   more leading than the sans did. */
+.sc__title,
+.sc__title .lgf__text,
+.demo__label h2 {
   font-family: 'Snell Roundhand', 'Apple Chancery', 'Segoe Script', 'Brush Script MT', cursive;
+}
+.sc__title {
+  font-size: clamp(2.6rem, 6.4vw, 4.2rem);
+  line-height: 1.15;
 }
 .sc__sub {
   color: var(--muted);
@@ -551,7 +560,8 @@ a {
   }
 }
 .demo__label h2 {
-  font-size: 1.4rem;
+  font-size: 1.75rem; /* script runs small for its em */
+  line-height: 1.2;
   margin-bottom: 0.5rem;
 }
 .demo__label p {

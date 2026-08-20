@@ -263,9 +263,44 @@ export function buildAlphaDisplacementMap(o: AlphaMapOptions, cache: GlyphMapCac
   return { url: cv.toDataURL(), margin, cssW: w / o.dpr, cssH: h / o.dpr };
 }
 
+let inkScratch: CanvasRenderingContext2D | null = null;
+
+/**
+ * How far the glyphs reach outside the element's own box, per side, in CSS px.
+ *
+ * The map has to cover the ink, and a line box does not: a font's ascent and descent
+ * are its own business and routinely exceed `line-height`. This used to be a flat
+ * 0.2em, which is fine for the mono and sans faces it was measured on and wrong for
+ * anything with reach — a script face at 57.6px wants 22px below the box against a
+ * 19px margin, and the tails of its descenders get cut off square.
+ *
+ * Measured at the size the caller is rasterizing at, which is not necessarily the one
+ * CSS reports — see fontScale in glass-text.
+ */
+function inkOverflow(o: GlyphMapOptions): number {
+  try {
+    if (!inkScratch) inkScratch = document.createElement('canvas').getContext('2d');
+    const ctx = inkScratch;
+    if (!ctx) return 0;
+    const c = ctx as CanvasRenderingContext2D & { letterSpacing?: string };
+    if ('letterSpacing' in (ctx as object)) c.letterSpacing = o.letterSpacing || '0px';
+    ctx.font = o.fontCss;
+    const m = ctx.measureText(o.text);
+    // Older engines don't report the ink box; the em-based guess is the fallback.
+    if (typeof m.actualBoundingBoxAscent !== 'number') return 0;
+    return Math.max(
+      m.actualBoundingBoxAscent - o.baseline, // above the box top
+      m.actualBoundingBoxDescent - (o.rectH - o.baseline), // below the bottom
+      m.actualBoundingBoxLeft, // left of the origin (script entry strokes)
+      m.actualBoundingBoxRight - o.rectW, // past the advance (swashes, italics)
+    );
+  } catch {
+    return 0;
+  }
+}
+
 // Text is one draw closure over the shared core: `fillText` into the pre-scaled
-// ctx at the baseline, with the letter-spacing feature-detect. marginBoost =
-// 0.2·fontSize covers ink overflow (mono ascent+descent ≈ 1.2em vs line-height).
+// ctx at the baseline, with the letter-spacing feature-detect.
 export function buildGlyphDisplacementMap(o: GlyphMapOptions, cache: GlyphMapCache = {}): GlyphMap {
   return buildAlphaDisplacementMap(
     {
@@ -277,7 +312,9 @@ export function buildGlyphDisplacementMap(o: GlyphMapOptions, cache: GlyphMapCac
       edge: o.edge,
       glow: o.glow,
       shade: o.shade,
-      marginBoost: 0.2 * o.fontSizePx,
+      // 0.2em stays as a floor so a face that reports no ink box still gets the old
+      // behaviour; 2px of slack keeps the outer end of the bevel ramp inside too.
+      marginBoost: Math.max(0.2 * o.fontSizePx, inkOverflow(o) + 2),
       draw: (ctx, margin) => {
         ctx.font = o.fontCss;
         ctx.textBaseline = 'alphabetic';
