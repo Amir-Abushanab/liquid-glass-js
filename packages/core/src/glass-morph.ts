@@ -138,6 +138,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
   let active = o.active ?? true;
   let curId = '';
   let filterNode: SVGFilterElement | null = null;
+  let blurNode: SVGFEGaussianBlurElement | null = null;
   let lastW = -1;
   let lastH = -1;
   let holder: HTMLElement | null = null;
@@ -155,6 +156,10 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
     curId = refreshGlassFilter(o.target, filterNode, `${base}-${++n}`);
   };
 
+  // The map is built from depth/dome/edge/glow and the box; strength, chroma, spec
+  // and blur are filter attributes, so a change to those never needs a new PNG.
+  const MAP_KEYS = ['depth', 'dome', 'edge', 'glow'] as const;
+
   const applyScales = () => {
     const s = cur.strength * frac;
     dm[0]?.setAttribute('scale', String(s * (1 + 0.2 * cur.chroma)));
@@ -162,6 +167,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
     dm[2]?.setAttribute('scale', String(s));
     const a = cur.spec * frac;
     spec?.setAttribute('values', `0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 ${a} 0 ${-NEUTRAL * a}`);
+    blurNode?.setAttribute('stdDeviation', String(preBlurStd(cur.blur)));
     bump();
   };
 
@@ -204,6 +210,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
     curId = id;
     feImage = div.querySelector('feImage');
     filterNode = div.querySelector('filter');
+    blurNode = div.querySelector('feGaussianBlur');
     dm = Array.from(div.querySelectorAll('feDisplacementMap'));
     spec = div.querySelector<SVGFEColorMatrixElement>('[result="specMask"]');
     if (active) {
@@ -256,7 +263,8 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
     },
     reconfigure(patch) {
       Object.assign(cur, patch);
-      rebuild();
+      if (MAP_KEYS.some((k) => patch[k] != null)) rebuild();
+      else applyScales();
     },
     getOptions() {
       return { ...cur };

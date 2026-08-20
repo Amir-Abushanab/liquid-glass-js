@@ -304,6 +304,12 @@ library — they're how the engines behave.
   artwork: mean stroke width is `2 × area / total variation` of the coverage, which is
   one pass over the alpha you already rasterized. This library holds it between 1/8 and
   1/3 of that, which is why one `bevel` works across families, weights and sizes.
+- **Only three params are cheap to animate.** `strength`, `chroma` and `blur` land on
+  a filter attribute, so driving them per frame costs about a `setAttribute` (~0.01ms).
+  Everything else — `bevel`, `dome`, `depth`, `edge`, `glow`, `shade`, `radius`, and
+  any resize — is an input to the displacement map, so each change re-encodes a PNG
+  (~1.8ms on a lens, a third of a 60fps frame). Sweeping `strength` is a liquid pulse
+  for free; sweeping `dome` the same way drops frames.
 - **The filter bends pixels, it can't scale them.** There's no magnification in
   `feDisplacementMap`. To magnify, scale a copy of the content and put the filter over
   the copy.

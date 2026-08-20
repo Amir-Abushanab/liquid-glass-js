@@ -93,6 +93,8 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
   let feImage: SVGFEImageElement | null = null;
   let specNode: SVGFEColorMatrixElement | null = null;
   let filterNode: SVGFilterElement | null = null;
+  let dispNodes: SVGFEDisplacementMapElement[] = [];
+  let blurNode: SVGFEGaussianBlurElement | null = null;
 
   const rebuild = () => {
     const id = `${base}-${++n}`; // fresh id on every map change (Safari cache bust)
@@ -147,6 +149,26 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
     feImage = div.querySelector('feImage');
     specNode = div.querySelector<SVGFEColorMatrixElement>('[result="specMask"]');
     filterNode = div.querySelector('filter');
+    dispNodes = Array.from(div.querySelectorAll('feDisplacementMap'));
+    blurNode = div.querySelector('feGaussianBlur');
+  };
+
+  // Which params the MAP is built from. Everything else — strength, chroma, blur —
+  // only ever lands on a filter attribute, so it can be driven per frame without
+  // re-encoding a PNG. Same split mountGlassText has had all along, which is why
+  // animating `strength` there is smooth and doing it here used to rebuild the map
+  // sixty times a second.
+  const MAP_KEYS = ['radius', 'depth', 'dome', 'edge', 'glow', 'shade'] as const;
+
+  const applyAttrs = () => {
+    const s = cur.strength;
+    dispNodes[0]?.setAttribute('scale', String(s * (1 + 0.2 * cur.chroma)));
+    dispNodes[1]?.setAttribute('scale', String(s * (1 + 0.1 * cur.chroma)));
+    dispNodes[2]?.setAttribute('scale', String(s));
+    blurNode?.setAttribute('stdDeviation', String(preBlurStd(cur.blur)));
+    // Safari paints the output it cached when the id was minted, so the writes above
+    // are invisible there until the filter is re-pointed. See refreshGlassFilter.
+    if (active && filterNode) curId = refreshGlassFilter(o.target, filterNode, `${base}-${++n}`);
   };
 
   rebuild();
@@ -187,7 +209,8 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
     },
     reconfigure(patch) {
       Object.assign(cur, patch);
-      rebuild();
+      if (MAP_KEYS.some((k) => patch[k] != null)) rebuild();
+      else applyAttrs();
     },
     getOptions() {
       return { ...cur };

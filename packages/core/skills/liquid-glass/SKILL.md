@@ -230,11 +230,23 @@ visible rim there is nothing outside to pull inward and the edge smears instead 
 refracting. The built-in renderers inset their target by a bleed margin and clip the
 ring away; do the same if you build a custom target.
 
-### MEDIUM — Rebuilding the map in an animation loop
+### MEDIUM — Animating the wrong param
 
-`setPos` is cheap; `setSize` and `reconfigure` regenerate the displacement map (and
-mint a fresh filter id). Calling those per frame will tank the frame rate. Move
-position per frame, resize on settle.
+`reconfigure` splits in two, and the halves are ~180× apart:
+
+- **Free to drive per frame** — `strength`, `chroma`, `blur` (plus `spec` on the morph
+  surface and the ripple). These only ever land on a filter attribute. ~0.01ms a call.
+- **Not** — `bevel`, `dome`, `depth`, `edge`, `glow`, `shade`, `radius`, and `setSize`.
+  These are what the displacement map is built from, so each one re-encodes a PNG.
+  ~1.8ms a call on a lens, which is a third of a 60fps frame.
+
+So sweeping `strength` makes a nice liquid pulse for the cost of a `setAttribute`,
+while sweeping `dome` at the same rate will not hold frame rate. `setPos` is cheap and
+designed for per-frame calls; resize on settle.
+
+The library ships no animation presets — curves and timings are yours — but the cheap
+set above is safe in a plain `requestAnimationFrame` loop. Honour
+`prefers-reduced-motion` yourself.
 
 ### MEDIUM — Expecting one `bevel` to suit every face
 

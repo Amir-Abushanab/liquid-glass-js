@@ -126,6 +126,9 @@ has the measurements behind each, plus the Firefox and testing ones.
   one with integer-width box blurs, and Safari can't go below ~1.4px. `blur` is snapped
   to the radii all three can hit, so anything under ~0.7 becomes 0 and `1` renders as
   `1.41`, but the same number looks the same in every browser.
+- **`strength`, `chroma` and `blur` are cheap to animate** — they set a filter
+  attribute (~0.01ms). Every other param rebuilds the displacement map (~1.8ms on a
+  lens), so don't sweep those per frame.
 - **The filter bends pixels, it can't scale them.** There's no magnification in
   `feDisplacementMap`. To magnify, scale a copy of the content and filter the copy —
   which is what `mountGlassLoupe` does.
