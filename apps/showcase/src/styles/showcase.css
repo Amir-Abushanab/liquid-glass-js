@@ -452,11 +452,12 @@ a {
   font-size: clamp(2.2rem, 5.5vw, 3.6rem);
   margin: 1.2rem 0 1rem;
 }
-/* The wordmark reads as a serif. It has to name .lgf__text, not just the heading:
-   .lgf__text declares its own font-family and a child's own declaration beats an
-   inherited value however specific the parent's selector is. */
+/* The wordmark is set in the script face — the same stack the typeface demo's Script
+   chip uses. It has to name .lgf__text, not just the heading: .lgf__text declares its
+   own font-family and a child's own declaration beats an inherited value however
+   specific the parent's selector is. */
 .sc__title .lgf__text {
-  font-family: ui-serif, Georgia, 'Times New Roman', serif;
+  font-family: 'Snell Roundhand', 'Apple Chancery', 'Segoe Script', 'Brush Script MT', cursive;
 }
 .sc__sub {
   color: var(--muted);
