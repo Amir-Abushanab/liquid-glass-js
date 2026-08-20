@@ -15,6 +15,7 @@ import {
   primitiveScale,
   glassOriginOffset,
   refreshGlassFilter,
+  needsScrollRefresh,
 } from './filter-origin';
 import { preBlurStd } from './blur-quantize';
 
@@ -72,6 +73,9 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
   let filterNode: SVGFilterElement | null = null;
   let ro: ResizeObserver | null = null;
   let io: IntersectionObserver | null = null;
+  let visible = true;
+  let scrollRaf = 0;
+  let scrollOff: (() => void) | null = null;
   let m: M | null = null;
   let firstRegen = true;
 
@@ -243,12 +247,33 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
     // was cached before it was ever on screen, and nothing here would ever ask for it
     // again. Re-point it when it comes into view: a rename, not a rebuild, so no map
     // is re-encoded, and refreshGlassFilter is a no-op off WebKit.
+    const repoint = () => {
+      if (disposed || !filterNode) return;
+      refreshGlassFilter(core.target, filterNode, `${core.idPrefix}-${++n}`);
+    };
     if (typeof IntersectionObserver !== 'undefined') {
       io = new IntersectionObserver((es) => {
-        if (disposed || !filterNode || !es.some((e) => e.isIntersecting)) return;
-        refreshGlassFilter(core.target, filterNode, `${core.idPrefix}-${++n}`);
+        visible = es.some((e) => e.isIntersecting);
+        if (visible) repoint();
       });
       io.observe(core.target);
+    }
+
+    // ...and again on every scrolled frame, for a target whose fill is anchored to the
+    // viewport. See needsScrollRefresh: the cached output holds the backdrop from the
+    // scroll position the id was minted at, so it drifts out of step with the fill the
+    // moment the page moves. A rename, not a rebuild — no map is re-encoded — and the
+    // listener is only attached where both halves of that apply.
+    if (needsScrollRefresh(core.target)) {
+      const onScroll = () => {
+        if (scrollRaf || !visible) return;
+        scrollRaf = requestAnimationFrame(() => {
+          scrollRaf = 0;
+          repoint();
+        });
+      };
+      scrollOff = () => window.removeEventListener('scroll', onScroll);
+      window.addEventListener('scroll', onScroll, { passive: true });
     }
   };
   void init();
@@ -268,6 +293,8 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
       if (tid) clearTimeout(tid);
       ro?.disconnect();
       io?.disconnect();
+      scrollOff?.();
+      if (scrollRaf) cancelAnimationFrame(scrollRaf);
       holder?.remove();
       clearGlassFilter(core.target);
     },

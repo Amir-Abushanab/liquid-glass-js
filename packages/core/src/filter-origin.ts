@@ -111,6 +111,24 @@ export function glassOriginOffset(el: HTMLElement): { x: number; y: number } {
 }
 
 /**
+ * Does this target need its filter re-evaluated as the page scrolls?
+ *
+ * Only where two things meet. Safari caches filter output by id (see
+ * refreshGlassFilter), and a `background-attachment: fixed` fill is painted against
+ * the VIEWPORT — so what the element looks like changes with every scrolled pixel
+ * while the cached filter output does not. The glass then shows the fill as it was
+ * when the id was minted: right when it was first rasterized, progressively wrong
+ * afterwards, and right again the moment anything mints a new id.
+ *
+ * A glass heading whose letterforms are filled by a fixed page backdrop is exactly
+ * that shape, and it is a normal thing to build. Everywhere else this is false and
+ * costs nothing.
+ */
+export function needsScrollRefresh(el: HTMLElement): boolean {
+  return isWebKit() && hasFixedBackground(el);
+}
+
+/**
  * Apply `filter: url(#id)` to `el`, pinning WebKit's filter origin to the element.
  *
  * The pin is WebKit-only, and skipped even there for an element with a
