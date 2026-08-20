@@ -227,11 +227,11 @@ const SHAPE_TUNE: TuneConfig = {
   // Every GlassShape param, in interface order (see AlphaGlassParams): the
   // displacement knobs, then the map knobs (bevel/dome/edge/glow/shade).
   params: [
-    { key: 'strength', min: 0, max: 40, step: 0.5, default: 11 },
-    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.35 },
+    { key: 'strength', min: 0, max: 40, step: 0.5, default: 6 },
+    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.4 },
     { key: 'blur', min: 0, max: 3, step: 0.05, default: 0.3 },
     { key: 'bevel', min: 0.5, max: 10, step: 0.1, default: 3.2 },
-    { key: 'dome', min: 0, max: 30, step: 0.5, default: 6 },
+    { key: 'dome', min: 0, max: 30, step: 0.5, default: 5 },
     { key: 'edge', min: 0, max: 2, step: 0.05, default: 1 },
     { key: 'glow', min: 0, max: 2, step: 0.05, default: 0.4 },
     { key: 'shade', min: 0, max: 2, step: 0.05, default: 0 },
@@ -251,14 +251,14 @@ export function Example() {
 
 const LENS_TUNE: TuneConfig = {
   params: [
-    { key: 'strength', min: 0, max: 40, step: 0.5, default: 18 },
-    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.14 },
-    { key: 'blur', min: 0, max: 3, step: 0.05, default: 0 },
-    { key: 'dome', min: 0, max: 30, step: 0.5, default: 10 },
-    { key: 'depth', min: 0, max: 30, step: 0.5, default: 6 },
-    { key: 'edge', min: 0, max: 2, step: 0.05, default: 0.9 },
-    { key: 'glow', min: 0, max: 2, step: 0.05, default: 0.32 },
-    { key: 'shade', min: 0, max: 1, step: 0.05, default: 0 },
+    { key: 'strength', min: 0, max: 40, step: 0.5, default: 11 },
+    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 1.5 },
+    { key: 'blur', min: 0, max: 3, step: 0.05, default: 0.55 },
+    { key: 'dome', min: 0, max: 30, step: 0.5, default: 30 },
+    { key: 'depth', min: 0, max: 30, step: 0.5, default: 5 },
+    { key: 'edge', min: 0, max: 2, step: 0.05, default: 1 },
+    { key: 'glow', min: 0, max: 2, step: 0.05, default: 1 },
+    { key: 'shade', min: 0, max: 1, step: 0.05, default: 1 },
   ],
   code: (v) => `import { GlassLens } from "@liquidglassjs/react"
 
@@ -294,16 +294,16 @@ export function Example() {
 // at pointerdown, so a change lands on the next gesture without a remount.
 const LOUPE_TUNE: TuneConfig = {
   params: [
-    { key: 'zoom', min: 1.1, max: 3, step: 0.05, default: 2.2 },
+    { key: 'zoom', min: 1.1, max: 3, step: 0.05, default: 3 },
     { key: 'longPressMs', label: 'hold', min: 0, max: 900, step: 20, default: 400 },
     { key: 'width', min: 60, max: 260, step: 2, default: 156 },
     { key: 'height', min: 28, max: 120, step: 2, default: 50 },
     { key: 'radius', min: 0, max: 60, step: 1, default: 25 },
     { key: 'offsetY', min: -140, max: 0, step: 2, default: -58 },
-    { key: 'strength', min: 0, max: 30, step: 0.5, default: 16 },
-    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.6 },
+    { key: 'strength', min: 0, max: 30, step: 0.5, default: 17 },
+    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.2 },
     { key: 'blur', min: 0, max: 2, step: 0.05, default: 0.15 },
-    { key: 'dome', min: 0, max: 24, step: 0.5, default: 7 },
+    { key: 'dome', min: 0, max: 24, step: 0.5, default: 8 },
     { key: 'depth', min: 0, max: 30, step: 0.5, default: 5 },
     { key: 'edge', min: 0, max: 2, step: 0.05, default: 0.9 },
     { key: 'glow', min: 0, max: 2, step: 0.05, default: 0.4 },
@@ -340,14 +340,14 @@ export function Example() {
 
 const TEXT_TUNE: TuneConfig = {
   params: [
-    { key: 'strength', min: 0, max: 20, step: 0.5, default: 8 },
-    { key: 'chroma', min: 0, max: 1, step: 0.02, default: 0.4 },
-    { key: 'blur', min: 0, max: 3, step: 0.05, default: 0.3 },
-    { key: 'bevel', min: 0.5, max: 10, step: 0.1, default: 2.5 },
-    { key: 'dome', min: 0, max: 12, step: 0.5, default: 4 },
-    { key: 'edge', min: 0, max: 1.5, step: 0.05, default: 0.9 },
-    { key: 'glow', min: 0, max: 1, step: 0.05, default: 0.35 },
-    { key: 'shade', min: 0, max: 1, step: 0.05, default: 0 },
+    { key: 'strength', min: 0, max: 20, step: 0.5, default: 0.5 },
+    { key: 'chroma', min: 0, max: 1, step: 0.02, default: 1 },
+    { key: 'blur', min: 0, max: 3, step: 0.05, default: 1.2 },
+    { key: 'bevel', min: 0.5, max: 10, step: 0.1, default: 1.3 },
+    { key: 'dome', min: 0, max: 12, step: 0.5, default: 12 },
+    { key: 'edge', min: 0, max: 1.5, step: 0.05, default: 1.5 },
+    { key: 'glow', min: 0, max: 1, step: 0.05, default: 1 },
+    { key: 'shade', min: 0, max: 1, step: 0.05, default: 1 },
   ],
   code: (v) => `import { GlassText } from "@liquidglassjs/react"
 
@@ -373,13 +373,13 @@ export function Example() {
 const SURFACE_TUNE: TuneConfig = {
   needs: 'backdrop-url',
   params: [
-    { key: 'strength', min: 0, max: 40, step: 0.5, default: 16 },
-    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.4 },
-    { key: 'blur', min: 0, max: 10, step: 0.1, default: 2 },
-    { key: 'dome', min: 0, max: 30, step: 0.5, default: 12 },
-    { key: 'depth', min: 0, max: 30, step: 0.5, default: 10 },
-    { key: 'edge', min: 0, max: 2, step: 0.05, default: 0.9 },
-    { key: 'glow', min: 0, max: 2, step: 0.05, default: 0.3 },
+    { key: 'strength', min: 0, max: 40, step: 0.5, default: 15 },
+    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 1 },
+    { key: 'blur', min: 0, max: 10, step: 0.05, default: 0.15 },
+    { key: 'dome', min: 0, max: 30, step: 0.5, default: 30 },
+    { key: 'depth', min: 0, max: 30, step: 0.5, default: 26 },
+    { key: 'edge', min: 0, max: 2, step: 0.05, default: 2 },
+    { key: 'glow', min: 0, max: 2, step: 0.05, default: 0.2 },
     { key: 'spec', min: 0, max: 1.5, step: 0.02, default: 0.9 },
     { key: 'tint', min: 0, max: 40, step: 1, default: 12 },
     { key: 'vibrancy', min: 0, max: 1, step: 0.02, default: 0.15 },
@@ -438,8 +438,8 @@ export function Example() {
 const BUTTON_TUNE: TuneConfig = {
   // Surface knobs, then geometry + morph-animation (radius/duration/pulse re-mount).
   params: [
-    { key: 'strength', min: 0, max: 40, step: 0.5, default: 18 },
-    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.42 },
+    { key: 'strength', min: 0, max: 40, step: 0.5, default: 40 },
+    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 1 },
     { key: 'blur', min: 0, max: 3, step: 0.05, default: 0.4 },
     { key: 'dome', min: 0, max: 30, step: 0.5, default: 13 },
     { key: 'depth', min: 0, max: 30, step: 0.5, default: 10 },
@@ -476,12 +476,12 @@ export function Example() {
 
 const RIPPLE_TUNE: TuneConfig = {
   params: [
-    { key: 'strength', min: 0, max: 60, step: 1, default: 24 },
-    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.4 },
-    { key: 'spec', min: 0, max: 1.5, step: 0.02, default: 0.7 },
-    { key: 'blur', min: 0, max: 3, step: 0.05, default: 0.4 },
-    { key: 'maxFrac', label: 'reach', min: 0.2, max: 1.5, step: 0.02, default: 0.85 },
-    { key: 'duration', label: 'ms', min: 200, max: 3000, step: 50, default: 1100 },
+    { key: 'strength', min: 0, max: 60, step: 1, default: 60 },
+    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 1 },
+    { key: 'spec', min: 0, max: 1.5, step: 0.02, default: 1 },
+    { key: 'blur', min: 0, max: 3, step: 0.05, default: 0.6 },
+    { key: 'maxFrac', label: 'reach', min: 0.2, max: 1.5, step: 0.02, default: 0.9 },
+    { key: 'duration', label: 'ms', min: 200, max: 3000, step: 50, default: 1500 },
   ],
   code: (v) => `import { GlassRipple } from "@liquidglassjs/react"
 
