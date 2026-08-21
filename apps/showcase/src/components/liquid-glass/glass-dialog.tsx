@@ -7,6 +7,28 @@ import { cn } from '@/lib/utils';
 import '@liquidglassjs/core/css';
 
 /**
+ * The glass rim has to trace the same curve as the panel it fills. `rounded-2xl` is a
+ * theme token — 18px under the default shadcn `--radius`, something else in the next
+ * app — so a hardcoded number on the glass silently stops matching and you get two
+ * rounded rectangles a couple of px apart at every corner. Read the real one instead.
+ */
+function usePanelRadius(el: HTMLElement | null, fallback = 16) {
+  const [radius, setRadius] = React.useState(fallback);
+  React.useLayoutEffect(() => {
+    if (!el) return;
+    const read = () => {
+      const r = parseFloat(getComputedStyle(el).borderTopLeftRadius);
+      if (r) setRadius((prev) => (prev === r ? prev : r));
+    };
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [el]);
+  return radius;
+}
+
+/**
  * Liquid-glass Dialog — Base UI's Dialog (focus trap, scroll lock, dismissal, and
  * all the ARIA) wearing a frosted liquid-glass panel. Behavior is Base UI's; the
  * glass is the skin. You own this file: restyle the panel, backdrop, and animation.
@@ -65,6 +87,12 @@ function GlassDialogContent({
    */
   refract?: HTMLElement | null;
 }) {
+  // A callback ref, not useRef: the popup mounts in a later phase than this
+  // component, so a layout effect keyed on a stable ref object reads null once and
+  // never runs again. This re-runs the moment the node actually attaches.
+  const [popupEl, setPopupEl] = React.useState<HTMLDivElement | null>(null);
+  const radius = usePanelRadius(popupEl);
+
   return (
     <BaseDialog.Portal>
       {/* a light page frost, fading with the dialog — dims just enough to lift the
@@ -78,6 +106,7 @@ function GlassDialogContent({
       {/* positioning + scroll container */}
       <BaseDialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4">
         <BaseDialog.Popup
+          ref={setPopupEl}
           className={cn(
             // shadow lives on the wrapper — the glass root's overflow:hidden would clip it
             'relative w-full max-w-lg overflow-hidden rounded-2xl shadow-2xl outline-none',
@@ -89,11 +118,11 @@ function GlassDialogContent({
           {...props}
         >
           {/* frosted-glass panel — blurs the page behind the modal; sits BEHIND the
-              content so titles/buttons stay crisp (not refracted). radius matches
-              rounded-2xl (16px). */}
+              content so titles/buttons stay crisp (not refracted). The radius is read
+              off the popup, not assumed, so the rim traces the panel's own corner. */}
           <LiquidGlass
             refract={refract ?? undefined}
-            radius={16}
+            radius={radius}
             strength={strength}
             chroma={chroma}
             dome={dome}

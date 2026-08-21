@@ -21,6 +21,27 @@ import { applyGlassFilter, clearGlassFilter } from './filter-origin';
 import { preBlurStd } from './blur-quantize';
 
 const MARGIN = 28; // bleed so the displacement doesn't sample past the lens rim
+
+/**
+ * The element's own layout box in CSS px, ignoring any transform on it or an ancestor.
+ *
+ * `getBoundingClientRect()` reports the *transformed* box. Glass mounted inside a panel
+ * that animates in from `scale(.95)` — which is every dialog, menu and popover — then
+ * measures itself at 95% and bakes a displacement map that size. The transform settles
+ * at 100% without ever changing the layout box, so no ResizeObserver fires and the map
+ * is never rebuilt: the rim stays traced a few px inside the panel it belongs to, and
+ * the whole surface reads as two rounded rectangles that don't quite line up.
+ *
+ * offsetWidth/Height are the layout box and are immune to that. They don't exist for
+ * inline or SVG hosts, so fall back to the rect there.
+ */
+function layoutBox(el: HTMLElement): { width: number; height: number } {
+  const w = el.offsetWidth;
+  const h = el.offsetHeight;
+  if (w && h) return { width: w, height: h };
+  const r = el.getBoundingClientRect();
+  return { width: Math.round(r.width), height: Math.round(r.height) };
+}
 const SPEC_LO = 0.25;
 const SPEC_HI = 0.7;
 
@@ -151,9 +172,7 @@ function mountSvg(el: HTMLElement, surface: HTMLElement, p: P): () => void {
   const map = holder.querySelector('feImage')!;
   let last = '';
   const render = () => {
-    const r = el.getBoundingClientRect();
-    const width = Math.round(r.width);
-    const height = Math.round(r.height);
+    const { width, height } = layoutBox(el);
     if (!width || !height) return;
     const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
     const key = `${width}x${height}x${radius}`;
@@ -351,9 +370,7 @@ function mountFrost(el: HTMLElement, surface: HTMLElement, p: P): () => void {
   let last = '';
   let n = 0;
   const render = () => {
-    const r = el.getBoundingClientRect();
-    const width = Math.round(r.width);
-    const height = Math.round(r.height);
+    const { width, height } = layoutBox(el);
     if (!width || !height) return;
     const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
     const key = `${width}x${height}x${radius}`;
@@ -418,9 +435,7 @@ function mountDomRefract(el: HTMLElement, refract: HTMLElement, p: P): () => voi
   let last = '';
   let n = 0;
   const render = () => {
-    const r = el.getBoundingClientRect();
-    const width = Math.round(r.width);
-    const height = Math.round(r.height);
+    const { width, height } = layoutBox(el);
     if (!width || !height) return;
     const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
     const key = `${width}x${height}x${radius}`;

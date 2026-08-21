@@ -25,6 +25,28 @@ const GlassDropdownMenu = BaseMenu.Root;
 const GlassDropdownMenuTrigger = BaseMenu.Trigger;
 
 /**
+ * The glass rim has to trace the same curve as the panel it fills. `rounded-2xl` is a
+ * theme token — 18px under the default shadcn `--radius`, something else in the next
+ * app — so a hardcoded number on the glass silently stops matching and you get two
+ * rounded rectangles a couple of px apart at every corner. Read the real one instead.
+ */
+function usePanelRadius(el: HTMLElement | null, fallback = 16) {
+  const [radius, setRadius] = React.useState(fallback);
+  React.useLayoutEffect(() => {
+    if (!el) return;
+    const read = () => {
+      const r = parseFloat(getComputedStyle(el).borderTopLeftRadius);
+      if (r) setRadius((prev) => (prev === r ? prev : r));
+    };
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [el]);
+  return radius;
+}
+
+/**
  * Theming: with nothing to refract a menu frosts, and the frosted fill reads
  * `--glass-frost-bg` (from @liquidglassjs/core/css), which defaults to 55% of
  * `--glass-paper`. Map `--glass-paper` to your own paper colour so it follows your
@@ -70,10 +92,17 @@ function GlassDropdownMenuContent({
    */
   backdrop?: string;
 }) {
+  // A callback ref, not useRef: the popup mounts in a later phase than this
+  // component, so a layout effect keyed on a stable ref object reads null once and
+  // never runs again. This re-runs the moment the node actually attaches.
+  const [popupEl, setPopupEl] = React.useState<HTMLDivElement | null>(null);
+  const radius = usePanelRadius(popupEl);
+
   return (
     <BaseMenu.Portal>
       <BaseMenu.Positioner sideOffset={sideOffset} className="z-50 outline-none">
         <BaseMenu.Popup
+          ref={setPopupEl}
           className={cn(
             'relative min-w-44 origin-[var(--transform-origin)] overflow-hidden rounded-2xl p-1.5 shadow-2xl outline-none',
             'transition-[transform,opacity] duration-150 ease-out',
@@ -89,7 +118,7 @@ function GlassDropdownMenuContent({
           <LiquidGlass
             refract={refract ?? undefined}
             backdrop={backdrop}
-            radius={16}
+            radius={radius}
             strength={strength}
             chroma={chroma}
             dome={dome}
