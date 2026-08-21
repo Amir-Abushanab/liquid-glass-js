@@ -239,6 +239,23 @@ Automated cross-engine checks are fine for geometry, useless for these.
 Everything touches `document`, canvas or SVG. Guard it: React `useEffect`, Svelte
 `onMount`, Astro client `<script>`. A bare module-scope call breaks the build.
 
+### HIGH — Glass that turns out to be a plain blur
+
+`mountGlass` picks its path in order: an explicit `refract` target, then a `source`
+plus WebGL2, then a `backdrop`, and frost only if it was given none of them. Frost
+refracts on Chromium and is a plain `blur()` everywhere else — so a surface that looks
+flat outside Chrome has usually just not been handed anything to bend. Pass `refract`
+(the element behind it) or `backdrop` (the page's own background) and it takes the SVG
+path, which works in every browser.
+
+### MEDIUM — Rasterizing text without checking the used size
+
+A canvas 2D context takes `font-style font-weight font-size font-family` and nothing
+else. Properties that change the _used_ glyph size without changing the reported
+`font-size` — `font-size-adjust` on a root element, most often — leave the raster at
+the wrong scale, and the error accumulates along the run. `mountGlassText` measures the
+DOM's laid-out run and scales to match; do the same if you build your own alpha map.
+
 ### MEDIUM — Expecting `mode: 'frost'` to refract off Chromium
 
 Safari and Firefox accept `url(#…)` in the `backdrop-filter` grammar and paint

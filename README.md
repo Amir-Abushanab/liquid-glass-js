@@ -263,8 +263,10 @@ library — they're how the engines behave.
   the node doesn't help and neither does nudging the element. Rename the filter and
   point the element at the new name.
 - **Composited layers are skipped by an ancestor's filter.** The layer floats above the
-  glass, sharp, while everything beside it bends. Two things promote an element: a
-  running CSS transform animation, and a `<canvas>` redrawn every frame. Animate from
+  glass, sharp, while everything beside it bends. Three things promote an element: a
+  running CSS transform animation, a running transform **transition** (a pill that
+  slides on `transition: transform` counts, and it leaves the strip it vacated
+  unrepainted), and a `<canvas>` redrawn every frame. Animate from
   script instead — setting `el.style.transform` each frame doesn't promote, and
   `will-change` on its own is fine — and either render canvas content as DOM or sample
   the canvas in WebGL.
@@ -324,6 +326,26 @@ library — they're how the engines behave.
   for free; sweeping `dome` the same way drops frames. `glassTween(instance).to({…})`
   eases the cheap ones for you and applies the rest in one go, so it can't be held
   wrong.
+- **Glass with nothing to refract is just a blur.** `mountGlass` picks its path in
+  order: an explicit `refract` target, then a `source` plus WebGL2, then a `backdrop`,
+  and if it was given none of those it falls back to a frosted `backdrop-filter`. That
+  fallback refracts on Chromium and is a plain `blur()` everywhere else, so a surface
+  that looks flat outside Chrome has usually just not been handed anything to bend.
+  Give it the element behind it, or the page's own background.
+- **A canvas can't see everything CSS did to your text.** `ctx.font` takes
+  `font-style font-weight font-size font-family` and nothing else, so any property that
+  changes the _used_ glyph size without changing the reported `font-size` — and
+  `font-size-adjust` on a root element is a common one — leaves a canvas raster at the
+  wrong scale. The error is per-glyph, so it accumulates: the first letter looks nearly
+  right and by the last the map is a third of a word away. If you rasterize text to
+  build your own map, measure the DOM's laid-out run and scale to match rather than
+  trusting `font-size`.
+- **Some of what looks like the filter is the typeface.** A weight the family doesn't
+  ship gets synthesised by smearing the outline, which blunts a tapered terminal into a
+  flat stub — a script `q` then looks sliced off. And a script or display face's
+  descenders routinely reach past `line-height` into the line below. Both read as the
+  glass having clipped something. Look at the glyphs with the filter removed before
+  believing it.
 - **The filter bends pixels, it can't scale them.** There's no magnification in
   `feDisplacementMap`. To magnify, scale a copy of the content and put the filter over
   the copy.
