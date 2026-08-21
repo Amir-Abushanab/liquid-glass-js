@@ -501,6 +501,13 @@ function ensureLayers(root: HTMLElement): HTMLElement {
 export function mountGlass(root: HTMLElement, opts: GlassOptions = {}): GlassInstance {
   const o = { ...GLASS_DEFAULTS, ...opts };
   root.classList.add('ps-glass');
+  // The surface, tint and rim are absolutely positioned against this element, so it has
+  // to be a containing block — but ANY non-static position is one, and the consumer may
+  // well have chosen `absolute` already. Only fill in a position when there isn't one:
+  // asserting `relative` from the stylesheet silently collapsed a consumer's
+  // `absolute inset-0` glass to zero height, and a renderer with a zero box builds no
+  // filter at all.
+  if (getComputedStyle(root).position === 'static') root.style.position = 'relative';
   if (opts.class) for (const c of opts.class.split(/\s+/).filter(Boolean)) root.classList.add(c);
   root.dataset.glass = '';
   if (!root.dataset.uid) root.dataset.uid = 'ps-glass-' + Math.random().toString(36).slice(2, 9);

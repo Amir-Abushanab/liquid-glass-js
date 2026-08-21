@@ -11,8 +11,15 @@
  * e.g.  .ps-glass { --glass-paper: var(--paper); --glass-ink: var(--ink); }
  */
 
-.ps-glass {
-  position: relative;
+/* :where() so these are DEFAULTS, not decisions — the class lands on the root from JS,
+   alongside whatever the consumer already put there, and nothing here needs to win
+   that argument.
+   `position` is deliberately NOT here. The layers make it unwinnable from a
+   stylesheet: Tailwind puts its utilities in `@layer utilities`, unlayered CSS beats
+   any layer whatever its specificity, and this sheet is unlayered — so `.ps-glass`
+   overrode a consumer's `absolute` even at zero specificity. mountGlass sets it from
+   script instead, and only when the element is still `static`. */
+:where(.ps-glass) {
   border-radius: var(--g-radius);
   overflow: hidden;
   isolation: isolate;
