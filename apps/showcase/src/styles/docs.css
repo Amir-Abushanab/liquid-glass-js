@@ -167,6 +167,12 @@ body {
 :root {
   --paper: #ffffff;
   --ink: #0b0b0b;
+  /* Hand the library the same paper this page uses. Every core default that is
+     derived rather than given — the frosted fill, the SVG-clone path's base colour —
+     resolves through `--glass-paper`, and unset it falls back to a hardcoded #fff.
+     That reads as white in dark mode too, which is how a themed panel ends up with
+     light text on a white slab. Mapping it once fixes all of them. */
+  --glass-paper: var(--paper);
   /* Frosted-glass panels (e.g. the dialog) read `--glass-frost-bg`. The core
      default is a flat 55%-white — low-contrast over a bright backdrop and wrong
      in dark mode. Make it theme-aware + a touch more opaque so content stays
@@ -177,6 +183,16 @@ body {
   --paper: #0a0a0a;
   --ink: #f6f6f6;
   --glass-frost-bg: rgb(20 20 26 / 64%);
+}
+/* Menus float over the demo scene rather than over the page, and frost on Chromium is
+   a real refraction underneath that wash — at the dialog's 72% it is hidden and the
+   menu reads as a plain card. Thinner here, and per theme: an override that isn't
+   theme-aware is exactly the bug the paper mapping above exists to prevent. */
+[role='menu'] {
+  --glass-frost-bg: rgb(255 255 255 / 34%);
+}
+.dark [role='menu'] {
+  --glass-frost-bg: rgb(20 20 26 / 42%);
 }
 
 @layer base {

@@ -24,6 +24,14 @@ import '@liquidglassjs/core/css';
 const GlassDropdownMenu = BaseMenu.Root;
 const GlassDropdownMenuTrigger = BaseMenu.Trigger;
 
+/**
+ * Theming: with nothing to refract a menu frosts, and the frosted fill reads
+ * `--glass-frost-bg` (from @liquidglassjs/core/css), which defaults to 55% of
+ * `--glass-paper`. Map `--glass-paper` to your own paper colour so it follows your
+ * theme, and thin `--glass-frost-bg` if the wash is hiding the refraction underneath:
+ *   `.dark { --glass-paper: #0a0a0a; }`
+ *   `[role='menu'] { --glass-frost-bg: rgb(255 255 255 / 34%); }`
+ */
 function GlassDropdownMenuContent({
   className,
   children,
@@ -66,17 +74,6 @@ function GlassDropdownMenuContent({
     <BaseMenu.Portal>
       <BaseMenu.Positioner sideOffset={sideOffset} className="z-50 outline-none">
         <BaseMenu.Popup
-          // Thinner than the 55%-of-paper default. Frost on Chromium is a real
-          // refraction — the page behind the menu displaced through the same dome map
-          // the SVG path uses — but at 55% the wash sits on top of it and the menu
-          // reads as a plain white card with the optics invisible underneath. Elsewhere
-          // this is honestly just a blur: a portalled popup floats over arbitrary
-          // content, so there is no one element to refract and nothing to clone.
-          style={
-            {
-              '--glass-frost-bg': 'color-mix(in srgb, var(--glass-paper, #fff) 34%, transparent)',
-            } as React.CSSProperties
-          }
           className={cn(
             'relative min-w-44 origin-[var(--transform-origin)] overflow-hidden rounded-2xl p-1.5 shadow-2xl outline-none',
             'transition-[transform,opacity] duration-150 ease-out',
