@@ -190,12 +190,38 @@
   background-size: 200% auto;
   animation: ps-rainbow 7s linear infinite;
 }
+.ps-footer__contact {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1.4rem;
+}
 .ps-footer__contact a {
   color: var(--muted);
   transition: color 150ms ease;
 }
 .ps-footer__contact a:hover {
   color: var(--ink);
+}
+/* Principle Stash sets its own wordmark in a serif with the mascot standing in for the
+   capital P, so the link is set the same way here rather than restyled to match this
+   footer — it's someone else's name. The mark carries a black outline over a cream
+   fill, which is why it needs no theme handling. */
+.ps-stash {
+  font-family: ui-serif, Georgia, 'Times New Roman', serif;
+  font-weight: 520;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+/* Inline and baseline-aligned rather than flex-centred, which is how their own nav sets
+   it: the mark sits on the baseline like a dropped capital and runs straight into
+   "rinciple". Centring it in a flex row floats it off the line instead. */
+.ps-mascot {
+  display: inline-block;
+  height: 1.3em;
+  width: auto;
+  margin-right: 0.05em;
+  vertical-align: baseline;
 }
 .ps-footer__copy {
   width: 100%;
