@@ -76,8 +76,7 @@ const LABEL = 'Copy for your agent';
 
 document.querySelectorAll('[data-agent-copy]').forEach((btn) => {
   const label = btn.querySelector('.agent-label');
-  // Glass first: mountGlassButton moves the existing children into a crisp label layer
-  // and puts a refracting pane behind them, so the glyphs stay sharp.
+  const icons = btn.querySelector('.agent-icons');
   mountGlassButton(btn, {
     ...presetDefaults('button', [
       'strength',
@@ -89,8 +88,32 @@ document.querySelectorAll('[data-agent-copy]').forEach((btn) => {
       'glow',
       'spec',
     ]),
+    // The shared button preset is tuned for a pane with nothing behind it but the
+    // scene, where a 40px displacement reads as a deep bend. The marks sit *inside*
+    // this pane and are 16px tall, so that same number is wider than the artwork and
+    // shreds them. Bend far enough to be obviously glass, not far enough to be unable
+    // to tell whose logo it was.
+    strength: 14,
+    chroma: 0.5,
     radius: 999,
   });
+
+  // Put the marks INSIDE the refracted pane, so the glass bends them the way it bends
+  // anything else behind it — a button on this site should be made of the thing the
+  // site is about, not sit on top of it. The label stays in the crisp layer, which is
+  // also the honest demo: refracted art, readable text.
+  //
+  // The pane is `inset: 0`, so laying it out with the button's own padding and gap puts
+  // the marks exactly where they were. A hidden clone holds their place in the label so
+  // the text still starts after them and the button keeps its width.
+  const pane = btn.querySelector('.gm-btn__bg');
+  if (pane && icons && label) {
+    const spacer = icons.cloneNode(true);
+    spacer.classList.add('agent-icons--spacer');
+    label.parentElement?.insertBefore(spacer, label);
+    pane.appendChild(icons);
+  }
+
   let reset = 0;
   btn.addEventListener('click', async () => {
     let ok = true;

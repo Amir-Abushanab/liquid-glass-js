@@ -2189,6 +2189,116 @@ a {
   }
 }
 
+/* ── Hero call to action: copy-for-agent + install command ── */
+.hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.9rem;
+  margin: 1.4rem 0 1.1rem;
+}
+.pm {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 5px 6px 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong, rgb(255 255 255 / 14%));
+  background: color-mix(in srgb, var(--ink, #fff) 5%, transparent);
+}
+.pm__tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.pm__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--muted, #9a94a8);
+  font: 600 0.76rem/1 var(--font-mono, ui-monospace, monospace);
+  transition:
+    color 140ms ease,
+    background-color 140ms ease;
+}
+.pm__tab svg {
+  width: 13px;
+  height: 13px;
+  display: block;
+}
+.pm__tab:hover {
+  color: var(--ink, #fff);
+}
+.pm__tab[aria-selected='true'] {
+  color: var(--ink, #fff);
+  background: color-mix(in srgb, var(--ink, #fff) 12%, transparent);
+}
+.pm__tab:focus-visible {
+  outline: 2px solid var(--ink, #fff);
+  outline-offset: 1px;
+}
+.pm__line {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-left: 0.55rem;
+  border-left: 1px solid var(--line, rgb(255 255 255 / 10%));
+}
+.pm__cmd {
+  font: 0.78rem/1 var(--font-mono, ui-monospace, monospace);
+  color: var(--ink, #fff);
+  white-space: nowrap;
+}
+.pm__prompt {
+  color: var(--muted, #9a94a8);
+  user-select: none;
+}
+.pm__copy {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--muted, #9a94a8);
+  transition:
+    color 140ms ease,
+    background-color 140ms ease;
+}
+.pm__copy:hover {
+  color: var(--ink, #fff);
+  background: color-mix(in srgb, var(--ink, #fff) 10%, transparent);
+}
+.pm__copy:focus-visible {
+  outline: 2px solid var(--ink, #fff);
+  outline-offset: 1px;
+}
+.pm__copy svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+.pm__copy .pm__tick,
+.pm__copy.is-copied svg:first-child {
+  display: none;
+}
+.pm__copy.is-copied .pm__tick {
+  display: block;
+  color: #8ef0c8;
+}
+@media (max-width: 640px) {
+  .pm__tab span {
+    display: none;
+  }
+}
+
 /* ── "Copy for your agent" ────────────────────────────────────────────────────
    The four coding-agent marks splay outward on hover — the same affordance wave3d
    and favicon-env use, so it reads the same across the projects. What differs is the
@@ -2202,7 +2312,7 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 16px;
+  padding: 9px 22px;
   border: 0;
   border-radius: 999px;
   color: var(--ink, #fff);
@@ -2227,6 +2337,30 @@ a {
 }
 .agent-copy.is-copied .agent-label {
   color: #8ef0c8;
+}
+/* The pane carries the marks and is `inset: 0`, so it repeats the button's own padding
+   and gap to land them where they'd sit if they were still in the flow. */
+.agent-copy .gm-btn__bg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 22px;
+  /* The pill's cap curves through the first 20-odd px, and that band is where the
+     displacement is strongest — marks left in it get flung past the rim. An ancestor's
+     rounded clip doesn't catch them either: the escaped output is clipped to the border
+     box, not the corner, so it lands in the square left over outside the cap. Clip here
+     as well, and start the marks past the bend. */
+  border-radius: inherit;
+  overflow: hidden;
+}
+.agent-copy .gm-btn__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+/* holds the marks' place in the flow; the real ones live in the pane */
+.agent-icons--spacer {
+  visibility: hidden;
 }
 .agent-icons {
   display: inline-flex;
