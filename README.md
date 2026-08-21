@@ -284,9 +284,14 @@ library — they're how the engines behave.
   `border-radius` on the wrapper aren't enough: a canvas is its own compositing layer,
   and Firefox clips those to the ancestor's box but not to its rounded corners. Put
   `border-radius: inherit` on the canvas.
-- **`repeating-linear-gradient` washes out 1px lines.** A hairline grid built that way
-  goes faint or disappears. Use a plain `linear-gradient` and repeat it with
-  `background-size`.
+- **`repeating-linear-gradient` dilutes a 1px hard stop** — but only enough to matter
+  when the line was already faint. A hairline grid at 3.5% opacity disappears; the same
+  grid at 12% is indistinguishable from the other engines (measured: peak brightness
+  above its neighbours 17.6 in Firefox against 17.2 and 17.7 in Chromium and WebKit).
+  So check before rewriting: if a low-alpha grid goes missing, build it from a plain
+  `linear-gradient` repeated with `background-size`, and if it doesn't, leave it —
+  `background-size` doesn't survive being passed as a `backdrop`, where the image list
+  is painted at a fixed `cover`.
 
 ### Every browser
 
