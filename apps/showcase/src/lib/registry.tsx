@@ -58,6 +58,7 @@ export const REGISTRY_URL = 'https://amir-abushanab.github.io/liquid-glass-js';
 // Slider ranges and shipped defaults for every glass component on this site — the
 // same source the vanilla showcase reads, so a retune lands in both.
 import { presetControls } from './glass-presets';
+import { SCENE } from './scene';
 
 // The lens preview sizes its own lens, so `radius` isn't a knob here.
 const LENS_KEYS = ['strength', 'chroma', 'blur', 'dome', 'depth', 'edge', 'glow', 'shade'];
@@ -334,8 +335,10 @@ export function Example() {
 }`,
 };
 
+// No `needs` here any more. Given a `backdrop`, mountGlass takes the SVG clone path,
+// which refracts in every browser — the frost fallback is only where a surface is given
+// nothing to refract.
 const SURFACE_TUNE: TuneConfig = {
-  needs: 'backdrop-url',
   params: presetControls('surface'),
   code: (v) => `import { GlassSurface } from "@/components/liquid-glass/glass-surface"
 
@@ -352,6 +355,9 @@ export function Example() {
       spec={${v.spec}}
       tint={${v.tint}}
       vibrancy={${v.vibrancy}}
+      // Hand it the page's own background and it refracts that, in every browser.
+      // Leave it out and there is nothing to refract, so it falls back to a frost.
+      backdrop="radial-gradient(70% 80% at 30% 20%, #12d3ff, transparent 60%), #0b0913"
       className="max-w-xs p-6"
     >
       <h2 className="text-lg font-semibold text-white">Glass surface</h2>
@@ -362,7 +368,6 @@ export function Example() {
 };
 
 const CARD_TUNE: TuneConfig = {
-  needs: 'backdrop-url',
   params: SURFACE_TUNE.params,
   code: (v) => `import { GlassCard } from "@/components/liquid-glass/glass-card"
 
@@ -379,6 +384,9 @@ export function Example() {
       spec={${v.spec}}
       tint={${v.tint}}
       vibrancy={${v.vibrancy}}
+      // Hand it the page's own background and it refracts that, in every browser.
+      // Leave it out and there is nothing to refract, so it falls back to a frost.
+      backdrop="radial-gradient(70% 80% at 30% 20%, #12d3ff, transparent 60%), #0b0913"
       className="max-w-xs"
     >
       <h2 className="text-lg font-semibold text-white">Glass card</h2>
@@ -739,6 +747,7 @@ export const registry: RegistryItem[] = [
         spec={v.spec}
         tint={v.tint}
         vibrancy={v.vibrancy}
+        backdrop={SCENE}
         className="max-w-xs p-6"
       >
         <h2 className="text-lg font-semibold text-white">Glass surface</h2>
@@ -766,6 +775,7 @@ export const registry: RegistryItem[] = [
         spec={v.spec}
         tint={v.tint}
         vibrancy={v.vibrancy}
+        backdrop={SCENE}
         className="max-w-xs"
       >
         <h2 className="text-lg font-semibold text-white">Glass card</h2>

@@ -35,6 +35,7 @@ function GlassTabsList({
   depth = 8,
   edge = 0.9,
   glow = 0.3,
+  refract,
   ...props
 }: React.ComponentProps<typeof BaseTabs.List> & {
   strength?: number;
@@ -43,6 +44,13 @@ function GlassTabsList({
   depth?: number;
   edge?: number;
   glow?: number;
+  /**
+   * Element to refract. Given one, the glass takes the SVG path and bends that
+   * content in every browser; without one there is nothing behind this to filter and
+   * it falls back to a frosted blur, which is the sensible default for a surface that
+   * floats over arbitrary app content.
+   */
+  refract?: HTMLElement | null;
 }) {
   return (
     <BaseTabs.List
@@ -63,7 +71,7 @@ function GlassTabsList({
         )}
       >
         <LiquidGlass
-          mode="frost"
+          refract={refract ?? undefined}
           radius={999}
           strength={strength}
           chroma={chroma}

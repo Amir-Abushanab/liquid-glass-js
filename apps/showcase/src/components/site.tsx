@@ -19,13 +19,8 @@ import { CommandBlock, installCommand, shadcnAddCommand } from './package-manage
 import { Tuner } from './tuner';
 
 /** The busy backdrop each preview sits on, so the glass has something to refract. */
-export const SCENE =
-  'repeating-linear-gradient(0deg, rgb(255 255 255 / 12%) 0 1px, transparent 1px 26px),' +
-  'repeating-linear-gradient(90deg, rgb(255 255 255 / 12%) 0 1px, transparent 1px 26px),' +
-  'radial-gradient(60% 80% at 15% 20%, #ff4f9d, transparent 60%),' +
-  'radial-gradient(70% 80% at 85% 25%, #12d3ff, transparent 60%),' +
-  'radial-gradient(70% 80% at 60% 100%, #ffc93f, transparent 60%),' +
-  'linear-gradient(135deg, #7b3cff, #1f9dff 50%, #22e39b)';
+export { SCENE } from '@/lib/scene';
+import { SCENE } from '@/lib/scene';
 
 function CopyIcon({ done }: { done: boolean }) {
   return done ? (
