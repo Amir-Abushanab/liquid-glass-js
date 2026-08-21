@@ -12,7 +12,7 @@
  * on a site about refraction, a flat button asking you to go tell an agent about
  * refraction would be a poor advert.
  */
-import { mountGlassButton } from '@liquidglassjs/core';
+import { glassTween, mountGlassButton } from '@liquidglassjs/core';
 import skillDoc from '../../../../packages/core/skills/liquid-glass/SKILL.md?raw';
 import { presetDefaults } from '../lib/glass-presets';
 
@@ -93,6 +93,15 @@ const tick = () => {
   return svg;
 };
 
+// The shared button preset is tuned for a pane with nothing behind it but the scene,
+// where a 40px displacement reads as a deep bend. The marks sit *inside* this pane and
+// are 16px tall, so that same number is wider than the artwork and shreds them. At rest
+// the bend is gentle enough to keep every logo recognisable; hovering leans on it, which
+// is the whole demonstration — the marks visibly become something the glass is moving
+// rather than something printed on it.
+const REST = { strength: 14, chroma: 0.5 };
+const HOVER = { strength: 20, chroma: 0.9 };
+
 document.querySelectorAll('[data-agent-copy]').forEach((btn) => {
   const label = btn.querySelector('.agent-label');
   const icons = btn.querySelector('.agent-icons');
@@ -107,15 +116,16 @@ document.querySelectorAll('[data-agent-copy]').forEach((btn) => {
       'glow',
       'spec',
     ]),
-    // The shared button preset is tuned for a pane with nothing behind it but the
-    // scene, where a 40px displacement reads as a deep bend. The marks sit *inside*
-    // this pane and are 16px tall, so that same number is wider than the artwork and
-    // shreds them. Bend far enough to be obviously glass, not far enough to be unable
-    // to tell whose logo it was.
-    strength: 14,
-    chroma: 0.5,
+    ...REST,
     radius: 999,
   });
+
+  // glassTween is the library's own answer to this: strength and chroma both land on a
+  // filter attribute, so easing them per frame costs a setAttribute rather than a map
+  // rebuild, and re-entering mid-flight retargets from where it is instead of snapping.
+  const tween = glassTween(api, { duration: 260 });
+  btn.addEventListener('pointerenter', () => tween.to(HOVER));
+  btn.addEventListener('pointerleave', () => tween.to(REST));
 
   // Put the marks INSIDE the refracted pane, so the glass bends them the way it bends
   // anything else behind it — a button on this site should be made of the thing the

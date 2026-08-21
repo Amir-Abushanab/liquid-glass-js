@@ -2190,10 +2190,13 @@ a {
 }
 
 /* ── Hero call to action: copy-for-agent + install command ── */
+/* Stacked rather than wrapped on purpose: the button tweens its own width when it
+   morphs to "Copied", and on one row that drags the install line 150px sideways
+   mid-animation. Its own row means the morph can't touch anything but itself. */
 .hero-cta {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 0.9rem;
   margin: 1.4rem 0 1.1rem;
 }
@@ -2205,6 +2208,33 @@ a {
   border-radius: 999px;
   border: 1px solid var(--line-strong, rgb(255 255 255 / 14%));
   background: color-mix(in srgb, var(--ink, #fff) 5%, transparent);
+}
+/* Four tabs and a command don't fit a phone on one line, and the row is wide enough to
+   give the whole document a horizontal scrollbar if it tries. Stack the command under
+   the tabs instead, and let it scroll inside its own box rather than pushing the page. */
+@media (max-width: 430px) {
+  .pm {
+    display: flex;
+    flex-wrap: wrap;
+    max-width: 100%;
+    border-radius: 20px;
+  }
+  /* Emphatically not stretched to the row: the lens is sized from the control's own
+     box, while .seg__labels is an inline-grid that stays at content width. Stretch the
+     frame and the glass pill is suddenly wider than the segment it is meant to mark. */
+  .pm__seg {
+    flex: 0 0 auto;
+  }
+  .pm__line {
+    flex: 1 1 100%;
+    min-width: 0;
+    padding: 4px 0 2px 6px;
+    border-left: 0;
+  }
+  .pm__cmd {
+    min-width: 0;
+    overflow-x: auto;
+  }
 }
 /* The demo section's segmented control, shrunk to hero-chrome size. Its own frame is
    made transparent rather than removed: the mount derives the pill's box from the
@@ -2387,17 +2417,23 @@ a {
 .agent-icons svg:nth-child(4) {
   transform: rotate(6deg);
 }
+/* A fan built from rotation and scale rather than travel. There is very little room to
+   move these: the leading mark is ~20px off a rim that bends hardest right there, the
+   trailing one is ~8px from the label, and the pill only clears the marks by ~20px top
+   and bottom. Anything carried into one of those bands at hover strength gets flung
+   through it and comes back as coloured debris in the corner. Rotation splays them
+   wide for almost no bounding box, so the fan can be dramatic and still fit. */
 .agent-copy:hover .agent-icons svg:nth-child(1) {
-  transform: rotate(-12deg) translateX(-3px);
+  transform: rotate(-26deg) translateY(2px) scale(1.14);
 }
 .agent-copy:hover .agent-icons svg:nth-child(2) {
-  transform: rotate(6deg) translate(-1px, -1px) scale(1.1);
+  transform: rotate(-10deg) translateY(-2px) scale(1.2);
 }
 .agent-copy:hover .agent-icons svg:nth-child(3) {
-  transform: rotate(-6deg) translate(1px, 2px) scale(1.1);
+  transform: rotate(10deg) translateY(-2px) scale(1.2);
 }
 .agent-copy:hover .agent-icons svg:nth-child(4) {
-  transform: rotate(12deg) translateX(3px);
+  transform: rotate(26deg) translateY(2px) scale(1.14);
 }
 @media (prefers-reduced-motion: reduce) {
   .agent-copy,
