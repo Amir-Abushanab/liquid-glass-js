@@ -121,6 +121,7 @@ const segLenses = [];
 document.querySelectorAll('[data-seg]').forEach((seg) => {
   const labels = seg.querySelector('.seg__labels');
   const opts = Array.from(seg.querySelectorAll('.seg__opt'));
+  const pill = seg.querySelector('.seg__glass');
   if (!labels || !opts.length) return;
   const n = opts.length;
   const geom = () => {
@@ -139,6 +140,12 @@ document.querySelectorAll('[data-seg]').forEach((seg) => {
   let lensX = 0,
     tweenRaf = 0;
   const segEase = cubicBezier(0.34, 1.35, 0.5, 1);
+  // One writer for both: the pill's chrome and the lens under it move on the same
+  // frame, from the same number.
+  const place = (x) => {
+    lens.setPos(x, 0);
+    if (pill) pill.style.transform = `translateX(${x}px)`;
+  };
   const moveLensTo = (targetX) => {
     cancelAnimationFrame(tweenRaf);
     const from = lensX,
@@ -147,11 +154,11 @@ document.querySelectorAll('[data-seg]').forEach((seg) => {
     const step = (now) => {
       const k = Math.min(1, (now - t0) / dur);
       lensX = from + (targetX - from) * segEase(k);
-      lens.setPos(lensX, 0);
+      place(lensX);
       if (k < 1) tweenRaf = requestAnimationFrame(step);
       else {
         lensX = targetX;
-        lens.setPos(lensX, 0);
+        place(lensX);
       }
     };
     tweenRaf = requestAnimationFrame(step);
@@ -164,7 +171,7 @@ document.querySelectorAll('[data-seg]').forEach((seg) => {
     if (animate) moveLensTo(targetX);
     else {
       lensX = targetX;
-      lens.setPos(lensX, 0);
+      place(lensX);
     }
   };
   opts.forEach((o, i) => o.addEventListener('click', () => setActive(i)));
