@@ -133,12 +133,16 @@ fixed-attachment backdrop that transform breaks), its id-keyed filter cache, its
 viewBox-unit coordinates on inline `<svg>`, composited layers being skipped by an
 ancestor's filter and the two things that promote one, the canvas gradient that greys
 out colour emoji; Firefox's square WebGL corners inside a rounded box and its washed
-out `repeating-linear-gradient` hairlines; the box-quantised blur, the filter bending
-rather than scaling, needing bleed outside the target, the ink-vs-border bbox in
-`objectBoundingBox` units, `feImage` needing an explicit subregion, canvas and video
-re-filtering every frame, `backdrop-filter: url()` parsing everywhere and painting
-only in Chromium; and how to test any of it — not from a Safari screenshot, not in
-Playwright's WebKit, and never against something that's animating.
+out `repeating-linear-gradient` hairlines; the box-quantised blur, `background-clip:
+text` refusing to paint the parts of a glyph that reach outside the padding box (so
+gradient-filled letterforms lose their descenders and it looks like the filter did it),
+the filter bending rather than scaling, needing bleed outside the target, the
+ink-vs-border bbox in `objectBoundingBox` units, `feImage` needing an explicit
+subregion, canvas and video re-filtering every frame, `backdrop-filter: url()` parsing
+everywhere and painting only in Chromium; and how to test any of it — not from a Safari
+screenshot, not in any WebKit that isn't Safari (Playwright's lacks the cache and the
+compositing rules, an embedded one in a dev tool can invent bugs Safari doesn't have),
+and never against something that's animating.
 
 Ships a [TanStack Intent](https://github.com/TanStack/intent) skill at
 `packages/core/skills/liquid-glass/SKILL.md` (included in the published package), so
