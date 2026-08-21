@@ -74,7 +74,10 @@ const body = bodyHtml.replaceAll(
   import '../scripts/theme-toggle.js';
   import '../scripts/liquid-glass.js';
   import '../scripts/liquid-glass-font.js';
+  // Ahead of showcase.js on purpose: it builds the hero's package-manager selector as a
+  // [data-seg] control, and showcase.js only mounts the glass on the ones already in the
+  // DOM when it runs.
+  import '../scripts/install-command.js';
   import '../scripts/showcase.js';
   import '../scripts/agent-copy.js';
-  import '../scripts/install-command.js';
 </script>

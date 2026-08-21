@@ -47,15 +47,30 @@ const mark = (path) =>
   `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${path}"></path></svg>`;
 
 document.querySelectorAll('[data-install]').forEach((root) => {
+  // The site's own segmented control, markup and all: `[data-seg]` makes showcase.js
+  // mount a real glass lens over the labels and drive the pill from script, so the
+  // selector refracts its own brand marks instead of imitating glass with a tint, and
+  // it inherits the fix for Safari's leftover strip for free. `--i` is set from the
+  // stored choice up front because that mount reads the resting index from it.
+  //
+  // No `data-glasslens`: that opts an element into the render-path overlay, and this is
+  // hero chrome rather than one of the demos the overlay is annotating — its badge lands
+  // on top of the first tab.
   const tabs = document.createElement('div');
-  tabs.className = 'pm__tabs';
+  tabs.className = 'seg pm__seg';
+  tabs.dataset.seg = '';
   tabs.setAttribute('role', 'tablist');
   tabs.setAttribute('aria-label', 'Package manager');
-  tabs.innerHTML = ORDER.map(
-    (m) =>
-      `<button class="pm__tab" type="button" role="tab" data-pm="${m}" aria-selected="false">` +
-      `${mark(MANAGERS[m].path)}<span>${m}</span></button>`,
-  ).join('');
+  tabs.style.setProperty('--n', String(ORDER.length));
+  tabs.style.setProperty('--i', String(Math.max(0, ORDER.indexOf(read()))));
+  tabs.innerHTML =
+    '<div class="seg__labels">' +
+    ORDER.map(
+      (m) =>
+        `<button class="seg__opt pm__tab" type="button" role="tab" data-pm="${m}" aria-selected="false">` +
+        `${mark(MANAGERS[m].path)}<span>${m}</span></button>`,
+    ).join('') +
+    '</div><div class="seg__glass"></div>';
 
   const line = document.createElement('div');
   line.className = 'pm__line';
@@ -72,18 +87,27 @@ document.querySelectorAll('[data-install]').forEach((root) => {
   const text = line.querySelector('.pm__text');
   const copy = line.querySelector('.pm__copy');
 
+  const opts = Array.from(tabs.querySelectorAll('.seg__opt'));
   let current = 'pnpm';
+  let syncing = false;
+
+  // `aria-selected` and the pill's position belong to the segmented control now, so
+  // painting only writes the command. When the choice changes somewhere else — another
+  // tab, or a React command block on the same page — replay it as a click so the pill
+  // animates over on the same path a real click would take, rather than teleporting.
   const paint = () => {
     current = read();
     text.textContent = `${MANAGERS[current].cmd} ${PKG}`;
-    tabs.querySelectorAll('.pm__tab').forEach((t) => {
-      t.setAttribute('aria-selected', String(t.dataset.pm === current));
-    });
+    const want = Math.max(0, ORDER.indexOf(current));
+    if ((parseInt(tabs.style.getPropertyValue('--i'), 10) || 0) === want) return;
+    syncing = true;
+    opts[want]?.click();
+    syncing = false;
   };
 
   tabs.addEventListener('click', (e) => {
     const tab = e.target.closest('.pm__tab');
-    if (!tab) return;
+    if (!tab || syncing) return;
     try {
       localStorage.setItem(STORAGE_KEY, tab.dataset.pm);
     } catch {

@@ -73,11 +73,30 @@ const brief = () =>
   ].join('\n\n');
 
 const LABEL = 'Copy for your agent';
+/** How long "Copied" stays up. Long enough to read it, notice the button changed
+ *  shape, and get back to the editor before it reverts. */
+const HOLD_MS = 2600;
+
+const tick = () => {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2.6');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('class', 'agent-tick');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M20 6 9 17l-5-5');
+  svg.appendChild(path);
+  return svg;
+};
 
 document.querySelectorAll('[data-agent-copy]').forEach((btn) => {
   const label = btn.querySelector('.agent-label');
   const icons = btn.querySelector('.agent-icons');
-  mountGlassButton(btn, {
+  const api = mountGlassButton(btn, {
     ...presetDefaults('button', [
       'strength',
       'chroma',
@@ -107,12 +126,25 @@ document.querySelectorAll('[data-agent-copy]').forEach((btn) => {
   // the marks exactly where they were. A hidden clone holds their place in the label so
   // the text still starts after them and the button keeps its width.
   const pane = btn.querySelector('.gm-btn__bg');
+  let spacer = null;
   if (pane && icons && label) {
-    const spacer = icons.cloneNode(true);
+    spacer = icons.cloneNode(true);
     spacer.classList.add('agent-icons--spacer');
     label.parentElement?.insertBefore(spacer, label);
     pane.appendChild(icons);
   }
+
+  // Both states are built from the same two persistent nodes, so `aria-live` on the
+  // label announces the change instead of being replaced by a new silent element.
+  // The marks' spacer goes with the resting state and not the copied one, which is
+  // what makes the button visibly shed its width when it morphs.
+  const state = (leading, text) => {
+    const f = document.createDocumentFragment();
+    if (label) label.textContent = text;
+    if (leading) f.append(leading);
+    if (label) f.append(label);
+    return f;
+  };
 
   let reset = 0;
   btn.addEventListener('click', async () => {
@@ -122,12 +154,17 @@ document.querySelectorAll('[data-agent-copy]').forEach((btn) => {
     } catch {
       ok = false; // clipboard blocked: insecure context, or permission denied
     }
-    if (label) label.textContent = ok ? 'Copied ✓' : 'Copy failed';
-    btn.classList.toggle('is-copied', ok);
     clearTimeout(reset);
+    // The pane's marks fade before the width tween starts, so the glass isn't
+    // carrying four logos through a shape it no longer has room for.
+    btn.classList.toggle('is-copied', ok);
+    // setContent is the same morph the content-morph demo runs: the width tweens with
+    // an overshoot and the refraction gets a kick that peaks mid-travel, so the button
+    // reshapes as glass rather than swapping text inside a fixed pill.
+    api.setContent(state(ok ? tick() : null, ok ? 'Copied' : 'Copy failed'));
     reset = window.setTimeout(() => {
-      if (label) label.textContent = LABEL;
       btn.classList.remove('is-copied');
-    }, 1400);
+      api.setContent(state(spacer, LABEL));
+    }, HOLD_MS);
   });
 });
