@@ -168,7 +168,7 @@ if you want the overshoot the built-in controls use).
 Ordered by how often they bite. The Safari ones are not theoretical: every one cost
 real debugging time and is verified against Chromium and Firefox.
 
-### HIGH — CSS-animating a child of a glass element (Safari)
+### HIGH — CSS-animating or transitioning a child of a glass element (Safari)
 
 Safari gives an element with a **running CSS transform animation** its own
 compositing layer, and a composited layer is left **out of an ancestor's SVG
@@ -191,9 +191,11 @@ const step = (now) => {
 requestAnimationFrame(step);
 ```
 
-A script-set `transform` is an ordinary style change and doesn't promote the
-element. `will-change: transform` **alone is fine** — the running animation is what
-promotes. Only the animated element is excluded; siblings still refract. Chromium
+A running transform **transition** promotes it just the same — a pill that slides on
+`transition: transform` is the common case, and it leaves the strip it vacated
+unrepainted over a filtered sibling. A script-set `transform` is an ordinary style
+change and doesn't promote. `will-change: transform` **alone is fine** — it's the
+running animation or transition that promotes. Only the animated element is excluded; siblings still refract. Chromium
 and Firefox refract either way.
 
 ### HIGH — Putting a live `<canvas>` under SVG glass (Safari)
@@ -255,6 +257,22 @@ else. Properties that change the _used_ glyph size without changing the reported
 `font-size` — `font-size-adjust` on a root element, most often — leave the raster at
 the wrong scale, and the error accumulates along the run. `mountGlassText` measures the
 DOM's laid-out run and scales to match; do the same if you build your own alpha map.
+
+### MEDIUM — Blaming the filter for the typeface
+
+Two things look exactly like the glass having clipped a glyph, and neither is the
+filter. A weight the family doesn't ship is synthesised by smearing the outline, which
+blunts a tapered terminal into a flat stub — a script `q` reads as sliced off. And a
+script or display face's descenders routinely reach past `line-height` into the line
+below, which reads as an overlap the glass caused. Remove the filter and look at the
+glyphs before changing anything in the map.
+
+### MEDIUM — Comparing screenshots of something that animates
+
+Two captures of a particle field, a drifting lens or a bobbing badge are at different
+points in the animation, so they always differ and the difference means nothing. Freeze
+it — or drive it from a fixed clock — before comparing anything across engines or
+across a change.
 
 ### MEDIUM — Expecting `mode: 'frost'` to refract off Chromium
 
@@ -335,6 +353,31 @@ drawn into that context _afterwards_ as a grey silhouette. A flat translucent
 `fillRect` is fine — it's specifically a gradient. Bake the gradient into its own
 canvas and `drawImage` it in. Unrelated to the filter, but it bites when compositing
 an emoji-laden source to refract.
+
+### LOW — A WebGL canvas with square corners (Firefox)
+
+Overflow and `border-radius` on the wrapper aren't enough: a canvas is its own
+compositing layer, and Firefox clips those to the ancestor's box but not to its rounded
+corners, so it overhangs the rim. Put `border-radius: inherit` on the canvas.
+
+### LOW — Writing your own displacement chain
+
+The library handles all of this; you only meet it if you hand-roll a filter. Each is
+invisible until it bites, and the full write-ups with measurements are under
+[Building your own filter chain](https://github.com/amir-abushanab/liquid-glass-js#gotchas):
+
+- **Safari resolves `userSpaceOnUse` against the page**, not the element — region and
+  primitive subregions alike. Any transform on the element fixes it; `perspective`
+  doesn't. But that transform breaks a `background-attachment: fixed` fill on the same
+  element, so there you add the element's document position to the coordinates instead.
+- **Safari caches filter output by id.** Mutating a primitive leaves it painting the
+  cached result. Rename the filter and re-point the element.
+- **On an inline `<svg>`, Safari reads coordinates in viewBox units**, where every other
+  engine uses CSS px. Multiply by `viewBoxWidth / cssWidth`.
+- **`objectBoundingBox` is the INK bbox**, and the engines disagree about it by a pixel
+  or two. Use `userSpaceOnUse` when the size has to be exact.
+- **Give `feImage` an explicit subregion**, or it fills whatever filter region the
+  engine computed — and they don't compute the same one.
 
 ### LOW — Fractional sizing on a lens
 
