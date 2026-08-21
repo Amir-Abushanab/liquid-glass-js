@@ -514,7 +514,18 @@ function ensureLayers(root: HTMLElement): HTMLElement {
  * `.ps-glass__content` element. Import `@liquidglassjs/core/css` for styling.
  */
 export function mountGlass(root: HTMLElement, opts: GlassOptions = {}): GlassInstance {
-  const o = { ...GLASS_DEFAULTS, ...opts };
+  // Drop keys handed in as undefined before they can shadow a default. Every binding
+  // forwards the whole option list, so a prop the caller simply left out arrives as an
+  // explicit `tint: undefined` — and a plain spread lets that win, which is how the
+  // glass root ended up carrying `--g-tint: undefined`, why the frosted fallback
+  // computed `blur(NaNpx)` and painted no blur at all outside Chromium, and why `spec`
+  // and `vibrancy` silently went missing. Same guard the shape/text/loupe renderers
+  // already apply to their own options.
+  const explicit: GlassOptions = {};
+  for (const k of Object.keys(opts) as (keyof GlassOptions)[]) {
+    if (opts[k] != null) (explicit as Record<string, unknown>)[k] = opts[k];
+  }
+  const o = { ...GLASS_DEFAULTS, ...explicit };
   root.classList.add('ps-glass');
   // The surface, tint and rim are absolutely positioned against this element, so it has
   // to be a containing block — but ANY non-static position is one, and the consumer may
