@@ -35,6 +35,7 @@ function GlassDropdownMenuContent({
   edge = 0.9,
   glow = 0.3,
   refract,
+  backdrop,
   ...props
 }: React.ComponentProps<typeof BaseMenu.Popup> & {
   sideOffset?: number;
@@ -51,11 +52,31 @@ function GlassDropdownMenuContent({
    * floats over arbitrary app content.
    */
   refract?: HTMLElement | null;
+  /**
+   * A CSS background (an *image* — gradient or url, not a bare colour) to refract
+   * instead. A menu is portalled to the end of the body and floats over whatever
+   * happens to be under it, so there is usually no single element to hand `refract`.
+   * Note this path paints an opaque panel: the glass refracts the background you give
+   * it rather than the page, so nothing behind the menu shows through. Left unset, the
+   * menu frosts instead — see the note on the popup below.
+   */
+  backdrop?: string;
 }) {
   return (
     <BaseMenu.Portal>
       <BaseMenu.Positioner sideOffset={sideOffset} className="z-50 outline-none">
         <BaseMenu.Popup
+          // Thinner than the 55%-of-paper default. Frost on Chromium is a real
+          // refraction — the page behind the menu displaced through the same dome map
+          // the SVG path uses — but at 55% the wash sits on top of it and the menu
+          // reads as a plain white card with the optics invisible underneath. Elsewhere
+          // this is honestly just a blur: a portalled popup floats over arbitrary
+          // content, so there is no one element to refract and nothing to clone.
+          style={
+            {
+              '--glass-frost-bg': 'color-mix(in srgb, var(--glass-paper, #fff) 34%, transparent)',
+            } as React.CSSProperties
+          }
           className={cn(
             'relative min-w-44 origin-[var(--transform-origin)] overflow-hidden rounded-2xl p-1.5 shadow-2xl outline-none',
             'transition-[transform,opacity] duration-150 ease-out',
@@ -65,9 +86,12 @@ function GlassDropdownMenuContent({
           )}
           {...props}
         >
-          {/* frosted glass panel — refracts the page behind the menu on Chromium */}
+          {/* Glass panel. With a `refract` target or a `backdrop` it takes the SVG path
+              and bends real content in every browser; with neither it falls back to a
+              frosted blur, which only refracts on Chromium. */}
           <LiquidGlass
             refract={refract ?? undefined}
+            backdrop={backdrop}
             radius={16}
             strength={strength}
             chroma={chroma}

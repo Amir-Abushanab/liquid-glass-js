@@ -913,7 +913,7 @@ export const registry: RegistryItem[] = [
     category: 'Components',
     icon: Menu,
     description:
-      'A dropdown menu: Base UI Menu (anchored positioning, roving focus, typeahead) with a frosted glass popup.',
+      'A dropdown menu: Base UI Menu (anchored positioning, roving focus, typeahead) with a refracting glass popup.',
     tune: DROPDOWN_TUNE,
     code: DROPDOWN_TUNE.code(tuneDefaults(DROPDOWN_TUNE)),
     Demo: ({ values: v = tuneDefaults(DROPDOWN_TUNE) }) => (

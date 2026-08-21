@@ -7,7 +7,12 @@ import { cn } from '@/lib/utils';
 import '@liquidglassjs/core/css';
 
 const RAIL = 28; // rail + lens height (px)
-const THUMB = 24; // thumb diameter (px)
+// The knob is a pill, not a bead: same height as the rail and the same corner radius
+// as the rail's own end caps, so the two shapes agree instead of a circle sitting in a
+// slot. RAIL / 2 is the radius the rail's `rounded-full` resolves to at this height.
+const THUMB_W = 40;
+const THUMB_H = RAIL;
+const KNOB_R = RAIL / 2;
 
 const firstNumber = (v: unknown): number | undefined =>
   Array.isArray(v) ? (v[0] as number) : (v as number | undefined);
@@ -57,9 +62,9 @@ function GlassSlider({
     const lens = mountGlassLens({
       target: rail,
       host,
-      lensW: RAIL,
-      lensH: RAIL,
-      radius: RAIL / 2,
+      lensW: THUMB_W,
+      lensH: THUMB_H,
+      radius: KNOB_R,
       strength,
       chroma,
       dome,
@@ -75,7 +80,7 @@ function GlassSlider({
       const rr = rail.getBoundingClientRect();
       const th = thumb.getBoundingClientRect();
       const cx = th.left - rr.left + th.width / 2;
-      lens.setPos(cx - RAIL / 2, (rr.height - RAIL) / 2);
+      lens.setPos(cx - THUMB_W / 2, (rr.height - THUMB_H) / 2);
       if (fill) fill.style.width = `${Math.max(0, Math.min(100, (cx / rr.width) * 100))}%`;
     };
     const sync = () => {
@@ -125,14 +130,18 @@ function GlassSlider({
         <BaseSlider.Track className="relative z-10 w-full" style={{ height: RAIL }}>
           <BaseSlider.Thumb
             ref={thumbRef}
-            style={{ width: THUMB, height: THUMB }}
+            style={{ width: THUMB_W, height: THUMB_H, borderRadius: KNOB_R }}
             className={cn(
-              'rounded-full bg-white outline-none',
+              'bg-white outline-none',
               'shadow-[inset_0_1px_1px_rgb(255_255_255/70%),inset_0_0_0_1px_rgb(255_255_255/25%),inset_0_-2px_5px_rgb(0_0_0/22%),0_4px_10px_-4px_rgb(0_0_0/45%)]',
-              'transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.34,1.4,0.5,1)]',
+              'transition-[box-shadow,background-color] duration-300 ease-[cubic-bezier(0.34,1.4,0.5,1)]',
               'focus-visible:ring-2 focus-visible:ring-white/60',
-              // while dragging: pop (springy) + go clear so the refracting rail shows through the glass
-              'data-[dragging]:[transform:scale(1.16)] data-[dragging]:[background-color:transparent]',
+              // While dragging: go clear so the refracting rail shows through the glass. No
+              // scale pop — the knob already fills the rail's height, so growing it would
+              // spill over the track, and a size that changes every frame would rebuild the
+              // lens map on every one of them.
+              'data-[dragging]:[background-color:transparent]',
+              'data-[dragging]:shadow-[inset_0_1px_1px_rgb(255_255_255/70%),inset_0_0_0_1px_rgb(255_255_255/35%),0_6px_14px_-4px_rgb(0_0_0/55%)]',
             )}
           />
         </BaseSlider.Track>
