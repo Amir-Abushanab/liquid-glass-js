@@ -2189,6 +2189,83 @@ a {
   }
 }
 
+/* ── "Copy for your agent" ────────────────────────────────────────────────────
+   The four coding-agent marks splay outward on hover — the same affordance wave3d
+   and favicon-env use, so it reads the same across the projects. What differs is the
+   surface: mountGlassButton turns this into a real refracting pane rather than a flat
+   fill, which is the whole point of the site it sits on. The glyphs and label live in
+   .gm-btn__label, above the pane, so they stay crisp while the scene bends behind. */
+.agent-copy {
+  appearance: none;
+  cursor: pointer;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--ink, #fff);
+  font: 600 0.85rem/1 var(--font-sans, system-ui);
+  letter-spacing: -0.01em;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 34%),
+    inset 0 0 0 1px rgb(255 255 255 / 14%),
+    0 10px 22px -12px rgb(0 0 0 / 55%);
+  transition: box-shadow 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.agent-copy:hover {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 48%),
+    inset 0 0 0 1px rgb(255 255 255 / 26%),
+    0 12px 26px -12px rgb(0 0 0 / 60%);
+}
+.agent-copy:focus-visible {
+  outline: 2px solid var(--ink, #fff);
+  outline-offset: 3px;
+}
+.agent-copy.is-copied .agent-label {
+  color: #8ef0c8;
+}
+.agent-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.92;
+}
+.agent-icons svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  transform-origin: center;
+  transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.agent-icons svg:nth-child(1) {
+  transform: rotate(-6deg);
+}
+.agent-icons svg:nth-child(4) {
+  transform: rotate(6deg);
+}
+.agent-copy:hover .agent-icons svg:nth-child(1) {
+  transform: rotate(-12deg) translateX(-3px);
+}
+.agent-copy:hover .agent-icons svg:nth-child(2) {
+  transform: rotate(6deg) translate(-1px, -1px) scale(1.1);
+}
+.agent-copy:hover .agent-icons svg:nth-child(3) {
+  transform: rotate(-6deg) translate(1px, 2px) scale(1.1);
+}
+.agent-copy:hover .agent-icons svg:nth-child(4) {
+  transform: rotate(12deg) translateX(3px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-copy,
+  .agent-icons svg {
+    transition: none;
+  }
+}
+
 /* ── Emoji burst (particle canvas + a fixed glass bar that refracts it) ── */
 .emoji-stage {
   position: relative;
