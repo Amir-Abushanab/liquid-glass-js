@@ -160,4 +160,10 @@ measurements behind each.
 [MIT](./LICENSE) © Amir Abushanab. The filter-on-content technique was
 popularized by Aave's
 [_Building Glass for the Web_](https://aave.com/design/building-glass-for-the-web)
-— worth a read.
+— worth a read. The `'circle'` rim profile follows
+[Kyant0's AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass)
+(screenshot-verified against iOS 26), the `press` boost borrows
+[ZeroxyDev's](https://github.com/ZeroxyDev/liquid-glass-js) spring-driven
+refraction, and the reduced-transparency/contrast/motion tiers follow Apple's
+own Liquid Glass semantics — the [full README](https://github.com/amir-abushanab/liquid-glass-js#credits)
+has the complete credits.

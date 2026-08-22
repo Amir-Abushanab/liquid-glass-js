@@ -149,6 +149,14 @@ depth) and `glint` (a CSS colour to tint the specular highlight). They default
 to off and white respectively, so existing surfaces stay pixel-identical until
 you opt in.
 
+The rounded-rect surfaces (mount, lens, loupe, button, dropdown) also take
+`profile: 'erf' | 'circle'` — the rim's falloff curve. `'erf'` (default) is the
+soft meniscus this library has always rendered; `'circle'` peaks exactly at the
+rim for the crisp iOS-style compression ring. Same defaults-off rule: `'erf'`
+is byte-identical to before. The React `<GlassLens>` additionally takes
+`press` (a displacement multiplier that springs in while the pointer is held,
+default 1 = off).
+
 ## The loupe
 
 `mountGlassLoupe` recreates the iOS text magnifier: press and hold on a
@@ -395,6 +403,29 @@ which covers the optics in depth. A few constants here (the
 `erf ≈ tanh(√π·x)` approximation, the spherical-cap dome profile, the R/G/B
 displacement-map layout, the fresh-filter-id Safari workaround) trace back to
 that write-up.
+
+Some later refinements were borrowed from the wider liquid-glass field, with
+thanks:
+
+- **`profile: 'circle'`** — the quarter-circle bevel whose displacement peaks
+  exactly at the rim (the crisp iOS compression ring) is the curve
+  [Kyant0's AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass)
+  screenshot-verified against iOS 26;
+  [kube.io's ray-traced maps](https://kube.io/blog/liquid-glass-css-svg/) reach
+  the same rim-max shape from Snell's law.
+- **The `press` boost** — a spring driving the `feDisplacementMap` scale while
+  the pointer holds the glass — is
+  [ZeroxyDev's](https://github.com/ZeroxyDev/liquid-glass-js) `refractionBoost`
+  idea. The spring's timestep clamp is a lesson from
+  [clayharmon's webgl-liquid-glass](https://github.com/clayharmon/webgl-liquid-glass):
+  integrate one dropped-to-15fps frame whole and a stiff spring overshoots
+  further than it started, compounding to NaN.
+- **The legibility tiers** follow Apple's own semantics from
+  [WWDC25's _Meet Liquid Glass_](https://developer.apple.com/videos/play/wwdc2025/219/)
+  — reduced transparency goes frostier, increased contrast goes mostly solid
+  with a contrasting border, reduced motion "disables any elastic properties" —
+  keyed off `prefers-contrast` as well because Safari has never shipped
+  `prefers-reduced-transparency`.
 
 ## License
 
