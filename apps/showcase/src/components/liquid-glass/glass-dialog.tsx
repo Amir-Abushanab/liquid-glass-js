@@ -11,20 +11,28 @@ import '@liquidglassjs/core/css';
  * theme token — 18px under the default shadcn `--radius`, something else in the next
  * app — so a hardcoded number on the glass silently stops matching and you get two
  * rounded rectangles a couple of px apart at every corner. Read the real one instead.
+ *
+ * Returns null until the popup has actually been measured, and the caller holds the
+ * glass off until then. Rendering it on a guessed radius costs a whole extra glass
+ * mount per open: the guess builds a displacement map, the measurement lands one
+ * commit later, and <LiquidGlass> has no live reconfigure, so the corrected radius
+ * throws that map away and builds another. The wait is invisible — the measurement
+ * resolves in a layout effect (pre-paint), while the glass only ever mounts in a
+ * passive effect (post-paint).
  */
 function usePanelRadius(el: HTMLElement | null, fallback = 16) {
-  const [radius, setRadius] = React.useState(fallback);
+  const [radius, setRadius] = React.useState<number | null>(null);
   React.useLayoutEffect(() => {
     if (!el) return;
     const read = () => {
-      const r = parseFloat(getComputedStyle(el).borderTopLeftRadius);
-      if (r) setRadius((prev) => (prev === r ? prev : r));
+      const r = parseFloat(getComputedStyle(el).borderTopLeftRadius) || fallback;
+      setRadius((prev) => (prev === r ? prev : r));
     };
     read();
     const ro = new ResizeObserver(read);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [el]);
+  }, [el, fallback]);
   return radius;
 }
 
@@ -119,18 +127,22 @@ function GlassDialogContent({
         >
           {/* frosted-glass panel — blurs the page behind the modal; sits BEHIND the
               content so titles/buttons stay crisp (not refracted). The radius is read
-              off the popup, not assumed, so the rim traces the panel's own corner. */}
-          <LiquidGlass
-            refract={refract ?? undefined}
-            radius={radius}
-            strength={strength}
-            chroma={chroma}
-            dome={dome}
-            depth={depth}
-            edge={edge}
-            glow={glow}
-            className="pointer-events-none absolute inset-0"
-          />
+              off the popup, not assumed, so the rim traces the panel's own corner —
+              and the glass waits for that read (see usePanelRadius) so it mounts once,
+              on the real corner, instead of once on a guess and again on the truth. */}
+          {radius !== null && (
+            <LiquidGlass
+              refract={refract ?? undefined}
+              radius={radius}
+              strength={strength}
+              chroma={chroma}
+              dome={dome}
+              depth={depth}
+              edge={edge}
+              glow={glow}
+              className="pointer-events-none absolute inset-0"
+            />
+          )}
           {/* crisp, interactive content on top */}
           <div className="relative z-10 p-6">
             {children}
