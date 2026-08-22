@@ -21,6 +21,7 @@ import { NEUTRAL } from './map-encode';
 import { SPLASH_COLORS, hexToRgb } from './color';
 import { applyGlassFilter, clearGlassFilter, refreshGlassFilter } from './filter-origin';
 import { preBlurStd } from './blur-quantize';
+import { prefersReducedMotion } from './dynamics';
 
 // Live-tunable ripple params (the Glass Tuner mutates these via reconfigure()).
 export interface SvgRippleParams {
@@ -137,6 +138,10 @@ export function mountSvgRipple(o: SvgRippleOptions) {
   return {
     // nx, ny normalised 0..1 within the target
     press(nx: number, ny: number) {
+      // The bloom is pure ornament — no state change rides on it — so reduced
+      // motion drops it whole rather than snapping to its end (an empty frame
+      // anyway: the ripple ends faded out).
+      if (prefersReducedMotion()) return;
       const r = o.target.getBoundingClientRect();
       bw = r.width;
       bh = r.height;

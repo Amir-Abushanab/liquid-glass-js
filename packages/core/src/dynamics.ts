@@ -4,6 +4,18 @@
 // (The old `attachGlassDynamics` press/velocity-squish springs were removed
 // during package extraction — they were unused. History lives in git.)
 
+/**
+ * Live read of `prefers-reduced-motion: reduce` — per call, so an OS toggle
+ * takes effect without a reload. Apple's glass semantics for the setting:
+ * reduced motion "disables any elastic properties"; state still changes, it
+ * just stops bouncing there.
+ */
+export function prefersReducedMotion(): boolean {
+  return (
+    typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+}
+
 /** A running scalar spring. All methods are safe after stop(). */
 export interface SpringHandle {
   /** Retarget; wakes the loop if it had settled. */
@@ -64,20 +76,26 @@ export function createSpring(
     last = performance.now();
     raf = requestAnimationFrame(frame);
   };
+  const snap = (v: number) => {
+    target = v;
+    value = v;
+    vel = 0;
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
+    onUpdate(v);
+  };
   return {
     set(t) {
       if (t === target) return;
+      // Reduced motion de-elasticizes: the state change lands, the bounce doesn't.
+      if (prefersReducedMotion()) {
+        snap(t);
+        return;
+      }
       target = t;
       wake();
     },
-    snap(v) {
-      target = v;
-      value = v;
-      vel = 0;
-      if (raf) cancelAnimationFrame(raf);
-      raf = 0;
-      onUpdate(v);
-    },
+    snap,
     get: () => value,
     stop() {
       if (raf) cancelAnimationFrame(raf);

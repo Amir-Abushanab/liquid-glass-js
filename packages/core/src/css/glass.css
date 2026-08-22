@@ -214,3 +214,30 @@
     scale: 1;
   }
 }
+
+/* ── Legibility tiers. Glass text sits on a variable backdrop, which is exactly
+   what WCAG contrast can't guarantee — so the OS toggles get real answers, not
+   a hidden effect. Two queries because support is disjoint: Safari has never
+   shipped `prefers-reduced-transparency` (its own setting!) and Apple's
+   guidance is to key off `prefers-contrast` there; Chromium ships both. ── */
+
+/* Frostier: keep the glass look, obscure more of what's behind it. */
+@media (prefers-reduced-transparency: reduce) {
+  .ps-glass__tint {
+    background: color-mix(in srgb, var(--glass-paper, #fff) 80%, transparent);
+  }
+}
+
+/* Predominantly solid + a declared edge (Apple: "predominantly black or white,
+   highlighted with a contrasting border"). Later in the file than the base
+   rules, so equal specificity resolves this way at equal media weight. */
+@media (prefers-contrast: more) {
+  .ps-glass__tint {
+    background: color-mix(in srgb, var(--glass-paper, #fff) 92%, transparent);
+  }
+  .ps-glass__rim {
+    box-shadow:
+      inset 0 0 0 1.5px color-mix(in srgb, var(--glass-ink, #000) 70%, transparent),
+      0 14px 38px -14px rgb(0 0 0 / 30%);
+  }
+}

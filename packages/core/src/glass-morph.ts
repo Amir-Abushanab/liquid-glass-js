@@ -17,6 +17,7 @@
 // and `setBox()` stretches the region during a morph.
 
 import { buildDisplacementMap, type MapProfile } from './displacement';
+import { prefersReducedMotion } from './dynamics';
 import { NEUTRAL } from './map-encode';
 import {
   applyGlassFilter,
@@ -294,9 +295,6 @@ function easeInOut(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-const prefersReduced = () =>
-  typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Glass button — reshapes when its content changes
 // ─────────────────────────────────────────────────────────────────────────────
@@ -434,7 +432,7 @@ export function mountGlassButton(el: HTMLElement, opts: GlassButtonOptions = {})
     outgoing.classList.add('is-gone'); // old lifts out + fades first (no rAF: works on hidden tabs)
     setTimeout(() => outgoing.remove(), 400);
 
-    if (prefersReduced()) {
+    if (prefersReducedMotion()) {
       el.style.width = `${toW}px`;
       surface.regenerate(toW, height, radius());
       return Promise.resolve();
@@ -626,7 +624,7 @@ export function mountGlassDropdown(o: GlassDropdownOptions): GlassDropdown {
       paint(opening ? 1 : 0, 1); // pin the exact end state
       after?.();
     };
-    if (prefersReduced()) {
+    if (prefersReducedMotion()) {
       setReveal(1);
       finish();
       return;
