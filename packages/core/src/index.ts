@@ -20,6 +20,10 @@ export { buildDisplacementMap, renderDisplacementMap, computeDomeConstants } fro
 export { preBlurStd } from './blur-quantize';
 export type { GlassMapOptions, MapProfile } from './displacement';
 
+// Scalar spring for driving the cheap per-frame knobs (setDisplScale, drag chases)
+export { createSpring } from './dynamics';
+export type { SpringHandle } from './dynamics';
+
 // Moving SVG lens over live DOM
 export { mountGlassLens } from './glass-lens';
 export type { GlassLensOptions, GlassLensParams, GlassLens } from './glass-lens';

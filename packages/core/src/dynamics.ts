@@ -4,6 +4,88 @@
 // (The old `attachGlassDynamics` press/velocity-squish springs were removed
 // during package extraction — they were unused. History lives in git.)
 
+/** A running scalar spring. All methods are safe after stop(). */
+export interface SpringHandle {
+  /** Retarget; wakes the loop if it had settled. */
+  set(target: number): void;
+  /** Jump straight to a value with no animation — the reduced-motion path. */
+  snap(value: number): void;
+  /** Current animated value. */
+  get(): number;
+  /** Cancel the loop (dispose). */
+  stop(): void;
+}
+
+/**
+ * A scalar spring for driving cheap per-frame filter attributes (the lens's
+ * press boost, a drag chase) — semi-implicit Euler with the timestep clamped to
+ * 20 ms substeps. The clamp is load-bearing: spring force grows with distance,
+ * so integrating one dropped-to-15fps frame in a single step overshoots
+ * further than it started and the error compounds frame over frame; a bad
+ * frame integrated as several small ones stays stable. The rAF loop sleeps
+ * whenever the spring settles, so an idle spring costs nothing.
+ */
+export function createSpring(
+  initial: number,
+  onUpdate: (value: number) => void,
+  opts: { stiffness?: number; damping?: number } = {},
+): SpringHandle {
+  const k = opts.stiffness ?? 400;
+  const c = opts.damping ?? 26;
+  const MAX_STEP = 0.02;
+  let value = initial;
+  let target = initial;
+  let vel = 0;
+  let raf = 0;
+  let last = 0;
+  const settled = () => Math.abs(value - target) < 0.001 && Math.abs(vel) < 0.001;
+  const frame = (now: number) => {
+    raf = 0;
+    let dt = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    while (dt > 0) {
+      const h = Math.min(dt, MAX_STEP);
+      dt -= h;
+      vel += (target - value) * k * h;
+      vel *= Math.exp(-c * h);
+      value += vel * h;
+    }
+    if (settled()) {
+      value = target;
+      vel = 0;
+      onUpdate(value);
+      return;
+    }
+    onUpdate(value);
+    raf = requestAnimationFrame(frame);
+  };
+  const wake = () => {
+    if (raf) return;
+    last = performance.now();
+    raf = requestAnimationFrame(frame);
+  };
+  return {
+    set(t) {
+      if (t === target) return;
+      target = t;
+      wake();
+    },
+    snap(v) {
+      target = v;
+      value = v;
+      vel = 0;
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+      onUpdate(v);
+    },
+    get: () => value,
+    stop() {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+    },
+  };
+}
+
 export function cubicBezier(x1: number, y1: number, x2: number, y2: number) {
   const A = (a: number, b: number) => 1 - 3 * b + 3 * a;
   const B = (a: number, b: number) => 3 * b - 6 * a;

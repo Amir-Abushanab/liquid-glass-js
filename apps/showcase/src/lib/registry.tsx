@@ -267,7 +267,12 @@ export function Example() {
 };
 
 const LENS_TUNE: TuneConfig = {
-  params: presetControls('lens', LENS_KEYS),
+  // `press` is the react binding's held-pointer boost, not a core lens param, so it
+  // lives here rather than in glass-presets (the vanilla showcase has no gesture).
+  params: [
+    ...presetControls('lens', LENS_KEYS),
+    { key: 'press', label: 'press', min: 1, max: 1.6, step: 0.05, default: 1.25 },
+  ],
   controls: [profileControl],
   code: (v, o) => `import { GlassLens } from "@liquidglassjs/react"
 
@@ -285,6 +290,7 @@ export function Example() {
       edge={${v.edge}}
       glow={${v.glow}}
       shade={${v.shade}}
+      press={${v.press}}
       glint="#ffd9a0"
       className="h-[280px] w-full max-w-[560px] overflow-hidden rounded-xl"
     >
@@ -1049,6 +1055,7 @@ export const registry: RegistryItem[] = [
         edge={v.edge}
         glow={v.glow}
         shade={v.shade}
+        press={v.press}
         glint="#ffd9a0"
         className="w-full max-w-[560px] overflow-hidden rounded-xl ring-1 ring-white/10"
       >

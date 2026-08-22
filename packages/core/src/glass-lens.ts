@@ -58,6 +58,12 @@ export interface GlassLensParams {
 export interface GlassLens {
   setPos(x: number, y: number): void;
   setSize(w: number, h: number): void;
+  /**
+   * Cheap per-frame multiplier on the displacement scales (1 = as configured).
+   * Touches only filter attributes, never the map, so it's safe to drive from a
+   * spring — the press "energize" boost, a materialize ramp.
+   */
+  setDisplScale(frac: number): void;
   reconfigure(patch: Partial<GlassLensParams>): void;
   getOptions(): GlassLensParams;
   setActive(on: boolean): void; // toggle the refraction filter on/off (glass-while-interacting)
@@ -91,6 +97,7 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
   let ly = 0;
   let n = 0;
   let active = o.active ?? true;
+  let displ = 1; // setDisplScale's live multiplier — attribute-only, never in the map
   let curId = '';
   let holder: HTMLElement | null = null;
   let feImage: SVGFEImageElement | null = null;
@@ -101,9 +108,9 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
 
   const rebuild = () => {
     const id = `${base}-${++n}`; // fresh id on every map change (Safari cache bust)
-    const s1 = cur.strength * (1 + 0.2 * cur.chroma);
-    const s2 = cur.strength * (1 + 0.1 * cur.chroma);
-    const s3 = cur.strength;
+    const s1 = cur.strength * displ * (1 + 0.2 * cur.chroma);
+    const s2 = cur.strength * displ * (1 + 0.1 * cur.chroma);
+    const s3 = cur.strength * displ;
     // Supersample: render the dome field at s× device resolution and let the
     // <feImage> (kept at CSS px below) scale it down, so the rim doesn't alias on
     // retina (item 4). The field is scale-invariant, so every length scales by s.
@@ -165,7 +172,7 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
   const MAP_KEYS = ['radius', 'depth', 'profile', 'dome', 'edge', 'glow', 'shade'] as const;
 
   const applyAttrs = () => {
-    const s = cur.strength;
+    const s = cur.strength * displ;
     dispNodes[0]?.setAttribute('scale', String(s * (1 + 0.2 * cur.chroma)));
     dispNodes[1]?.setAttribute('scale', String(s * (1 + 0.1 * cur.chroma)));
     dispNodes[2]?.setAttribute('scale', String(s));
@@ -210,6 +217,11 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
       lensW = w;
       lensH = h;
       rebuild();
+    },
+    setDisplScale(frac) {
+      if (frac === displ) return;
+      displ = frac;
+      applyAttrs();
     },
     reconfigure(patch) {
       Object.assign(cur, patch);
