@@ -10,11 +10,24 @@
 
 import { encodeOffset, encodeSpec, NEUTRAL_BYTE } from './map-encode';
 
+/**
+ * Edge-falloff curve for the refraction band.
+ *   'erf'    — Aave's soft meniscus (default; byte-identical to the original
+ *              generator): ~0.84 at the rim, still 0.5 where the depth band
+ *              ends, decaying ~2·depth further into the interior.
+ *   'circle' — quarter-circle bevel (the profile Kyant0 screenshot-verified
+ *              against iOS 26): magnitude is exactly 1 at the rim with a
+ *              vertical tangent — the crisp compression ring — and lands at
+ *              zero, C¹, at the band's inner edge. Nothing leaks inward.
+ */
+export type MapProfile = 'erf' | 'circle';
+
 export interface GlassMapOptions {
   width: number;
   height: number;
   radius: number;
   depth: number;
+  profile?: MapProfile; // edge-falloff curve (default 'erf')
   dome?: number; // px sagitta (bulge height)
   edge?: number; // edge-line specular strength
   glow?: number; // axial glow specular strength
@@ -57,6 +70,7 @@ function domeGradient(pos: number, R: number, scale: number): number {
 
 export function renderDisplacementMap(o: GlassMapOptions): HTMLCanvasElement {
   const { radius, depth } = o;
+  const profile = o.profile ?? 'erf';
   const dome = o.dome ?? 0;
   const edge = o.edge ?? 0;
   const glow = o.glow ?? 0;
@@ -173,13 +187,20 @@ export function renderDisplacementMap(o: GlassMapOptions): HTMLCanvasElement {
           umag = domeGradient(gx, F.Rx, F.scaleX);
           mmag = domeGradient(gy, F.Ry, F.scaleY);
         }
-        const ex = gx - iw + v;
-        const ey = gy - ih + v;
-        const d2 =
-          Math.sqrt(Math.max(ex, 0) ** 2 + Math.max(ey, 0) ** 2) +
-          Math.min(Math.max(ex, ey), 0) -
-          v;
-        i = 0.5 * (1 + erf(d2 * E));
+        if (profile === 'circle') {
+          // Band position on the OUTER SDF (dist < 0 inside): t = 1 at the rim,
+          // 0 at depth px in. i = 1 − √(1 − t²) — the quarter-circle bevel.
+          const t = depth > 0 ? Math.max(0, 1 + dist / depth) : 0;
+          i = 1 - Math.sqrt(1 - t * t);
+        } else {
+          const ex = gx - iw + v;
+          const ey = gy - ih + v;
+          const d2 =
+            Math.sqrt(Math.max(ex, 0) ** 2 + Math.max(ey, 0) ** 2) +
+            Math.min(Math.max(ex, ey), 0) -
+            v;
+          i = 0.5 * (1 + erf(d2 * E));
+        }
       }
       writePixel(row, col, inside, dist, i, umag, mmag);
       if (mcol !== col) writePixel(row, mcol, inside, dist, i, umag, mmag);

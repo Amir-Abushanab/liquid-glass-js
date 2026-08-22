@@ -14,7 +14,7 @@
 // assumed: `--glass-paper`, `--glass-ink` (in css/glass.css), `--glass-frost-bg`
 // (here), and the caller's `backdrop`. See css/glass.css + README.
 
-import { buildDisplacementMap } from './displacement';
+import { buildDisplacementMap, type MapProfile } from './displacement';
 import { specMaskValues } from './map-encode';
 import type { GlassGL as GlassGLType } from './webgl';
 import { applyGlassFilter, clearGlassFilter } from './filter-origin';
@@ -48,6 +48,7 @@ const SPEC_HI = 0.7;
 export interface GlassOptions {
   radius?: number;
   depth?: number;
+  profile?: MapProfile;
   dome?: number;
   strength?: number;
   edge?: number;
@@ -71,6 +72,7 @@ export interface GlassInstance {
 export const GLASS_DEFAULTS = {
   radius: 22,
   depth: 20,
+  profile: 'erf' as MapProfile,
   dome: 14,
   strength: 16,
   edge: 0.8,
@@ -86,6 +88,7 @@ export const GLASS_DEFAULTS = {
 interface P {
   radius: number;
   depth: number;
+  profile: MapProfile;
   dome: number;
   strength: number;
   edge: number;
@@ -107,6 +110,7 @@ export function readGlassOptions(el: HTMLElement): GlassOptions {
   return {
     radius: num(el, 'radius', GLASS_DEFAULTS.radius),
     depth: num(el, 'depth', GLASS_DEFAULTS.depth),
+    profile: el.dataset.profile === 'circle' ? 'circle' : GLASS_DEFAULTS.profile,
     dome: num(el, 'dome', GLASS_DEFAULTS.dome),
     strength: num(el, 'strength', GLASS_DEFAULTS.strength),
     edge: num(el, 'edge', GLASS_DEFAULTS.edge),
@@ -183,6 +187,7 @@ function mountSvg(el: HTMLElement, surface: HTMLElement, p: P): () => void {
       height,
       radius,
       depth: p.depth,
+      profile: p.profile,
       dome: p.dome,
       edge: p.edge,
       glow: p.glow,
@@ -232,6 +237,7 @@ function mountWebgl(
       glass = new GlassGL(canvas, {
         radius: p.radius,
         depth: p.depth,
+        profile: p.profile,
         dome: p.dome,
         strength: p.strength,
         chroma: p.chroma,
@@ -382,6 +388,7 @@ function mountFrost(el: HTMLElement, surface: HTMLElement, p: P): () => void {
       height,
       radius,
       depth: p.depth,
+      profile: p.profile,
       dome: p.dome,
       edge: p.edge,
       glow: p.glow,
@@ -449,6 +456,7 @@ function mountDomRefract(el: HTMLElement, refract: HTMLElement, p: P): () => voi
       height,
       radius,
       depth: p.depth,
+      profile: p.profile,
       dome: p.dome,
       edge: p.edge,
       glow: p.glow,
@@ -560,6 +568,7 @@ export function mountGlass(root: HTMLElement, opts: GlassOptions = {}): GlassIns
   const p: P = {
     radius: o.radius,
     depth: o.depth,
+    profile: o.profile,
     dome: o.dome,
     strength: o.strength,
     edge: o.edge,

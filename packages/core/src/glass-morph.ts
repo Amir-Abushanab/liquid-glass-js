@@ -16,7 +16,7 @@
 // We drive the same two ideas: `setDisplScale(0..1)` fades the refraction in,
 // and `setBox()` stretches the region during a morph.
 
-import { buildDisplacementMap } from './displacement';
+import { buildDisplacementMap, type MapProfile } from './displacement';
 import { NEUTRAL } from './map-encode';
 import {
   applyGlassFilter,
@@ -28,7 +28,8 @@ import { preBlurStd } from './blur-quantize';
 
 // The live-tunable refraction params (everything except the box geometry).
 export interface GlassSurfaceParams {
-  depth: number; // SDF inset before the erf edge falloff, px
+  depth: number; // SDF inset before the edge falloff, px
+  profile: MapProfile; // edge-falloff curve ('erf' meniscus | 'circle' rim ring)
   dome: number; // interior meniscus swell, px sagitta
   edge: number; // rim glint strength
   glow: number; // soft axial sheen strength
@@ -40,6 +41,7 @@ export interface GlassSurfaceParams {
 
 export const GLASS_SURFACE_DEFAULTS: GlassSurfaceParams = {
   depth: 10,
+  profile: 'erf',
   dome: 12,
   edge: 0.9,
   glow: 0.3,
@@ -121,6 +123,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
   const base = 'gm-' + Math.random().toString(36).slice(2, 8);
   const cur: GlassSurfaceParams = {
     depth: o.depth ?? GLASS_SURFACE_DEFAULTS.depth,
+    profile: o.profile ?? GLASS_SURFACE_DEFAULTS.profile,
     dome: o.dome ?? GLASS_SURFACE_DEFAULTS.dome,
     edge: o.edge ?? GLASS_SURFACE_DEFAULTS.edge,
     glow: o.glow ?? GLASS_SURFACE_DEFAULTS.glow,
@@ -178,6 +181,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
       height: mapH,
       radius,
       depth: cur.depth,
+      profile: cur.profile,
       dome: cur.dome,
       edge: cur.edge,
       glow: cur.glow,
@@ -545,6 +549,7 @@ export function mountGlassDropdown(o: GlassDropdownOptions): GlassDropdown {
   // the resolved params here too — the Tuner reads/writes them before first open.
   const curParams: GlassSurfaceParams = {
     depth: o.depth ?? GLASS_SURFACE_DEFAULTS.depth,
+    profile: o.profile ?? GLASS_SURFACE_DEFAULTS.profile,
     dome: o.dome ?? GLASS_SURFACE_DEFAULTS.dome,
     edge: o.edge ?? GLASS_SURFACE_DEFAULTS.edge,
     glow: o.glow ?? GLASS_SURFACE_DEFAULTS.glow,

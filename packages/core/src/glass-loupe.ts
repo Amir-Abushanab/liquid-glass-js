@@ -145,6 +145,7 @@ export const GLASS_LOUPE_DEFAULTS: GlassLoupeParams = {
   // the one param that has to stay near zero — magnified glyphs are the whole point.
   radius: 22,
   depth: 5,
+  profile: 'erf',
   dome: 7,
   edge: 0.9,
   glow: 0.4,
@@ -356,6 +357,7 @@ export function mountGlassLoupe(o: GlassLoupeOptions): GlassLoupe {
         glint: o.glint,
         radius: cur.radius,
         depth: cur.depth,
+        profile: cur.profile,
         dome: cur.dome,
         edge: cur.edge,
         glow: cur.glow,
@@ -369,6 +371,7 @@ export function mountGlassLoupe(o: GlassLoupeOptions): GlassLoupe {
       lens.reconfigure({
         radius: cur.radius,
         depth: cur.depth,
+        profile: cur.profile,
         dome: cur.dome,
         edge: cur.edge,
         glow: cur.glow,

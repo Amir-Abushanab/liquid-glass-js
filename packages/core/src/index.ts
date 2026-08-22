@@ -18,7 +18,7 @@ export { buildDisplacementMap, renderDisplacementMap, computeDomeConstants } fro
 // chain has to normalise the pre-blur or their sub-pixel `blur` renders three different
 // pictures in three engines. See filter-origin.ts for the measurements.
 export { preBlurStd } from './blur-quantize';
-export type { GlassMapOptions } from './displacement';
+export type { GlassMapOptions, MapProfile } from './displacement';
 
 // Moving SVG lens over live DOM
 export { mountGlassLens } from './glass-lens';

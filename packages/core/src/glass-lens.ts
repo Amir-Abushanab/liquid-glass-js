@@ -16,7 +16,7 @@
 // filter-origin.ts. applyGlassFilter pins it; without that the lens refracts
 // wherever the target happens to sit in the document instead of under the pointer.
 
-import { buildDisplacementMap } from './displacement';
+import { buildDisplacementMap, type MapProfile } from './displacement';
 import { specMaskValues, darkMaskValues } from './map-encode';
 import { parseCssColor } from './color';
 import { applyGlassFilter, clearGlassFilter, refreshGlassFilter } from './filter-origin';
@@ -29,6 +29,7 @@ export interface GlassLensOptions {
   lensH: number;
   radius?: number;
   depth?: number;
+  profile?: MapProfile;
   dome?: number;
   edge?: number;
   glow?: number;
@@ -44,6 +45,7 @@ export interface GlassLensOptions {
 export interface GlassLensParams {
   radius: number;
   depth: number;
+  profile: MapProfile;
   dome: number;
   edge: number;
   glow: number;
@@ -68,6 +70,7 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
   const cur: GlassLensParams = {
     radius: o.radius ?? Math.min(o.lensW, o.lensH) / 2,
     depth: o.depth ?? 6,
+    profile: o.profile ?? 'erf',
     dome: o.dome ?? 8,
     edge: o.edge ?? 0.8,
     glow: o.glow ?? 0.3,
@@ -110,6 +113,7 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
       height: lensH * s,
       radius: cur.radius * s,
       depth: cur.depth * s,
+      profile: cur.profile,
       dome: cur.dome * s,
       edge: cur.edge,
       glow: cur.glow,
