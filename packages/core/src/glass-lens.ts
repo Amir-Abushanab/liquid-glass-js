@@ -162,7 +162,7 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
   // re-encoding a PNG. Same split mountGlassText has had all along, which is why
   // animating `strength` there is smooth and doing it here used to rebuild the map
   // sixty times a second.
-  const MAP_KEYS = ['radius', 'depth', 'dome', 'edge', 'glow', 'shade'] as const;
+  const MAP_KEYS = ['radius', 'depth', 'profile', 'dome', 'edge', 'glow', 'shade'] as const;
 
   const applyAttrs = () => {
     const s = cur.strength;

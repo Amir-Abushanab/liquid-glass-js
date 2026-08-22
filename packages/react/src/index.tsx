@@ -46,6 +46,7 @@ export const LiquidGlass = forwardRef<HTMLDivElement, LiquidGlassProps>(
       style,
       radius,
       depth,
+      profile,
       dome,
       strength,
       edge,
@@ -68,6 +69,7 @@ export const LiquidGlass = forwardRef<HTMLDivElement, LiquidGlassProps>(
       const inst = mountGlass(el, {
         radius,
         depth,
+        profile,
         dome,
         strength,
         edge,
@@ -87,6 +89,7 @@ export const LiquidGlass = forwardRef<HTMLDivElement, LiquidGlassProps>(
     }, [
       radius,
       depth,
+      profile,
       dome,
       strength,
       edge,

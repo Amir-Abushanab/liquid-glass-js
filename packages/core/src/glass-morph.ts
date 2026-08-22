@@ -161,7 +161,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
 
   // The map is built from depth/dome/edge/glow and the box; strength, chroma, spec
   // and blur are filter attributes, so a change to those never needs a new PNG.
-  const MAP_KEYS = ['depth', 'dome', 'edge', 'glow'] as const;
+  const MAP_KEYS = ['depth', 'profile', 'dome', 'edge', 'glow'] as const;
 
   const applyScales = () => {
     const s = cur.strength * frac;

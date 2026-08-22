@@ -63,6 +63,25 @@ import { SCENE } from './scene';
 // The lens preview sizes its own lens, so `radius` isn't a knob here.
 const LENS_KEYS = ['strength', 'chroma', 'blur', 'dome', 'depth', 'edge', 'glow', 'shade'];
 
+// The rim-falloff curve of the displacement map — a structural control shared by
+// every rounded-rect glass (lens/loupe/surface/card/button). 'circle' is the
+// iOS-style ring: full displacement exactly at the rim; 'erf' the soft meniscus.
+const profileControl = {
+  kind: 'select',
+  key: 'profile',
+  label: 'Rim profile',
+  options: [
+    { label: 'Meniscus (erf)', value: 'erf' },
+    { label: 'Ring (circle)', value: 'circle' },
+  ],
+  default: 'erf',
+} satisfies TuneControl;
+const profileOf = (o?: TuneOptions): 'erf' | 'circle' =>
+  o?.profile === 'circle' ? 'circle' : 'erf';
+// Snippet fragment: the prop appears only when it differs from the default.
+const profileAttr = (o?: TuneOptions): string =>
+  o?.profile === 'circle' ? '\n      profile="circle"' : '';
+
 export type Category = 'Components' | 'Effects';
 
 /** One tunable glass parameter — drives a slider in the preview's Tuner. */
@@ -249,7 +268,8 @@ export function Example() {
 
 const LENS_TUNE: TuneConfig = {
   params: presetControls('lens', LENS_KEYS),
-  code: (v) => `import { GlassLens } from "@liquidglassjs/react"
+  controls: [profileControl],
+  code: (v, o) => `import { GlassLens } from "@liquidglassjs/react"
 
 export function Example() {
   return (
@@ -261,7 +281,7 @@ export function Example() {
       chroma={${v.chroma}}
       blur={${v.blur}}
       dome={${v.dome}}
-      depth={${v.depth}}
+      depth={${v.depth}}${profileAttr(o)}
       edge={${v.edge}}
       glow={${v.glow}}
       shade={${v.shade}}
@@ -283,7 +303,8 @@ export function Example() {
 // at pointerdown, so a change lands on the next gesture without a remount.
 const LOUPE_TUNE: TuneConfig = {
   params: presetControls('loupe'),
-  code: (v) => `import { GlassLoupe } from "@liquidglassjs/react"
+  controls: [profileControl],
+  code: (v, o) => `import { GlassLoupe } from "@liquidglassjs/react"
 
 export function Example() {
   return (
@@ -298,7 +319,7 @@ export function Example() {
       chroma={${v.chroma}}
       blur={${v.blur}}
       dome={${v.dome}}
-      depth={${v.depth}}
+      depth={${v.depth}}${profileAttr(o)}
       edge={${v.edge}}
       glow={${v.glow}}
       shade={${v.shade}}
@@ -340,7 +361,8 @@ export function Example() {
 // nothing to refract.
 const SURFACE_TUNE: TuneConfig = {
   params: presetControls('surface'),
-  code: (v) => `import { GlassSurface } from "@/components/liquid-glass/glass-surface"
+  controls: [profileControl],
+  code: (v, o) => `import { GlassSurface } from "@/components/liquid-glass/glass-surface"
 
 export function Example() {
   return (
@@ -349,7 +371,7 @@ export function Example() {
       chroma={${v.chroma}}
       blur={${v.blur}}
       dome={${v.dome}}
-      depth={${v.depth}}
+      depth={${v.depth}}${profileAttr(o)}
       edge={${v.edge}}
       glow={${v.glow}}
       spec={${v.spec}}
@@ -369,7 +391,8 @@ export function Example() {
 
 const CARD_TUNE: TuneConfig = {
   params: SURFACE_TUNE.params,
-  code: (v) => `import { GlassCard } from "@/components/liquid-glass/glass-card"
+  controls: [profileControl],
+  code: (v, o) => `import { GlassCard } from "@/components/liquid-glass/glass-card"
 
 export function Example() {
   return (
@@ -378,7 +401,7 @@ export function Example() {
       chroma={${v.chroma}}
       blur={${v.blur}}
       dome={${v.dome}}
-      depth={${v.depth}}
+      depth={${v.depth}}${profileAttr(o)}
       edge={${v.edge}}
       glow={${v.glow}}
       spec={${v.spec}}
@@ -399,7 +422,8 @@ export function Example() {
 const BUTTON_TUNE: TuneConfig = {
   // Surface knobs, then geometry + morph-animation (radius/duration/pulse re-mount).
   params: presetControls('button'),
-  code: (v) => `import { GlassButton } from "@liquidglassjs/react"
+  controls: [profileControl],
+  code: (v, o) => `import { GlassButton } from "@liquidglassjs/react"
 
 export function Example() {
   return (
@@ -408,7 +432,7 @@ export function Example() {
       chroma={${v.chroma}}
       blur={${v.blur}}
       dome={${v.dome}}
-      depth={${v.depth}}
+      depth={${v.depth}}${profileAttr(o)}
       edge={${v.edge}}
       glow={${v.glow}}
       spec={${v.spec}}
@@ -735,13 +759,17 @@ export const registry: RegistryItem[] = [
       'The base primitive: crisp content over a glass surface that frosts the scene behind it, and refracts it on Chromium.',
     tune: SURFACE_TUNE,
     code: SURFACE_TUNE.code(tuneDefaults(SURFACE_TUNE)),
-    Demo: ({ values: v = tuneDefaults(SURFACE_TUNE) }) => (
+    Demo: ({
+      values: v = tuneDefaults(SURFACE_TUNE),
+      options: o = controlDefaults(SURFACE_TUNE),
+    }) => (
       <GlassSurface
         strength={v.strength}
         chroma={v.chroma}
         blur={v.blur}
         dome={v.dome}
         depth={v.depth}
+        profile={profileOf(o)}
         edge={v.edge}
         glow={v.glow}
         spec={v.spec}
@@ -763,13 +791,14 @@ export const registry: RegistryItem[] = [
     description: 'A glass surface with a border, padding, and an elevation shadow.',
     tune: CARD_TUNE,
     code: CARD_TUNE.code(tuneDefaults(CARD_TUNE)),
-    Demo: ({ values: v = tuneDefaults(CARD_TUNE) }) => (
+    Demo: ({ values: v = tuneDefaults(CARD_TUNE), options: o = controlDefaults(CARD_TUNE) }) => (
       <GlassCard
         strength={v.strength}
         chroma={v.chroma}
         blur={v.blur}
         dome={v.dome}
         depth={v.depth}
+        profile={profileOf(o)}
         edge={v.edge}
         glow={v.glow}
         spec={v.spec}
@@ -1006,7 +1035,7 @@ export const registry: RegistryItem[] = [
       'A movable refraction lens over live content; the text, grid, and chips beneath it bend in place.',
     tune: LENS_TUNE,
     code: LENS_TUNE.code(tuneDefaults(LENS_TUNE)),
-    Demo: ({ values: v = tuneDefaults(LENS_TUNE) }) => (
+    Demo: ({ values: v = tuneDefaults(LENS_TUNE), options: o = controlDefaults(LENS_TUNE) }) => (
       <GlassLens
         width={150}
         height={150}
@@ -1016,6 +1045,7 @@ export const registry: RegistryItem[] = [
         blur={v.blur}
         dome={v.dome}
         depth={v.depth}
+        profile={profileOf(o)}
         edge={v.edge}
         glow={v.glow}
         shade={v.shade}
@@ -1057,7 +1087,7 @@ export const registry: RegistryItem[] = [
       'The iOS text magnifier: press and hold, and a glass capsule floats above the pointer showing the line beneath it, enlarged. Drag straight away and you get an ordinary selection instead.',
     tune: LOUPE_TUNE,
     code: LOUPE_TUNE.code(tuneDefaults(LOUPE_TUNE)),
-    Demo: ({ values: v = tuneDefaults(LOUPE_TUNE) }) => (
+    Demo: ({ values: v = tuneDefaults(LOUPE_TUNE), options: o = controlDefaults(LOUPE_TUNE) }) => (
       <GlassLoupe
         zoom={v.zoom}
         longPressMs={v.longPressMs}
@@ -1070,6 +1100,7 @@ export const registry: RegistryItem[] = [
         blur={v.blur}
         dome={v.dome}
         depth={v.depth}
+        profile={profileOf(o)}
         edge={v.edge}
         glow={v.glow}
         shade={v.shade}
@@ -1109,7 +1140,10 @@ export const registry: RegistryItem[] = [
       'Change a glass button’s label and it reshapes to fit, the refraction stretching through the morph.',
     tune: BUTTON_TUNE,
     code: BUTTON_TUNE.code(tuneDefaults(BUTTON_TUNE)),
-    Demo: ({ values: v = tuneDefaults(BUTTON_TUNE) }) => {
+    Demo: ({
+      values: v = tuneDefaults(BUTTON_TUNE),
+      options: o = controlDefaults(BUTTON_TUNE),
+    }) => {
       const [label, setLabel] = useState('Download');
       return (
         <div className="flex flex-col items-center gap-5">
@@ -1119,6 +1153,7 @@ export const registry: RegistryItem[] = [
             blur={v.blur}
             dome={v.dome}
             depth={v.depth}
+            profile={profileOf(o)}
             edge={v.edge}
             glow={v.glow}
             spec={v.spec}
