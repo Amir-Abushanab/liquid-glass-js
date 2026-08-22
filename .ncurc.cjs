@@ -12,5 +12,12 @@ module.exports = {
   // Respect each package's `latest` dist-tag instead of just picking the
   // numerically-highest published version. ('latest' is ncu's default, but
   // worth being explicit about the intent.)
-  target: "latest",
+  //
+  // typescript is held at its current major. TypeScript 7 (the Go compiler) ships
+  // no programmatic compiler API, and dependency-cruiser needs one to parse TS:
+  // with 7 installed it still exits 0 but silently cruises JS only (68 modules
+  // dropped to 35), so `pnpm check` passes while checking nothing in .ts. Lift
+  // this once TypeScript 7.1 ships its public API AND a dependency-cruiser
+  // release declares support for it — see its release notes for 18.1.0.
+  target: (name) => (name === "typescript" ? "minor" : "latest"),
 };
