@@ -4,11 +4,13 @@ description: >
   Add Apple-style liquid glass — real refraction, not a blur — to a website via the
   @liquidglassjs packages: @liquidglassjs/core (mountGlass, mountGlassLens,
   mountGlassText, mountGlassShape, mountGlassLoupe, mountGlassButton/Dropdown,
-  mountSvgRipple), @liquidglassjs/react, @liquidglassjs/element (<liquid-glass>) or
+  mountGlassGroup, mountSvgRipple), @liquidglassjs/react, @liquidglassjs/element
+  (<liquid-glass>) or
   @liquidglassjs/qr. Load this when a user wants a glass card/panel/navbar, a
   draggable magnifying lens or iOS press-and-hold text loupe, glass letterforms, glass
-  shaped like a logo or image, glass buttons/switches/dropdowns with a ripple, a glass
-  QR code, or asks why their glass looks flat, blank or unrefracted in Safari.
+  shaped like a logo or image, glass buttons/switches/dropdowns with a ripple,
+  glass shapes that MERGE like droplets when they approach, a glass QR code, or
+  asks why their glass looks flat, blank or unrefracted in Safari.
 metadata:
   type: core
   library: '@liquidglassjs/core'
@@ -21,6 +23,7 @@ sources:
   - 'Amir-Abushanab/liquid-glass-js:packages/core/src/filter-origin.ts'
   - 'Amir-Abushanab/liquid-glass-js:packages/core/src/glass-morph.ts'
   - 'Amir-Abushanab/liquid-glass-js:packages/core/src/displacement.ts'
+  - 'Amir-Abushanab/liquid-glass-js:packages/core/src/glass-group.ts'
 ---
 
 # @liquidglassjs — real refraction on live DOM
@@ -44,6 +47,7 @@ but never scale.** Magnification has to come from elsewhere (see the loupe).
 | Glass shaped like a logo / image / emoji        | `mountGlassShape`                         | the page behind that alpha          |
 | Buttons, switches, segmented controls           | `mountGlassButton` / `mountGlassDropdown` | the control's own backdrop          |
 | A press ripple that refracts                    | `mountSvgRipple`                          | the button's content                |
+| Shapes that merge like droplets                 | `mountGlassGroup`                         | one shared pane under all items     |
 | Scannable glass QR                              | `@liquidglassjs/qr`                       | WebGL shader (own package)          |
 
 `mountGlass` picks a render path with `mode: 'auto'`:
@@ -133,6 +137,30 @@ clone, and mounts a lens on the copy. Keeping it DOM rather than a bitmap is the
 point: glyphs rasterize at final size and stay sharp at any zoom. The clone is a
 **snapshot** — canvas bitmaps, form values and scroll offsets are copied, `<video>`
 frames are not; call `refresh()` if the source changed.
+
+### Merged glass (droplets)
+
+```js
+import { mountGlassGroup } from '@liquidglassjs/core';
+
+const group = mountGlassGroup({
+  target: scene, // the live DOM that bends — ONE pane under every item
+  host: wrap,
+  items: [pillA, pillB], // chrome ABOVE the pane; measured, never filtered
+  blend: 28, // silhouettes bridge at a gap of about blend / 2
+});
+group.update(); // after moving an item — rAF-coalesced re-measure + re-encode
+```
+
+All items share one smooth-min map, so anything in a group merges with
+anything else in it — approach, touch, overlap. Two SEPARATE glass surfaces
+cannot merge (a filter can't sample another filter's field; Apple has the same
+rule, which is why their merging needs a shared container too). Groups are
+bevel-only (a union has no centre to dome from), rounded-rects only for now,
+and a merge has no cheap-attribute form — `update()` re-encodes the map, so
+call it from the gesture, not from a rAF loop that isn't moving anything.
+Because the items sit above the filtered pane rather than inside it, sliding
+one with a CSS transform is safe in Safari.
 
 ### Glass letterforms and glass shapes
 
@@ -435,3 +463,11 @@ integer px internally; if you're sizing a custom target, round it.
 - **`'circle'` for chrome, `'erf'` for scenes.** The ring profile keeps mid-panel
   text legible under a loud rim — right for navbars, buttons, cards over content.
   The meniscus distributes the bend — right when the glass itself is the artwork.
+- **The light can move.** `specularRotation` (degrees) is live on the lens, loupe
+  and group — but it's a map input, so quantize (5–10° steps) before tying it to
+  pointer bearing or device tilt, and fold it into a gesture that already
+  regenerates (a group drag) so one regen serves both.
+- **`supersample` is a niche knob.** `mountGlass({ supersample: 2 })` rasterizes
+  the refracted content at 2× on Chromium for crisper displaced text. Its benefit
+  is confined to the bent rim band and mostly vanishes on retina displays —
+  reach for it only when heavy bend runs through small text on 1× screens.
