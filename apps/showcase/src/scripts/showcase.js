@@ -820,10 +820,12 @@ if (lstage && lcard && lensEl && blobEl) {
   }).observe(lstage);
   // The lens drifts on its own — DVD-style, bouncing off the stage edges — and
   // snaps to the cursor while the pointer is over the stage, no press needed.
-  let lx = 30,
-    ly = 65,
+  // Start in the lower-left, well away from the resting blob, drifting up —
+  // the merge is something the drift (or you) steers into, not a fait accompli.
+  let lx = 14,
+    ly = 116,
     vx = 0.6,
-    vy = 0.4,
+    vy = -0.4,
     hovering = false,
     mx = lx,
     my = ly,

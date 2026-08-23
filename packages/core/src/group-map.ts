@@ -161,16 +161,25 @@ export function renderGroupDisplacementMap(o: GroupMapOptions): HTMLCanvasElemen
       for (let col = 0; col < aw; col++) {
         const fi = (row + 1) * fw + (col + 1);
         const dist = f[fi];
-        if (dist >= 0) continue; // outside the union: stays neutral
+        if (dist >= 0.5) continue; // outside the rim + its feather: stays neutral
+        // 1px coverage feather across the silhouette (the standard SDF
+        // antialias, cov = clamp(0.5 − d)). The map is consumed at CSS px, so
+        // a hard dist<0 step bakes a staircase into the rim, and a per-move
+        // regenerate makes that staircase CRAWL — the edge flicker, worst in
+        // WebKit's software filter path. Feathering magnitude and specular
+        // over the boundary pixel is what a supersampled downscale would
+        // produce at the rim, without the 4× field cost.
+        const cov = Math.min(1, 0.5 - dist);
         // Magnitude: the same two falloff profiles as the single-shape map,
         // measured on the merged SDF (dist + depth = the inner parallel curve).
         let i: number;
         if (profile === 'circle') {
-          const t = depth > 0 ? Math.max(0, 1 + dist / depth) : 0;
+          const t = depth > 0 ? Math.max(0, Math.min(1, 1 + dist / depth)) : 0;
           i = 1 - Math.sqrt(1 - t * t);
         } else {
           i = 0.5 * (1 + erf((dist + depth) * E));
         }
+        i *= cov;
         // Direction: the outward normal, from the field's own gradient. On the
         // interior plateau the gradient degenerates — and i ≈ 0 there, so a
         // zero direction is exact, not a fudge.
@@ -189,7 +198,7 @@ export function renderGroupDisplacementMap(o: GroupMapOptions): HTMLCanvasElemen
           // identical at the rim, and it follows the fused neck for free.
           const linSigned = nx * ck + ny * sk;
           const lin = Math.abs(linSigned);
-          const band = Math.max(0, 1 + dist / edgeW);
+          const band = Math.min(1, Math.max(0, 1 + dist / edgeW));
           const shadow = Math.max(0, -linSigned);
           let r = 0;
           if (glow > 0) r += glow * Math.pow(Math.min(1, Math.max(0, lin) / GT), glowExp) * i;
@@ -198,7 +207,7 @@ export function renderGroupDisplacementMap(o: GroupMapOptions): HTMLCanvasElemen
             r += edge * band * (1 - shade) * Math.pow(shadow, edgeExp);
           }
           if (shade > 0) r -= shade * band * Math.pow(shadow, edgeExp);
-          img.data[t4 + 2] = encodeSpec(r);
+          img.data[t4 + 2] = encodeSpec(r * cov);
         }
       }
     }
