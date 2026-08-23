@@ -20,6 +20,7 @@ sources:
   - 'Amir-Abushanab/liquid-glass-js:packages/core/src/glass-loupe.ts'
   - 'Amir-Abushanab/liquid-glass-js:packages/core/src/filter-origin.ts'
   - 'Amir-Abushanab/liquid-glass-js:packages/core/src/glass-morph.ts'
+  - 'Amir-Abushanab/liquid-glass-js:packages/core/src/displacement.ts'
 ---
 
 # @liquidglassjs — real refraction on live DOM
@@ -108,6 +109,10 @@ lens.setActive(false); // solid until re-enabled (glass-on-interaction)
 
 `setPos` is the hot path and is designed for per-frame calls. `setSize` and
 `reconfigure` rebuild the displacement map — don't put them in a rAF loop.
+`lens.setDisplScale(f)` is a per-frame multiplier on the displacement (attribute
+writes only); pair it with the exported `createSpring` for a held-pointer boost,
+or in React just pass `<GlassLens press={1.25}>` — the boost springs in while
+the pointer is down and out on release.
 
 ### The loupe (real magnification)
 
@@ -162,6 +167,32 @@ know the difference would drop frames.
 
 No presets ship with it: `duration` and `easing` are yours (`cubicBezier` is exported
 if you want the overshoot the built-in controls use).
+
+## The rim profile — where the bend lives
+
+Every rounded-rect surface (mount, lens, loupe, button, dropdown) takes
+`profile: 'erf' | 'circle'`, the falloff of displacement across the `depth` band:
+
+- **`'erf'`** (default) — a soft meniscus. Reaches ~84% at the rim and bleeds
+  roughly two band-widths into the interior. Byte-identical to what the library
+  has always rendered.
+- **`'circle'`** — the quarter-circle bevel iOS 26 ships (verified
+  screenshot-for-screenshot on Android's port of Apple's curve): displacement
+  peaks at exactly 100% **at the rim** and lands at zero at the band's inner
+  edge — the crisp "compression ring".
+
+The physics is the intuition: refraction only happens where the surface is
+_sloped_. A flat-topped slab bends nothing in the middle — light enters at
+normal incidence — and bends hardest at the bevel's grazing rim, so a real
+glass tile concentrates all its optics at the edge and leaves the interior an
+undistorted plateau. That is also Apple's legibility trick: with `'circle'`
+you can raise `strength` for a louder rim without disturbing text mid-panel,
+because none of the bend leaks inward. The cost is at the rim — push far
+enough and the vertical-tangent edge folds content back on itself — so keep
+`depth` narrow relative to the surface, as Apple does.
+
+`profile` is a **map input**: switching it re-encodes the PNG (see "Animating
+the wrong param"), so set it at mount or on a discrete toggle, never per frame.
 
 ## Pitfalls
 
@@ -295,7 +326,7 @@ ring away; do the same if you build a custom target.
 
 - **Free to drive per frame** — `strength`, `chroma`, `blur` (plus `spec` on the morph
   surface and the ripple). These only ever land on a filter attribute. ~0.01ms a call.
-- **Not** — `bevel`, `dome`, `depth`, `edge`, `glow`, `shade`, `radius`, and `setSize`.
+- **Not** — `bevel`, `dome`, `depth`, `profile`, `edge`, `glow`, `shade`, `radius`, and `setSize`.
   These are what the displacement map is built from, so each one re-encodes a PNG.
   ~1.8ms a call on a lens, which is a third of a 60fps frame.
 
@@ -304,8 +335,10 @@ while sweeping `dome` at the same rate will not hold frame rate. `setPos` is che
 designed for per-frame calls; resize on settle.
 
 The library ships no animation presets — curves and timings are yours — but the cheap
-set above is safe in a plain `requestAnimationFrame` loop. Honour
-`prefers-reduced-motion` yourself.
+set above is safe in a plain `requestAnimationFrame` loop. The built-in motion
+(`glassTween`, `createSpring`, the button/dropdown morphs, the ripple) honours
+`prefers-reduced-motion` on its own; a hand-rolled rAF loop is yours to gate —
+`prefersReducedMotion()` is exported for exactly that.
 
 ### MEDIUM — Gradient-filled glass text losing its descenders
 
@@ -395,4 +428,10 @@ integer px internally; if you're sizing a custom target, round it.
   smudge. Put it over type, imagery, a grid — something with structure.
 - **`strength` is reach, `chroma` is the rainbow.** Raise `chroma` for a jewelled
   rim; keep it low for a clean optical lens.
-- **Honour `prefers-reduced-motion`** for anything that drifts, bobs or ripples.
+- **Honour `prefers-reduced-motion`** for anything that drifts, bobs or ripples —
+  the built-ins already do (springs snap, the ripple skips), and the shipped CSS
+  answers `prefers-contrast: more` (mostly solid + border) and
+  `prefers-reduced-transparency` (frostier) on its own.
+- **`'circle'` for chrome, `'erf'` for scenes.** The ring profile keeps mid-panel
+  text legible under a loud rim — right for navbars, buttons, cards over content.
+  The meniscus distributes the bend — right when the glass itself is the artwork.
