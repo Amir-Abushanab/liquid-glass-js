@@ -342,10 +342,26 @@ function mountWebgl(
 export function isChromium(): boolean {
   try {
     if (typeof navigator === 'undefined') return false;
+    // userAgentData is a Blink-only API — a WebKit shell that SPOOFS a
+    // Chrome/ UA string (embedded browsers in dev tools routinely do) still
+    // doesn't have it, so its presence is trustworthy in a way the UA string
+    // is not.
     const brands = (navigator as Navigator & { userAgentData?: { brands?: { brand: string }[] } })
       .userAgentData?.brands;
     if (brands) return brands.some((b) => /Chromium/i.test(b.brand));
-    return /Chrome\/|Chromium\//.test(navigator.userAgent);
+    // UA-string fallback (non-secure contexts, older Chromium). A bare
+    // Chrome/ match let a Chrome-flavoured WebKit shell through the gate and
+    // run the Chromium-only paths (the supersample counter-scale, the
+    // refractive frost) in the one engine family whose filter coordinates
+    // break under them. Require what shells don't fake alongside the string:
+    // the Blink-only `window.chrome` global, and no `Version/x` token (real
+    // WebKit UAs carry one, Chrome's never has).
+    return (
+      /Chrome\/|Chromium\//.test(navigator.userAgent) &&
+      !/Version\/\d/.test(navigator.userAgent) &&
+      typeof window !== 'undefined' &&
+      'chrome' in window
+    );
   } catch {
     return false;
   }
