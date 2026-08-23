@@ -1,8 +1,9 @@
-import { useState, type FC } from 'react';
+import { useEffect, useRef, useState, type FC } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   AppWindow,
   Aperture,
+  Droplets,
   Menu,
   MousePointerClick,
   PanelTop,
@@ -51,6 +52,7 @@ import {
   GlassButton,
   GlassRipple,
 } from '@liquidglassjs/react';
+import { mountGlassGroup, type GlassGroup } from '@liquidglassjs/core';
 import { GlassQR } from '@liquidglassjs/qr/react';
 
 /** Where the registry JSON is hosted (served from the showcase's own deploy). */
@@ -473,6 +475,129 @@ export function Example() {
   )
 }`,
 };
+
+const MERGE_TUNE: TuneConfig = {
+  params: [
+    { key: 'blend', label: 'blend', min: 0, max: 64, step: 1, default: 28 },
+    { key: 'strength', min: 0, max: 40, step: 0.5, default: 20 },
+    { key: 'chroma', min: 0, max: 1, step: 0.02, default: 0.4 },
+    { key: 'depth', min: 1, max: 30, step: 0.5, default: 12 },
+    { key: 'edge', min: 0, max: 1.5, step: 0.05, default: 0.9 },
+    { key: 'glow', min: 0, max: 1, step: 0.05, default: 0.3 },
+    { key: 'blur', min: 0, max: 3, step: 0.05, default: 0.4 },
+  ],
+  controls: [profileControl],
+  code: (v, o) => `import { mountGlassGroup } from "@liquidglassjs/core"
+
+const group = mountGlassGroup({
+  target: scene,          // the live DOM that bends
+  host: wrap,
+  items: [pillA, pillB],  // chrome above the scene — measured, never filtered
+  blend: ${v.blend},${o?.profile === 'circle' ? '\n  profile: "circle",' : ''}
+  strength: ${v.strength},
+  chroma: ${v.chroma},
+  depth: ${v.depth},
+  edge: ${v.edge},
+  glow: ${v.glow},
+  blur: ${v.blur},
+})
+
+// after moving an item (transform, layout, drag):
+group.update() // rAF-coalesced re-measure + map re-encode`,
+};
+
+/**
+ * Two pills over one scene, one following the pointer: both live in a single
+ * smooth-min displacement map, so bringing them within `blend` px fuses their
+ * rims through a neck — Apple's droplet merge. The pills are chrome ABOVE the
+ * refracted pane (never filtered), so sliding one with a transform is safe in
+ * Safari; the map is measured from where they visually are.
+ */
+function GlassMergeDemo({ v, o }: { v: Record<string, number>; o: TuneOptions }) {
+  const wrap = useRef<HTMLDivElement>(null);
+  const scene = useRef<HTMLDivElement>(null);
+  const pillA = useRef<HTMLDivElement>(null);
+  const pillB = useRef<HTMLDivElement>(null);
+  const group = useRef<GlassGroup | null>(null);
+  useEffect(() => {
+    const el = wrap.current;
+    if (!el || !scene.current || !pillA.current || !pillB.current) return;
+    const g = mountGlassGroup({
+      target: scene.current,
+      host: el,
+      items: [pillA.current, pillB.current],
+    });
+    group.current = g;
+    const move = (e: PointerEvent) => {
+      const r = el.getBoundingClientRect();
+      const pb = pillB.current;
+      if (!pb) return;
+      const w = pb.offsetWidth;
+      const x = Math.min(Math.max(e.clientX - r.left - w / 2, 8), r.width - w - 8);
+      pb.style.transform = `translate(${x}px, -50%)`;
+      g.update();
+    };
+    el.addEventListener('pointermove', move);
+    return () => {
+      el.removeEventListener('pointermove', move);
+      g.dispose();
+      group.current = null;
+    };
+  }, []);
+  const key = JSON.stringify([v, o]);
+  useEffect(() => {
+    group.current?.reconfigure({
+      blend: v.blend,
+      strength: v.strength,
+      chroma: v.chroma,
+      depth: v.depth,
+      edge: v.edge,
+      glow: v.glow,
+      blur: v.blur,
+      profile: profileOf(o),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- key captures both
+  }, [key]);
+  return (
+    <div
+      ref={wrap}
+      className="relative w-full max-w-[560px] cursor-ew-resize touch-none overflow-hidden rounded-xl ring-1 ring-white/10"
+    >
+      <div ref={scene} className="relative h-[220px] w-full overflow-hidden bg-zinc-950 text-white">
+        <div className="absolute inset-0 [background:radial-gradient(90%_130%_at_50%_0%,rgba(123,60,255,0.4),transparent_62%),repeating-linear-gradient(0deg,rgb(255_255_255/6%)_0_1px,transparent_1px_22px),repeating-linear-gradient(90deg,rgb(255_255_255/6%)_0_1px,transparent_1px_22px)]" />
+        <span className="absolute top-5 left-6 rounded border border-white/25 px-1.5 py-0.5 text-[10px] font-medium tracking-[0.2em] text-white/80 uppercase">
+          SMOOTH · MIN
+        </span>
+        <h3 className="absolute top-12 left-6 text-lg font-semibold">One map, two droplets</h3>
+        <p className="absolute top-[76px] left-6 text-[11px] text-white/50">
+          move the pointer — the loose pill chases it
+        </p>
+        <div className="absolute bottom-5 left-6 flex gap-1.5">
+          {swatches.slice(0, 6).map((c, i) => (
+            <i
+              key={i}
+              className="block h-[15px] w-[24px] rounded-[3px]"
+              style={{ background: c }}
+            />
+          ))}
+        </div>
+      </div>
+      <div
+        ref={pillA}
+        className="pointer-events-none absolute top-1/2 left-8 flex h-14 w-36 -translate-y-1/2 items-center justify-center rounded-full text-sm font-medium text-white/90"
+      >
+        Merge
+      </div>
+      <div
+        ref={pillB}
+        className="pointer-events-none absolute top-1/2 left-0 flex h-14 w-28 items-center justify-center rounded-full text-sm font-medium text-white/90"
+        style={{ transform: 'translate(320px, -50%)' }}
+      >
+        me
+      </div>
+    </div>
+  );
+}
 
 // The centre mark for the QR's "Emoji" logo choice — a markup string (GlassQR
 // accepts `string | Node | false`); the span self-centres and sizes the glyph.
@@ -1135,6 +1260,20 @@ export const registry: RegistryItem[] = [
           rather than as a raster, the letterforms are rasterized at their final size.
         </p>
       </GlassLoupe>
+    ),
+  },
+  {
+    slug: 'glass-merge',
+    title: 'Glass Merge',
+    category: 'Effects',
+    icon: Droplets,
+    npm: '@liquidglassjs/core',
+    description:
+      'Two glass pills over one scene share a single smooth-min displacement map — bring them close and they fuse like droplets, the refraction flowing through the neck.',
+    tune: MERGE_TUNE,
+    code: MERGE_TUNE.code(tuneDefaults(MERGE_TUNE)),
+    Demo: ({ values: v = tuneDefaults(MERGE_TUNE), options: o = controlDefaults(MERGE_TUNE) }) => (
+      <GlassMergeDemo v={v} o={o} />
     ),
   },
   {

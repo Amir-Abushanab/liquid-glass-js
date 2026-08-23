@@ -173,7 +173,7 @@ if you want the overshoot the built-in controls use).
 Every rounded-rect surface (mount, lens, loupe, button, dropdown) takes
 `profile: 'erf' | 'circle'`, the falloff of displacement across the `depth` band:
 
-- **`'erf'`** (default) — a soft meniscus. Reaches ~84% at the rim and bleeds
+- **`'erf'`** (default) — a soft meniscus. Reaches ~92% at the rim and bleeds
   roughly two band-widths into the interior. Byte-identical to what the library
   has always rendered.
 - **`'circle'`** — the quarter-circle bevel iOS 26 ships (verified

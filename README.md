@@ -114,6 +114,33 @@ label crossfade; sizing, colour, and the scene are yours. Both return
 `dispose()`. `createGlassSurface` is exported too, for the raw resizable /
 fade-able filter.
 
+### Merging glass
+
+`mountGlassGroup` gives several elements ONE displacement map whose rounded
+rects fuse by smooth-min — Apple's droplet merge. The elements are chrome above
+a shared refract pane; bring one within about `blend / 2` px of another and
+their rims flow together through a neck. (The CSS "gooey" trick merges only the
+alpha silhouette; here the refraction fields themselves fuse.)
+
+```ts
+import { mountGlassGroup } from '@liquidglassjs/core';
+
+const group = mountGlassGroup({
+  target: scene, // the live DOM that bends
+  host: wrap,
+  items: [pillA, pillB], // chrome above the scene — measured, never filtered
+  blend: 28,
+});
+// after moving an item (transform, layout, drag):
+group.update(); // rAF-coalesced re-measure + map re-encode
+```
+
+A merge has no cheap-attribute form — the neck's shape changes — so `update()`
+re-encodes the map. It computes only the shapes' bounding box plus a fuse
+apron, so control-sized drags stay in the low milliseconds. Because the items
+sit above the filtered pane rather than inside it, sliding one with a
+transform is safe in Safari (the composited-child rule never triggers).
+
 ## Glass from any shape
 
 `mountGlassText` turns letterforms into glass; `mountGlassShape` does the same

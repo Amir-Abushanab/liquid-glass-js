@@ -59,6 +59,15 @@ export interface GlassSurfaceOptions extends Partial<GlassSurfaceParams> {
   height: number;
   radius: number;
   active?: boolean; // apply the filter immediately? (default true)
+  /**
+   * Override the map generator: return a data-URL PNG for a w×h map (the
+   * map-encode wire format). Default is the rounded-rect dome; the glass
+   * group hands in its smooth-min union. With a buildMap the surface's own
+   * radius/depth/profile/dome/edge/glow stop shaping the map — the hook owns
+   * that — but reconfiguring one of them still triggers a rebuild, so a hook
+   * that reads live params regenerates on the same wiring.
+   */
+  buildMap?: (w: number, h: number) => string;
 }
 
 // A resizable, fade-able glass filter over one live element.
@@ -177,16 +186,18 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
 
   const rebuild = () => {
     const id = `${base}-${++n}`; // fresh id every rebuild (Safari filter-cache bust)
-    const mapUrl = buildDisplacementMap({
-      width: mapW,
-      height: mapH,
-      radius,
-      depth: cur.depth,
-      profile: cur.profile,
-      dome: cur.dome,
-      edge: cur.edge,
-      glow: cur.glow,
-    });
+    const mapUrl = o.buildMap
+      ? o.buildMap(mapW, mapH)
+      : buildDisplacementMap({
+          width: mapW,
+          height: mapH,
+          radius,
+          depth: cur.depth,
+          profile: cur.profile,
+          dome: cur.dome,
+          edge: cur.edge,
+          glow: cur.glow,
+        });
     // Pre-decode the map bitmap so the <feImage> is ready on the surface's first
     // paint. Until it decodes, the filter's neutral-gray flood stands in for the
     // map (zero displacement), so the pane renders FLAT for a frame or two before

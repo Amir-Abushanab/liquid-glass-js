@@ -13,8 +13,8 @@ import { encodeOffset, encodeSpec, NEUTRAL_BYTE } from './map-encode';
 /**
  * Edge-falloff curve for the refraction band.
  *   'erf'    — Aave's soft meniscus (default; byte-identical to the original
- *              generator): ~0.84 at the rim, still 0.5 where the depth band
- *              ends, decaying ~2·depth further into the interior.
+ *              generator): ~0.92 at the rim (tanh-erf), still 0.5 where the
+ *              depth band ends, decaying ~2·depth further into the interior.
  *   'circle' — quarter-circle bevel (the profile Kyant0 screenshot-verified
  *              against iOS 26): magnitude is exactly 1 at the rim with a
  *              vertical tangent — the crisp compression ring — and lands at
@@ -38,8 +38,8 @@ export interface GlassMapOptions {
   //                   apparent width when the caller renders at s× (default 1 = byte-identical)
 }
 
-// Aave's erf: tanh(√π · x)
-function erf(x: number): number {
+// Aave's erf: tanh(√π · x). Exported for group-map.ts, which shares the falloff.
+export function erf(x: number): number {
   return Math.tanh(1.7724538509 * x);
 }
 
