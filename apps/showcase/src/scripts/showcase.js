@@ -1864,6 +1864,18 @@ function buildTuner(sections) {
     icon: CFG_ICONS.paths,
     params: RENDER_PARAMS,
     opts: Object.fromEntries(RENDER_KEYS.map((k) => [k, rd(k, PATH_DEFAULTS[k])])),
+    // Rim falloff for all three cards at once — same segmented row as the
+    // typeface picker. WebGL re-bakes; the Frost card only shows it on Chromium.
+    picker: {
+      options: [
+        { label: 'Meniscus', value: 'erf' },
+        { label: 'Ring', value: 'circle' },
+      ],
+      value: 'erf',
+      apply(v) {
+        for (const el of [els.svg, els.webgl, els.frost]) el?.__glass?.reconfigure({ profile: v });
+      },
+    },
     focus: 0,
     focuses: [
       { id: 'svg', label: 'SVG', el: els.svg, dead: [] },

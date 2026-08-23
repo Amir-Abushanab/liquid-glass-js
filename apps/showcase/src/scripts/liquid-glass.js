@@ -19,6 +19,7 @@ const D = presetDefaults('surface');
 const params = (el) => ({
   radius: n(el, 'radius', 22),
   depth: n(el, 'depth', D.depth),
+  profile: el.dataset.profile === 'circle' ? 'circle' : 'erf',
   dome: n(el, 'dome', D.dome),
   strength: n(el, 'strength', D.strength),
   edge: n(el, 'edge', D.edge),
@@ -68,6 +69,7 @@ function mountSvg(el, surface, p) {
       height,
       radius,
       depth: p.depth,
+      profile: p.profile,
       dome: p.dome,
       edge: p.edge,
       glow: p.glow,
@@ -100,6 +102,7 @@ async function mountWebgl(el, surface, p, src, reg) {
     glass = new GlassGL(canvas, {
       radius: p.radius,
       depth: p.depth,
+      profile: p.profile,
       dome: p.dome,
       strength: p.strength,
       chroma: p.chroma,
@@ -126,6 +129,7 @@ async function mountWebgl(el, surface, p, src, reg) {
     glass.cfg.strength = p.strength;
     glass.cfg.chroma = p.chroma;
     glass.cfg.depth = p.depth;
+    glass.cfg.profile = p.profile;
     glass.cfg.dome = p.dome;
     glass.cfg.frost = p.blur;
     glass.cfg.spec = p.spec;
@@ -225,6 +229,7 @@ function mountFrost(el, surface, p) {
       height,
       radius,
       depth: p.depth,
+      profile: p.profile,
       dome: p.dome,
       edge: p.edge,
       glow: p.glow,
@@ -268,6 +273,7 @@ function mountDomRefract(el, refract, p) {
       height,
       radius,
       depth: p.depth,
+      profile: p.profile,
       dome: p.dome,
       edge: p.edge,
       glow: p.glow,
@@ -343,6 +349,7 @@ function mount(el) {
         const v = patch[k];
         if (typeof v === 'number' && !Number.isNaN(v)) p[k] = v;
       }
+      if (patch.profile === 'circle' || patch.profile === 'erf') p.profile = patch.profile;
       if (typeof patch.radius === 'number') el.style.setProperty('--g-radius', patch.radius + 'px');
       apply();
     },
