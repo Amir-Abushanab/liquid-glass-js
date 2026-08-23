@@ -136,13 +136,39 @@ document.querySelectorAll('[data-seg]').forEach((seg) => {
   const pill = seg.querySelector('.seg__glass');
   if (!labels || !opts.length) return;
   const n = opts.length;
+  // Aave's segmented trick ("Building Glass for the Web"): the pill refracts a
+  // highlighted COPY of the label row, clipped to a pill-sized window, so the
+  // selected label reads bright THROUGH the glass while the live track stays
+  // dim. The copy translates by −x inside a window translated by +x, so the
+  // text never visually moves — only the clip does. The copy is inert and
+  // aria-hidden; the live buttons keep every behaviour.
+  seg.querySelector('.seg__win')?.remove(); // a re-captured snapshot may bake one in
+  const win = document.createElement('div');
+  win.className = 'seg__win';
+  const copy = labels.cloneNode(true);
+  copy.classList.add('seg__copy');
+  copy.removeAttribute('id');
+  copy.setAttribute('aria-hidden', 'true');
+  copy.inert = true;
+  win.appendChild(copy);
+  seg.appendChild(win);
+  seg.classList.add('has-copy');
+  // The clone is absolutely positioned, so an inline-grid collapses to content
+  // width — but a seg may stretch its live row (the hero's package-manager one
+  // does), and a content-width copy lands its columns off the live ones. Pin
+  // the copy to the live row's box, and keep it pinned on resize.
+  const sizeCopy = () => {
+    copy.style.width = `${labels.offsetWidth}px`;
+    copy.style.height = `${labels.offsetHeight}px`;
+  };
+  sizeCopy();
   const geom = () => {
     const r = seg.getBoundingClientRect();
     return { pillW: (r.width - 8) / n, pillH: r.height - 8 };
   };
   let g = geom();
   const lens = mountGlassLens({
-    target: labels,
+    target: copy,
     host: seg,
     lensW: g.pillW,
     lensH: g.pillH,
@@ -152,11 +178,13 @@ document.querySelectorAll('[data-seg]').forEach((seg) => {
   let lensX = 0,
     tweenRaf = 0;
   const segEase = cubicBezier(0.34, 1.35, 0.5, 1);
-  // One writer for both: the pill's chrome and the lens under it move on the same
-  // frame, from the same number.
+  // One writer for all four: pill chrome, clip window, counter-translated copy
+  // and the lens move on the same frame, from the same number.
   const place = (x) => {
     lens.setPos(x, 0);
     if (pill) pill.style.transform = `translateX(${x}px)`;
+    win.style.transform = `translateX(${x}px)`;
+    copy.style.transform = `translateX(${-x}px)`;
   };
   const moveLensTo = (targetX) => {
     cancelAnimationFrame(tweenRaf);
@@ -190,6 +218,7 @@ document.querySelectorAll('[data-seg]').forEach((seg) => {
   setActive(parseInt(seg.style.getPropertyValue('--i'), 10) || 0, false);
   new ResizeObserver(() => {
     g = geom();
+    sizeCopy();
     lens.setSize(g.pillW, g.pillH);
     setActive(parseInt(seg.style.getPropertyValue('--i'), 10) || 0, false);
   }).observe(seg);

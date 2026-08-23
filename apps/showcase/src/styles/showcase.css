@@ -3251,3 +3251,34 @@ a {
 .domcard__ticker-run {
   display: inline-block;
 }
+
+/* ── Aave's segmented trick: a pill-sized window clips a highlighted, inert
+   COPY of the label row; the lens refracts the copy, so the selected label
+   reads bright through the glass while the live track stays dim. The window
+   rides the pill (+x) and the copy counter-translates (−x), so the text never
+   moves — only the clip does. ── */
+.seg__win {
+  position: absolute;
+  z-index: 2;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / var(--n));
+  overflow: hidden;
+  border-radius: 999px;
+  pointer-events: none;
+}
+.seg__copy {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.seg__copy .seg__opt {
+  color: var(--ink);
+}
+/* With the copy carrying the highlight, the live selected label goes back to
+   track colour — but only when JS built the copy, so the no-JS build keeps its
+   aria-selected affordance. */
+.seg.has-copy > .seg__labels .seg__opt[aria-selected='true'] {
+  color: var(--muted);
+}
