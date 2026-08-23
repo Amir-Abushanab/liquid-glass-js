@@ -177,7 +177,9 @@ to off and white respectively, so existing surfaces stay pixel-identical until
 you opt in.
 
 The rounded-rect surfaces (mount, lens, loupe, button, dropdown) also take
-`profile: 'erf' | 'circle'` — the rim's falloff curve. `'erf'` (default) is the
+`profile: 'erf' | 'circle'` — the rim's falloff curve — and the lens, loupe and
+group take a live `specularRotation` (light angle in degrees; a map input, so
+quantize it if you tie it to the pointer or device tilt). `'erf'` (default) is the
 soft meniscus this library has always rendered; `'circle'` peaks exactly at the
 rim for the crisp iOS-style compression ring. Same defaults-off rule: `'erf'`
 is byte-identical to before. The React `<GlassLens>` additionally takes
@@ -462,6 +464,19 @@ thanks:
   with a contrasting border, reduced motion "disables any elastic properties" —
   keyed off `prefers-contrast` as well because Safari has never shipped
   `prefers-reduced-transparency`.
+- **The moving light** — driving the specular from the pointer's bearing and
+  from DeviceOrientation is
+  [clayharmon's webgl-liquid-glass](https://github.com/clayharmon/webgl-liquid-glass)
+  idea (the one web glass whose rim light answers the world, as Apple's does);
+  ours arrives as a live `specularRotation` param, quantized because the light
+  is baked into the map.
+- **The segmented highlighted copy** — the pill refracting a bright copy of
+  the track, clipped to itself, so the selected label reads through the glass:
+  Aave's [_Building Glass for the Web_](https://aave.com/design/building-glass-for-the-web)
+  again.
+- **The displacement-map cache** — identical option tuples sharing one PNG is
+  how [Glacé](https://seangeng.com/writing/building-a-liquid-glass-ui-kit)
+  (Sean Geng's glaceui) manages its maps.
 
 ## License
 
