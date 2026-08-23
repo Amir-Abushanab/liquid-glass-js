@@ -25,6 +25,7 @@ const NUMERIC = [
   'chroma',
   'blur',
   'tint',
+  'supersample',
   'spec',
   'vibrancy',
 ] as const;

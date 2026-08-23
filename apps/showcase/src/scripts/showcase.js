@@ -1884,6 +1884,7 @@ function buildTuner(sections) {
   if (!els.svg && !els.webgl && !els.frost) return;
   const base = els.svg || els.webgl || els.frost;
   const PATH_DEFAULTS = presetDefaults('surface', RENDER_KEYS);
+  let ssOn = false;
   const rd = (k, d) => {
     const v = parseFloat(base.dataset[k]);
     return Number.isNaN(v) ? d : v;
@@ -1894,6 +1895,17 @@ function buildTuner(sections) {
     icon: CFG_ICONS.paths,
     params: RENDER_PARAMS,
     opts: Object.fromEntries(RENDER_KEYS.map((k) => [k, rd(k, PATH_DEFAULTS[k])])),
+    // A/B the samasante-style supersample on the live-DOM card: its filtered
+    // content rasterizes at 2× and scales back, so displaced small text keeps
+    // its subpixel antialiasing. Chromium-only (the mount gates it).
+    hover: {
+      label: 'supersample DOM text ×2 (Chromium)',
+      get: () => ssOn,
+      set: (on) => {
+        ssOn = on;
+        els.svg?.__glass?.reconfigure({ supersample: on ? 2 : 1 });
+      },
+    },
     // Rim falloff for all three cards at once — same segmented row as the
     // typeface picker. WebGL re-bakes; the Frost card only shows it on Chromium.
     picker: {

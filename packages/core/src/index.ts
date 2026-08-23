@@ -9,7 +9,13 @@
 // Styling ships separately — import `@liquidglassjs/core/css` once.
 
 // Unified surface + framework-agnostic mount
-export { mountGlass, mountGlassFromData, readGlassOptions, GLASS_DEFAULTS } from './mount';
+export {
+  mountGlass,
+  mountGlassFromData,
+  readGlassOptions,
+  GLASS_DEFAULTS,
+  isChromium,
+} from './mount';
 export type { GlassOptions, GlassInstance } from './mount';
 
 // Displacement-map generator (SDF rounded-rect dome; R/G/B encoding)

@@ -184,6 +184,15 @@ is byte-identical to before. The React `<GlassLens>` additionally takes
 `press` (a displacement multiplier that springs in while the pointer is held,
 default 1 = off).
 
+`mountGlass` takes one more: `supersample` (default 1 = off). On the live-DOM
+refract path it lays the content out at its natural size, scales it up G×
+into the filtered layer, and scales the filtered result back down — the whole
+chain runs on a G× raster, so displaced small text keeps its subpixel
+antialiasing instead of going soft. Chromium only (elsewhere the filter runs
+in software and G² pixels just quadruple a slow path — the option is silently
+1× there), and it needs the standard `__refract`/`__refract-inner` pair.
+Costs G² raster memory; clamp is 3.
+
 ## The loupe
 
 `mountGlassLoupe` recreates the iOS text magnifier: press and hold on a

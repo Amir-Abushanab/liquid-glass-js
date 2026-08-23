@@ -51,6 +51,13 @@ export interface GlassOptions {
   profile?: MapProfile;
   dome?: number;
   strength?: number;
+  /**
+   * Rasterize the refracted content at G× and scale the result back down
+   * (Chromium only; 1 = off). Displaced small text keeps its subpixel
+   * antialiasing instead of going soft. Applies to the live-DOM refract path
+   * with the standard __refract/__refract-inner pair; clamped to 3.
+   */
+  supersample?: number;
   edge?: number;
   glow?: number;
   chroma?: number;
@@ -74,6 +81,7 @@ export const GLASS_DEFAULTS = {
   depth: 20,
   profile: 'erf' as MapProfile,
   dome: 14,
+  supersample: 1,
   strength: 16,
   edge: 0.8,
   glow: 0.2,
@@ -90,6 +98,7 @@ interface P {
   depth: number;
   profile: MapProfile;
   dome: number;
+  supersample: number;
   strength: number;
   edge: number;
   glow: number;
@@ -111,6 +120,7 @@ export function readGlassOptions(el: HTMLElement): GlassOptions {
     radius: num(el, 'radius', GLASS_DEFAULTS.radius),
     depth: num(el, 'depth', GLASS_DEFAULTS.depth),
     profile: el.dataset.profile === 'circle' ? 'circle' : GLASS_DEFAULTS.profile,
+    supersample: num(el, 'supersample', GLASS_DEFAULTS.supersample),
     dome: num(el, 'dome', GLASS_DEFAULTS.dome),
     strength: num(el, 'strength', GLASS_DEFAULTS.strength),
     edge: num(el, 'edge', GLASS_DEFAULTS.edge),
@@ -329,14 +339,22 @@ function mountWebgl(
 // Chromium-only, which makes it a cheaper tell than a UA regex; the UA fallback
 // covers non-secure contexts, where userAgentData is undefined. Both failure
 // directions are safe: a false negative just yields the plain frosted blur.
-function supportsBackdropUrl(): boolean {
+export function isChromium(): boolean {
   try {
-    if (typeof CSS === 'undefined' || !CSS.supports('backdrop-filter', 'url("#a")')) return false;
     if (typeof navigator === 'undefined') return false;
     const brands = (navigator as Navigator & { userAgentData?: { brands?: { brand: string }[] } })
       .userAgentData?.brands;
     if (brands) return brands.some((b) => /Chromium/i.test(b.brand));
     return /Chrome\/|Chromium\//.test(navigator.userAgent);
+  } catch {
+    return false;
+  }
+}
+
+function supportsBackdropUrl(): boolean {
+  try {
+    if (typeof CSS === 'undefined' || !CSS.supports('backdrop-filter', 'url("#a")')) return false;
+    return isChromium();
   } catch {
     return false;
   }
@@ -435,32 +453,62 @@ function mountFrost(el: HTMLElement, surface: HTMLElement, p: P): () => void {
 // in every browser (Safari included) — no WebGL, no fallback.
 function mountDomRefract(el: HTMLElement, refract: HTMLElement, p: P): () => void {
   const base = el.dataset.uid || 'g';
-  const s1 = p.strength * (1 + 0.2 * p.chroma);
-  const s2 = p.strength * (1 + 0.1 * p.chroma);
-  const s3 = p.strength;
   let holder: HTMLElement | null = null;
   let last = '';
   let n = 0;
+  // Supersampled refraction (samasante's filterResolution): lay the content out
+  // at its natural size, scale it up G× INTO the filtered element, and scale
+  // the filtered result back down. The whole chain — source raster, blur,
+  // displacement, recomposite — then runs on a G× raster, so displaced small
+  // text keeps its subpixel antialiasing instead of going soft. Needs the
+  // __refract/__refract-inner pair (the counter-scale lives across the two);
+  // an arbitrary refract target stays at 1×. Chromium-gated: WebKit and Gecko
+  // run this filter in software, where G² pixels quadruple an already slow
+  // path (and WebKit's region ceiling bites sooner) — same engine signal the
+  // frost path uses. The scale-down transform doubles as the WebKit origin
+  // pin, but applyGlassFilter pins with `rotate`, so they can't collide.
+  const inner = refract.querySelector<HTMLElement>('.ps-glass__refract-inner');
+  const G = p.supersample > 1 && inner && isChromium() ? Math.min(3, p.supersample) : 1;
+  const s1 = p.strength * G * (1 + 0.2 * p.chroma);
+  const s2 = p.strength * G * (1 + 0.1 * p.chroma);
+  const s3 = p.strength * G;
   const render = () => {
     const { width, height } = layoutBox(el);
     if (!width || !height) return;
     const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
-    const key = `${width}x${height}x${radius}`;
+    const key = `${width}x${height}x${radius}x${G}`;
     if (key === last) return; // regenerate only when the shape changes, never on move
     last = key;
+    if (G > 1 && inner) {
+      refract.style.inset = 'auto';
+      refract.style.top = `${-MARGIN}px`;
+      refract.style.left = `${-MARGIN}px`;
+      refract.style.width = `${(width + 2 * MARGIN) * G}px`;
+      refract.style.height = `${(height + 2 * MARGIN) * G}px`;
+      refract.style.transform = `scale(${1 / G})`;
+      refract.style.transformOrigin = '0 0';
+      inner.style.inset = 'auto';
+      inner.style.top = `${MARGIN * G}px`;
+      inner.style.left = `${MARGIN * G}px`;
+      inner.style.width = `${width}px`;
+      inner.style.height = `${height}px`;
+      inner.style.transform = `scale(${G})`;
+      inner.style.transformOrigin = '0 0';
+    }
     // Fresh filter id every rebuild: Safari caches filter output by id and would
     // otherwise serve the stale map (the article's "refreshing the filter cleanly").
     const id = `${base}-${++n}`;
     const map = buildDisplacementMap({
-      width,
-      height,
-      radius,
-      depth: p.depth,
+      width: width * G,
+      height: height * G,
+      radius: radius * G,
+      depth: p.depth * G,
       profile: p.profile,
-      dome: p.dome,
+      dome: p.dome * G,
       edge: p.edge,
       glow: p.glow,
-      margin: MARGIN,
+      margin: MARGIN * G,
+      pxScale: G,
     });
     const svg = document.createElement('div');
     svg.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
@@ -469,7 +517,7 @@ function mountDomRefract(el: HTMLElement, refract: HTMLElement, p: P): () => voi
       `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
       `<feImage href="${map}" xlink:href="${map}" preserveAspectRatio="none" result="rawMap"></feImage>` +
       `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>` +
-      `<feGaussianBlur in="SourceGraphic" stdDeviation="${preBlurStd(p.blur)}" result="blurred"></feGaussianBlur>` +
+      `<feGaussianBlur in="SourceGraphic" stdDeviation="${preBlurStd(p.blur * G)}" result="blurred"></feGaussianBlur>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
       `<feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s2}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
@@ -493,6 +541,12 @@ function mountDomRefract(el: HTMLElement, refract: HTMLElement, p: P): () => voi
     ro.disconnect();
     if (holder) holder.remove();
     clearGlassFilter(refract);
+    if (G > 1 && inner) {
+      for (const k of ['inset', 'top', 'left', 'width', 'height', 'transform', 'transformOrigin'])
+        refract.style.removeProperty(k.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase()));
+      for (const k of ['inset', 'top', 'left', 'width', 'height', 'transform', 'transformOrigin'])
+        inner.style.removeProperty(k.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase()));
+    }
   };
 }
 
@@ -570,6 +624,7 @@ export function mountGlass(root: HTMLElement, opts: GlassOptions = {}): GlassIns
     depth: o.depth,
     profile: o.profile,
     dome: o.dome,
+    supersample: o.supersample,
     strength: o.strength,
     edge: o.edge,
     glow: o.glow,

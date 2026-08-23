@@ -1,4 +1,4 @@
-import { buildDisplacementMap, preBlurStd } from '@liquidglassjs/core';
+import { buildDisplacementMap, preBlurStd, isChromium } from '@liquidglassjs/core';
 import { presetDefaults } from '../lib/glass-presets';
 const MARGIN = 28;
 // The three engines disagree completely about what a sub-pixel stdDeviation means —
@@ -20,6 +20,7 @@ const params = (el) => ({
   radius: n(el, 'radius', 22),
   depth: n(el, 'depth', D.depth),
   profile: el.dataset.profile === 'circle' ? 'circle' : 'erf',
+  supersample: n(el, 'supersample', 1),
   dome: n(el, 'dome', D.dome),
   strength: n(el, 'strength', D.strength),
   edge: n(el, 'edge', D.edge),
@@ -255,33 +256,56 @@ function mountDomRefract(el, refract, p) {
   let holder = null;
   let last = '';
   let n2 = 0;
+  const inner = refract.querySelector('.ps-glass__refract-inner');
   const render = () => {
     const r = el.getBoundingClientRect();
     const width = Math.round(r.width);
     const height = Math.round(r.height);
     if (!width || !height) return;
     const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
-    const key = `${width}x${height}x${radius}`;
+    // Chromium-only supersample (see core mountDomRefract): content laid out
+    // at natural size, scaled G× into the filtered layer, result scaled back.
+    // Read per render, not per mount — the Render-paths tuner toggles it live.
+    const G = p.supersample > 1 && inner && isChromium() ? Math.min(3, p.supersample) : 1;
+    const key = `${width}x${height}x${radius}x${G}`;
     if (key === last) return;
     last = key;
-    const s1 = p.strength * (1 + 0.2 * p.chroma);
-    const s2 = p.strength * (1 + 0.1 * p.chroma);
-    const s3 = p.strength;
+    if (inner) {
+      const on = G > 1;
+      refract.style.inset = on ? 'auto' : '';
+      refract.style.top = on ? `${-MARGIN}px` : '';
+      refract.style.left = on ? `${-MARGIN}px` : '';
+      refract.style.width = on ? `${(width + 2 * MARGIN) * G}px` : '';
+      refract.style.height = on ? `${(height + 2 * MARGIN) * G}px` : '';
+      refract.style.transform = on ? `scale(${1 / G})` : '';
+      refract.style.transformOrigin = on ? '0 0' : '';
+      inner.style.inset = on ? 'auto' : '';
+      inner.style.top = on ? `${MARGIN * G}px` : '';
+      inner.style.left = on ? `${MARGIN * G}px` : '';
+      inner.style.width = on ? `${width}px` : '';
+      inner.style.height = on ? `${height}px` : '';
+      inner.style.transform = on ? `scale(${G})` : '';
+      inner.style.transformOrigin = on ? '0 0' : '';
+    }
+    const s1 = p.strength * G * (1 + 0.2 * p.chroma);
+    const s2 = p.strength * G * (1 + 0.1 * p.chroma);
+    const s3 = p.strength * G;
     const id = `${base}-${++n2}`;
     const map = buildDisplacementMap({
-      width,
-      height,
-      radius,
-      depth: p.depth,
+      width: width * G,
+      height: height * G,
+      radius: radius * G,
+      depth: p.depth * G,
       profile: p.profile,
-      dome: p.dome,
+      dome: p.dome * G,
       edge: p.edge,
       glow: p.glow,
-      margin: MARGIN,
+      margin: MARGIN * G,
+      pxScale: G,
     });
     const svg = document.createElement('div');
     svg.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
-    svg.innerHTML = `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" x="0" y="0" width="1" height="1" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood><feImage href="${map}" xlink:href="${map}" preserveAspectRatio="none" result="rawMap"></feImage><feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite><feGaussianBlur in="SourceGraphic" stdDeviation="${preBlurStd(p.blur)}" result="blurred"></feGaussianBlur><feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix><feDisplacementMap in="blurred" in2="map" scale="${s2}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispG"></feColorMatrix><feDisplacementMap in="blurred" in2="map" scale="${s3}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="dispB"></feColorMatrix><feComposite in="dispR" in2="dispG" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite><feComposite in2="dispB" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="lensResult"></feComposite><feColorMatrix in="map" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 1 0 -0.5019607843137255" result="specMask"></feColorMatrix><feComposite in="specMask" in2="lensResult" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite></filter></svg>`;
+    svg.innerHTML = `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" x="0" y="0" width="1" height="1" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood><feImage href="${map}" xlink:href="${map}" preserveAspectRatio="none" result="rawMap"></feImage><feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite><feGaussianBlur in="SourceGraphic" stdDeviation="${preBlurStd(p.blur * G)}" result="blurred"></feGaussianBlur><feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix><feDisplacementMap in="blurred" in2="map" scale="${s2}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispG"></feColorMatrix><feDisplacementMap in="blurred" in2="map" scale="${s3}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="dispB"></feColorMatrix><feComposite in="dispR" in2="dispG" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite><feComposite in2="dispB" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="lensResult"></feComposite><feColorMatrix in="map" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 1 0 -0.5019607843137255" result="specMask"></feColorMatrix><feComposite in="specMask" in2="lensResult" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite></filter></svg>`;
     el.appendChild(svg);
     refract.style.filter = `url(#${id})`;
     refract.style.setProperty('-webkit-filter', `url(#${id})`);
@@ -345,6 +369,7 @@ function mount(el) {
         'blur',
         'spec',
         'vibrancy',
+        'supersample',
       ]) {
         const v = patch[k];
         if (typeof v === 'number' && !Number.isNaN(v)) p[k] = v;
