@@ -851,12 +851,40 @@ if (lstage && lcard && lensEl && blobEl) {
   };
   measure();
   addEventListener('resize', measure);
+  // The specular light tracks the pointer's bearing from the card's centre —
+  // circle the card and the glint sweeps around both rims (clayharmon's
+  // webgl-liquid-glass drives its rim light the same way, from pointer on
+  // desktop and DeviceOrientation on mobile). The angle is a MAP input, so it
+  // is quantized to 9° steps and folded into the same rAF-coalesced update
+  // the lens's own movement already schedules — one regen serves both.
+  let lightQ = 45;
+  const setLight = (deg) => {
+    if (reduce) return; // reduced motion pins the light — Apple's own behaviour
+    const q = Math.round(deg / 9) * 9;
+    if (q === lightQ) return;
+    lightQ = q;
+    group.reconfigure({ specularRotation: q });
+  };
   lstage.addEventListener('pointermove', (e) => {
     hovering = true;
     const r = lstage.getBoundingClientRect();
     mx = Math.max(0, Math.min(maxX, e.clientX - r.left - LW / 2));
     my = Math.max(0, Math.min(maxY, e.clientY - r.top - LH / 2));
+    setLight(
+      (Math.atan2(e.clientY - r.top - r.height / 2, e.clientX - r.left - r.width / 2) * 180) /
+        Math.PI,
+    );
   });
+  // Device tilt where it needs no permission prompt (iOS gates it behind a
+  // user-gesture request; a showcase card shouldn't open a permission dialog).
+  if (typeof DeviceOrientationEvent !== 'undefined' && !DeviceOrientationEvent.requestPermission) {
+    addEventListener('deviceorientation', (e) => {
+      if (e.gamma == null || e.beta == null) return;
+      const x = Math.max(-1, Math.min(1, e.gamma / 45));
+      const y = Math.max(-1, Math.min(1, (e.beta - 45) / 45));
+      if (x || y) setLight((Math.atan2(y, x) * 180) / Math.PI);
+    });
+  }
   lstage.addEventListener('pointerleave', () => {
     hovering = false;
   });

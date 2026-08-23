@@ -42,6 +42,13 @@ export interface GlassGroupParams extends Omit<GlassSurfaceParams, 'dome'> {
    * the inset-shadow chrome a single element would carry.
    */
   shade: number;
+  /**
+   * Light angle in degrees (default 45). A map input — quantize before tying
+   * it to pointer/orientation. When the light rides the same gesture that
+   * moves an item, fold it into that gesture's update instead of a second
+   * reconfigure: the regen is shared.
+   */
+  specularRotation: number;
 }
 
 export interface GlassGroupOptions extends Partial<GlassGroupParams> {
@@ -122,6 +129,7 @@ export function mountGlassGroup(o: GlassGroupOptions): GlassGroup {
     edge: o.edge ?? GLASS_SURFACE_DEFAULTS.edge,
     glow: o.glow ?? GLASS_SURFACE_DEFAULTS.glow,
     shade: o.shade ?? 0,
+    specularRotation: o.specularRotation ?? 45,
   };
 
   const surface: GlassSurface = createGlassSurface({
@@ -151,6 +159,7 @@ export function mountGlassGroup(o: GlassGroupOptions): GlassGroup {
         edge: mapP.edge,
         glow: mapP.glow,
         shade: mapP.shade,
+        specularRotation: mapP.specularRotation,
       }),
   });
 
@@ -175,11 +184,13 @@ export function mountGlassGroup(o: GlassGroupOptions): GlassGroup {
   return {
     update,
     reconfigure(patch) {
-      const { blend: nextBlend, shade: nextShade, ...rest } = patch;
+      const { blend: nextBlend, shade: nextShade, specularRotation: nextRot, ...rest } = patch;
       const blendChanged = typeof nextBlend === 'number' && nextBlend !== blend;
       if (blendChanged) blend = nextBlend;
       const shadeChanged = typeof nextShade === 'number' && nextShade !== mapP.shade;
       if (shadeChanged) mapP.shade = nextShade;
+      const rotChanged = typeof nextRot === 'number' && nextRot !== mapP.specularRotation;
+      if (rotChanged) mapP.specularRotation = nextRot;
       if (rest.depth != null) mapP.depth = rest.depth;
       if (rest.profile != null) mapP.profile = rest.profile;
       if (rest.edge != null) mapP.edge = rest.edge;
@@ -188,7 +199,7 @@ export function mountGlassGroup(o: GlassGroupOptions): GlassGroup {
       // group-only keys (blend, shade) re-run the same wiring by hand.
       surface.reconfigure(rest);
       if (
-        (blendChanged || shadeChanged) &&
+        (blendChanged || shadeChanged || rotChanged) &&
         !['depth', 'profile', 'edge', 'glow'].some((k) => k in rest)
       ) {
         lastKey = ''; // the key embeds only geometry — force the next run through
@@ -200,7 +211,7 @@ export function mountGlassGroup(o: GlassGroupOptions): GlassGroup {
     setActive: (on) => surface.setActive(on),
     getOptions() {
       const { dome: _dome, ...p } = surface.getOptions();
-      return { ...p, blend, shade: mapP.shade };
+      return { ...p, blend, shade: mapP.shade, specularRotation: mapP.specularRotation };
     },
     dispose() {
       cancelAnimationFrame(raf);

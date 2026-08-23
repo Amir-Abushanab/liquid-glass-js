@@ -37,6 +37,7 @@ export interface GlassLensOptions {
   chroma?: number;
   blur?: number;
   shade?: number; // dark occlusion rim opposite the glint (0–1, default 0)
+  specularRotation?: number; // light angle, degrees (default 45)
   glint?: string; // CSS colour for the specular glint (default white)
   active?: boolean; // start with the filter applied? (default true; false = solid until setActive)
 }
@@ -53,6 +54,12 @@ export interface GlassLensParams {
   chroma: number;
   blur: number;
   shade: number;
+  /**
+   * Light angle in degrees (default 45). A map input — reconfiguring it
+   * re-bakes the B channel — so drive it QUANTIZED (5–10° steps) when tying
+   * it to pointer or device orientation, not per event.
+   */
+  specularRotation: number;
 }
 
 export interface GlassLens {
@@ -84,6 +91,7 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
     chroma: o.chroma ?? 0.5,
     blur: o.blur ?? 0.5,
     shade: o.shade ?? 0,
+    specularRotation: o.specularRotation ?? 45,
   };
   const glintRgb = parseCssColor(o.glint ?? '#ffffff'); // mount-only; white = no tint
 
@@ -125,6 +133,7 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
       edge: cur.edge,
       glow: cur.glow,
       shade: cur.shade,
+      specularRotation: cur.specularRotation,
       pxScale: s,
     });
     const div = document.createElement('div');
@@ -169,7 +178,16 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
   // re-encoding a PNG. Same split mountGlassText has had all along, which is why
   // animating `strength` there is smooth and doing it here used to rebuild the map
   // sixty times a second.
-  const MAP_KEYS = ['radius', 'depth', 'profile', 'dome', 'edge', 'glow', 'shade'] as const;
+  const MAP_KEYS = [
+    'radius',
+    'depth',
+    'profile',
+    'dome',
+    'edge',
+    'glow',
+    'shade',
+    'specularRotation',
+  ] as const;
 
   const applyAttrs = () => {
     const s = cur.strength * displ;
