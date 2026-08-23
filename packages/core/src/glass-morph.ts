@@ -186,6 +186,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
 
   const rebuild = () => {
     const id = `${base}-${++n}`; // fresh id every rebuild (Safari filter-cache bust)
+    const gen = n;
     const mapUrl = o.buildMap
       ? o.buildMap(mapW, mapH)
       : buildDisplacementMap({
@@ -198,42 +199,54 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
           edge: cur.edge,
           glow: cur.glow,
         });
-    // Pre-decode the map bitmap so the <feImage> is ready on the surface's first
-    // paint. Until it decodes, the filter's neutral-gray flood stands in for the
-    // map (zero displacement), so the pane renders FLAT for a frame or two before
-    // the glass snaps in. Callers await whenReady() to hold a reveal until then.
+    // Decode BEFORE swapping. An feImage whose data URL hasn't decoded yet
+    // contributes nothing, so the chain falls through to the neutral flood —
+    // a FLAT frame. Chromium decodes a data URL practically synchronously;
+    // WebKit does not, and a per-move regenerate (the merge group, a squish)
+    // strobed flat/glass/flat there on every update. Building the new holder
+    // only once its bitmap is ready keeps the OLD glass on screen until the
+    // new one can actually paint — the strobe becomes ≤ one frame of map lag.
+    // Callers still await whenReady() to hold a first reveal.
     const warm = new Image();
     warm.src = mapUrl;
     ready = (typeof warm.decode === 'function' ? warm.decode() : Promise.resolve()).catch(() => {});
-    const s = cur.strength * frac;
-    const div = document.createElement('div');
-    div.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
-    const origin = glassOriginOffset(o.target);
-    div.innerHTML = filterHTML(
-      id,
-      mapW,
-      mapH,
-      cur.blur,
-      mapUrl,
-      s * (1 + 0.2 * cur.chroma),
-      s * (1 + 0.1 * cur.chroma),
-      s,
-      cur.spec * frac,
-      origin.x,
-      origin.y,
-    );
-    o.host.appendChild(div);
-    curId = id;
-    feImage = div.querySelector('feImage');
-    filterNode = div.querySelector('filter');
-    blurNode = div.querySelector('feGaussianBlur');
-    dm = Array.from(div.querySelectorAll('feDisplacementMap'));
-    spec = div.querySelector<SVGFEColorMatrixElement>('[result="specMask"]');
-    if (active) {
-      applyGlassFilter(o.target, id);
-    }
-    if (holder) holder.remove();
-    holder = div;
+    const commit = () => {
+      if (gen !== n) return; // a newer rebuild superseded this one while decoding
+      // Scales are read at COMMIT time: a setDisplScale that landed during the
+      // decode window is baked in rather than lost until the next applyScales.
+      const s = cur.strength * frac;
+      const div = document.createElement('div');
+      div.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
+      const origin = glassOriginOffset(o.target);
+      div.innerHTML = filterHTML(
+        id,
+        mapW,
+        mapH,
+        cur.blur,
+        mapUrl,
+        s * (1 + 0.2 * cur.chroma),
+        s * (1 + 0.1 * cur.chroma),
+        s,
+        cur.spec * frac,
+        origin.x,
+        origin.y,
+      );
+      o.host.appendChild(div);
+      curId = id;
+      feImage = div.querySelector('feImage');
+      filterNode = div.querySelector('filter');
+      blurNode = div.querySelector('feGaussianBlur');
+      dm = Array.from(div.querySelectorAll('feDisplacementMap'));
+      spec = div.querySelector<SVGFEColorMatrixElement>('[result="specMask"]');
+      if (active) {
+        applyGlassFilter(o.target, id);
+      }
+      if (holder) holder.remove();
+      holder = div;
+    };
+    // Registered before any caller's whenReady() handler, so by the time an
+    // awaited reveal proceeds the swap has already happened.
+    void ready.then(commit);
   };
 
   rebuild();
