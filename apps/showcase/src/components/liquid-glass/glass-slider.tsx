@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { Slider as BaseSlider } from '@base-ui/react/slider';
-import { mountGlassLens } from '@liquidglassjs/core';
+import { mountGlassLens, type MapProfile } from '@liquidglassjs/core';
 import { cn } from '@/lib/utils';
 import '@liquidglassjs/core/css';
 
@@ -33,6 +33,7 @@ function GlassSlider({
   depth = 8,
   edge = 0.9,
   glow = 0.3,
+  profile,
   ...props
 }: React.ComponentProps<typeof BaseSlider.Root> & {
   strength?: number;
@@ -41,6 +42,7 @@ function GlassSlider({
   depth?: number;
   edge?: number;
   glow?: number;
+  profile?: MapProfile;
 }) {
   const hostRef = React.useRef<HTMLDivElement>(null);
   const railRef = React.useRef<HTMLDivElement>(null);
@@ -66,6 +68,7 @@ function GlassSlider({
       lensH: THUMB_H,
       radius: KNOB_R,
       strength,
+      profile,
       chroma,
       dome,
       depth,
@@ -101,7 +104,7 @@ function GlassSlider({
       lens.dispose();
     };
     // re-mount the lens when the glass params change (so the Tuner is live)
-  }, [strength, chroma, dome, depth, edge, glow]);
+  }, [strength, chroma, dome, depth, edge, glow, profile]);
 
   return (
     <BaseSlider.Root className={cn('w-full', className)} {...props}>

@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { Switch as BaseSwitch } from '@base-ui/react/switch';
-import { mountGlassLens } from '@liquidglassjs/core';
+import { mountGlassLens, type MapProfile } from '@liquidglassjs/core';
 import { cn } from '@/lib/utils';
 import '@liquidglassjs/core/css';
 
@@ -30,6 +30,7 @@ function GlassSwitch({
   depth = 5,
   edge = 0.9,
   glow = 0.32,
+  profile,
   ...props
 }: React.ComponentProps<typeof BaseSwitch.Root> & {
   strength?: number;
@@ -38,6 +39,7 @@ function GlassSwitch({
   depth?: number;
   edge?: number;
   glow?: number;
+  profile?: MapProfile;
 }) {
   const rootRef = React.useRef<HTMLButtonElement>(null);
   const railRef = React.useRef<HTMLSpanElement>(null);
@@ -56,6 +58,7 @@ function GlassSwitch({
       lensH: LENS,
       radius: LENS / 2,
       strength,
+      profile,
       chroma,
       dome,
       depth,
@@ -94,7 +97,7 @@ function GlassSwitch({
       lens.dispose();
     };
     // re-mount the lens when the glass params change (so the Tuner is live)
-  }, [strength, chroma, dome, depth, edge, glow]);
+  }, [strength, chroma, dome, depth, edge, glow, profile]);
 
   return (
     <BaseSwitch.Root

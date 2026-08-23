@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { Tabs as BaseTabs } from '@base-ui/react/tabs';
-import { mountGlassLens } from '@liquidglassjs/core';
+import { mountGlassLens, type MapProfile } from '@liquidglassjs/core';
 import { cn } from '@/lib/utils';
 import '@liquidglassjs/core/css';
 
@@ -41,6 +41,7 @@ function GlassTabsList({
   depth = 8,
   edge = 0.9,
   glow = 0.3,
+  profile,
   ...props
 }: React.ComponentProps<typeof BaseTabs.List> & {
   strength?: number;
@@ -49,6 +50,7 @@ function GlassTabsList({
   depth?: number;
   edge?: number;
   glow?: number;
+  profile?: MapProfile;
 }) {
   const listRef = React.useRef<HTMLDivElement>(null);
   const labelsRef = React.useRef<HTMLDivElement>(null);
@@ -100,6 +102,7 @@ function GlassTabsList({
         lensH: b.h,
         radius: b.h / 2,
         strength,
+        profile,
         chroma,
         dome,
         depth,
@@ -146,7 +149,7 @@ function GlassTabsList({
       lens?.dispose();
     };
     // re-mount the lens when the glass params change (so the Tuner is live)
-  }, [strength, chroma, dome, depth, edge, glow]);
+  }, [strength, chroma, dome, depth, edge, glow, profile]);
 
   return (
     <BaseTabs.List

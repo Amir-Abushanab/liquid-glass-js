@@ -83,6 +83,9 @@ const profileOf = (o?: TuneOptions): 'erf' | 'circle' =>
 // Snippet fragment: the prop appears only when it differs from the default.
 const profileAttr = (o?: TuneOptions): string =>
   o?.profile === 'circle' ? '\n      profile="circle"' : '';
+// Same, for the single-line prop templates (tabs/dialog/dropdown/slider/switch).
+const profileAttrInline = (o?: TuneOptions): string =>
+  o?.profile === 'circle' ? ' profile="circle"' : '';
 
 export type Category = 'Components' | 'Effects';
 
@@ -786,14 +789,15 @@ const FROST_PARAMS: TuneParam[] = [
 const TABS_TUNE: TuneConfig = {
   needs: 'backdrop-url',
   params: FROST_PARAMS,
-  code: (v) => `import {
+  controls: [profileControl],
+  code: (v, o) => `import {
   GlassTabs, GlassTabsList, GlassTabsTab, GlassTabsPanel,
 } from "@/components/liquid-glass/glass-tabs"
 
 export function Example() {
   return (
     <GlassTabs defaultValue="overview">
-      <GlassTabsList strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}}>
+      <GlassTabsList strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}}${profileAttrInline(o)}>
         <GlassTabsTab value="overview">Overview</GlassTabsTab>
         <GlassTabsTab value="activity">Activity</GlassTabsTab>
         <GlassTabsTab value="settings">Settings</GlassTabsTab>
@@ -806,7 +810,8 @@ export function Example() {
 const DIALOG_TUNE: TuneConfig = {
   needs: 'backdrop-url',
   params: FROST_PARAMS,
-  code: (v) => `import {
+  controls: [profileControl],
+  code: (v, o) => `import {
   GlassDialog, GlassDialogTrigger, GlassDialogContent,
   GlassDialogHeader, GlassDialogTitle, GlassDialogDescription,
 } from "@/components/liquid-glass/glass-dialog"
@@ -815,7 +820,7 @@ export function Example() {
   return (
     <GlassDialog>
       <GlassDialogTrigger>Open dialog</GlassDialogTrigger>
-      <GlassDialogContent strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}}>
+      <GlassDialogContent strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}}${profileAttrInline(o)}>
         <GlassDialogHeader>
           <GlassDialogTitle>Delete project</GlassDialogTitle>
           <GlassDialogDescription>This can&apos;t be undone.</GlassDialogDescription>
@@ -829,7 +834,8 @@ export function Example() {
 const DROPDOWN_TUNE: TuneConfig = {
   needs: 'backdrop-url',
   params: FROST_PARAMS,
-  code: (v) => `import {
+  controls: [profileControl],
+  code: (v, o) => `import {
   GlassDropdownMenu, GlassDropdownMenuTrigger, GlassDropdownMenuContent,
   GlassDropdownMenuItem, GlassDropdownMenuSeparator,
 } from "@/components/liquid-glass/glass-dropdown-menu"
@@ -838,7 +844,7 @@ export function Example() {
   return (
     <GlassDropdownMenu>
       <GlassDropdownMenuTrigger>Options</GlassDropdownMenuTrigger>
-      <GlassDropdownMenuContent strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}}>
+      <GlassDropdownMenuContent strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}}${profileAttrInline(o)}>
         <GlassDropdownMenuItem>Profile</GlassDropdownMenuItem>
         <GlassDropdownMenuItem>Settings</GlassDropdownMenuItem>
         <GlassDropdownMenuSeparator />
@@ -851,24 +857,26 @@ export function Example() {
 
 const SLIDER_TUNE: TuneConfig = {
   params: presetControls('slider'),
-  code: (v) => `import { GlassSlider } from "@/components/liquid-glass/glass-slider"
+  controls: [profileControl],
+  code: (v, o) => `import { GlassSlider } from "@/components/liquid-glass/glass-slider"
 
 export function Example() {
   // Drag the thumb to see the rail refract through the glass.
   return (
-    <GlassSlider defaultValue={40} strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}} className="w-80" />
+    <GlassSlider defaultValue={40} strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}}${profileAttrInline(o)} className="w-80" />
   )
 }`,
 };
 
 const SWITCH_TUNE: TuneConfig = {
   params: presetControls('switch'),
-  code: (v) => `import { GlassSwitch } from "@/components/liquid-glass/glass-switch"
+  controls: [profileControl],
+  code: (v, o) => `import { GlassSwitch } from "@/components/liquid-glass/glass-switch"
 
 export function Example() {
   // Press-and-hold to see the track refract through the glass thumb.
   return (
-    <GlassSwitch defaultChecked strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}} />
+    <GlassSwitch defaultChecked strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}}${profileAttrInline(o)} />
   )
 }`,
 };
@@ -946,7 +954,10 @@ export const registry: RegistryItem[] = [
       'A modal dialog: Base UI behavior (focus trap, scroll lock, ARIA) with a frosted glass panel over a dimmed backdrop.',
     tune: DIALOG_TUNE,
     code: DIALOG_TUNE.code(tuneDefaults(DIALOG_TUNE)),
-    Demo: ({ values: v = tuneDefaults(DIALOG_TUNE) }) => (
+    Demo: ({
+      values: v = tuneDefaults(DIALOG_TUNE),
+      options: o = controlDefaults(DIALOG_TUNE),
+    }) => (
       <GlassDialog>
         <GlassDialogTrigger className={triggerClass}>Open dialog</GlassDialogTrigger>
         <GlassDialogContent
@@ -956,6 +967,7 @@ export const registry: RegistryItem[] = [
           depth={v.depth}
           edge={v.edge}
           glow={v.glow}
+          profile={profileOf(o)}
         >
           <GlassDialogHeader>
             <GlassDialogTitle>Delete project</GlassDialogTitle>
@@ -982,7 +994,7 @@ export const registry: RegistryItem[] = [
       'A segmented control: Base UI Tabs with a glass pill that slides under the active label and refracts it.',
     tune: TABS_TUNE,
     code: TABS_TUNE.code(tuneDefaults(TABS_TUNE)),
-    Demo: ({ values: v = tuneDefaults(TABS_TUNE) }) => (
+    Demo: ({ values: v = tuneDefaults(TABS_TUNE), options: o = controlDefaults(TABS_TUNE) }) => (
       <GlassTabs defaultValue="daily">
         <GlassTabsList
           strength={v.strength}
@@ -991,6 +1003,7 @@ export const registry: RegistryItem[] = [
           depth={v.depth}
           edge={v.edge}
           glow={v.glow}
+          profile={profileOf(o)}
         >
           <GlassTabsTab value="daily">Daily</GlassTabsTab>
           <GlassTabsTab value="weekly">Weekly</GlassTabsTab>
@@ -1017,7 +1030,10 @@ export const registry: RegistryItem[] = [
       'A toggle: Base UI Switch with a real glass thumb. Press it and the track refracts through the glass, a live SVG lens rather than a CSS blur.',
     tune: SWITCH_TUNE,
     code: SWITCH_TUNE.code(tuneDefaults(SWITCH_TUNE)),
-    Demo: ({ values: v = tuneDefaults(SWITCH_TUNE) }) => (
+    Demo: ({
+      values: v = tuneDefaults(SWITCH_TUNE),
+      options: o = controlDefaults(SWITCH_TUNE),
+    }) => (
       <div className="flex items-center gap-4">
         <GlassSwitch
           defaultChecked
@@ -1027,8 +1043,10 @@ export const registry: RegistryItem[] = [
           depth={v.depth}
           edge={v.edge}
           glow={v.glow}
+          profile={profileOf(o)}
         />
         <GlassSwitch
+          profile={profileOf(o)}
           strength={v.strength}
           chroma={v.chroma}
           dome={v.dome}
@@ -1048,7 +1066,10 @@ export const registry: RegistryItem[] = [
       'A slider: Base UI Slider with a real glass thumb. Drag it and the rail refracts through the glass, a live SVG lens rather than a CSS blur.',
     tune: SLIDER_TUNE,
     code: SLIDER_TUNE.code(tuneDefaults(SLIDER_TUNE)),
-    Demo: ({ values: v = tuneDefaults(SLIDER_TUNE) }) => (
+    Demo: ({
+      values: v = tuneDefaults(SLIDER_TUNE),
+      options: o = controlDefaults(SLIDER_TUNE),
+    }) => (
       <GlassSlider
         defaultValue={40}
         strength={v.strength}
@@ -1057,6 +1078,7 @@ export const registry: RegistryItem[] = [
         depth={v.depth}
         edge={v.edge}
         glow={v.glow}
+        profile={profileOf(o)}
         className="w-80"
       />
     ),
@@ -1070,7 +1092,10 @@ export const registry: RegistryItem[] = [
       'A dropdown menu: Base UI Menu (anchored positioning, roving focus, typeahead) with a refracting glass popup.',
     tune: DROPDOWN_TUNE,
     code: DROPDOWN_TUNE.code(tuneDefaults(DROPDOWN_TUNE)),
-    Demo: ({ values: v = tuneDefaults(DROPDOWN_TUNE) }) => (
+    Demo: ({
+      values: v = tuneDefaults(DROPDOWN_TUNE),
+      options: o = controlDefaults(DROPDOWN_TUNE),
+    }) => (
       <GlassDropdownMenu>
         <GlassDropdownMenuTrigger className={triggerClass}>Options</GlassDropdownMenuTrigger>
         <GlassDropdownMenuContent
@@ -1080,6 +1105,7 @@ export const registry: RegistryItem[] = [
           depth={v.depth}
           edge={v.edge}
           glow={v.glow}
+          profile={profileOf(o)}
         >
           <GlassDropdownMenuItem>Profile</GlassDropdownMenuItem>
           <GlassDropdownMenuItem>Settings</GlassDropdownMenuItem>

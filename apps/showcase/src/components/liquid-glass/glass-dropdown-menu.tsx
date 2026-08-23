@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Menu as BaseMenu } from '@base-ui/react/menu';
 import { LiquidGlass } from '@liquidglassjs/react';
+import type { MapProfile } from '@liquidglassjs/core';
 import { cn } from '@/lib/utils';
 import '@liquidglassjs/core/css';
 
@@ -72,6 +73,7 @@ function GlassDropdownMenuContent({
   depth = 8,
   edge = 0.9,
   glow = 0.3,
+  profile,
   refract,
   backdrop,
   ...props
@@ -83,6 +85,7 @@ function GlassDropdownMenuContent({
   depth?: number;
   edge?: number;
   glow?: number;
+  profile?: MapProfile;
   /**
    * Element to refract. Given one, the glass takes the SVG path and bends that
    * content in every browser; without one there is nothing behind this to filter and
@@ -136,6 +139,7 @@ function GlassDropdownMenuContent({
               depth={depth}
               edge={edge}
               glow={glow}
+              profile={profile}
               className="pointer-events-none absolute inset-0"
             />
           )}

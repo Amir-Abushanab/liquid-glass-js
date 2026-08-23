@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Dialog as BaseDialog } from '@base-ui/react/dialog';
 import { LiquidGlass } from '@liquidglassjs/react';
+import type { MapProfile } from '@liquidglassjs/core';
 import { cn } from '@/lib/utils';
 import '@liquidglassjs/core/css';
 
@@ -77,6 +78,7 @@ function GlassDialogContent({
   depth = 8,
   edge = 0.9,
   glow = 0.3,
+  profile,
   refract,
   ...props
 }: React.ComponentProps<typeof BaseDialog.Popup> & {
@@ -87,6 +89,7 @@ function GlassDialogContent({
   depth?: number;
   edge?: number;
   glow?: number;
+  profile?: MapProfile;
   /**
    * Element to refract. Given one, the glass takes the SVG path and bends that
    * content in every browser; without one there is nothing behind this to filter and
@@ -140,6 +143,7 @@ function GlassDialogContent({
               depth={depth}
               edge={edge}
               glow={glow}
+              profile={profile}
               className="pointer-events-none absolute inset-0"
             />
           )}

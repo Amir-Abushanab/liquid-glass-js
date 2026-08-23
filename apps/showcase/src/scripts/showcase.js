@@ -44,6 +44,17 @@ const RENDER_KEYS = ['strength', 'chroma', 'blur', 'dome', 'depth', 'edge', 'glo
 const RENDER_PARAMS = presetControls('surface', RENDER_KEYS);
 const RIPPLE_PARAMS = presetControls('ripple');
 const MERGE_PARAMS = presetControls('merge');
+// The rim-falloff picker every rounded-rect section shares ('erf' meniscus vs
+// the iOS-style 'circle' ring). A factory, not a const: the renderer mutates
+// `value` on the object, so each section needs its own.
+const profilePicker = (apply) => ({
+  options: [
+    { label: 'Meniscus', value: 'erf' },
+    { label: 'Ring', value: 'circle' },
+  ],
+  value: 'erf',
+  apply,
+});
 const QR_PARAMS = presetControls('qr', [
   'scaleX',
   'scaleY',
@@ -191,6 +202,7 @@ if (segLenses.length) {
     params: LENS_PARAMS,
     opts: { ...SEG_OPTS },
     apply: (patch) => segLenses.forEach((l) => l.reconfigure(patch)),
+    picker: profilePicker((v) => segLenses.forEach((l) => l.reconfigure({ profile: v }))),
   });
 }
 const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -641,6 +653,7 @@ if (isld && isldTrack && isldThumb) {
   });
   cfgSections.push({
     id: 'slider',
+    picker: profilePicker((v) => lens.reconfigure({ profile: v })),
     label: 'Slider',
     icon: CFG_ICONS.slider,
     params: presetControls('slider'),
@@ -713,6 +726,7 @@ if (isw && iswTrack && iswThumb) {
   });
   cfgSections.push({
     id: 'switch',
+    picker: profilePicker((v) => lens.reconfigure({ profile: v })),
     label: 'Switch',
     icon: CFG_ICONS.switch,
     params: presetControls('switch'),
@@ -804,14 +818,7 @@ if (lstage && lcard && lensEl && blobEl) {
     params: MERGE_PARAMS,
     opts: { ...MERGE_OPTS },
     apply: (patch) => group.reconfigure(patch),
-    picker: {
-      options: [
-        { label: 'Meniscus', value: 'erf' },
-        { label: 'Ring', value: 'circle' },
-      ],
-      value: 'erf',
-      apply: (v) => group.reconfigure({ profile: v }),
-    },
+    picker: profilePicker((v) => group.reconfigure({ profile: v })),
   });
   let onScreen = true;
   new IntersectionObserver((es) => {
@@ -925,6 +932,7 @@ if (loupeDoc) {
   };
   cfgSections.push({
     id: 'loupe',
+    picker: profilePicker((v) => loupe.reconfigure({ profile: v })),
     label: 'Loupe',
     icon: CFG_ICONS.loupe,
     params: LOUPE_PARAMS,
@@ -1174,6 +1182,7 @@ if (gmBtnEl) {
 
   cfgSections.push({
     id: 'button',
+    picker: profilePicker((v) => btn.reconfigure({ profile: v })),
     label: 'Content morph',
     icon: CFG_ICONS.button,
     params: MORPH_PARAMS,
@@ -1200,6 +1209,7 @@ if (gmDdEl) {
       .forEach((it) => it.addEventListener('click', () => dd.close()));
     cfgSections.push({
       id: 'dropdown',
+      picker: profilePicker((v) => dd.reconfigure({ profile: v })),
       label: 'Dropdown',
       icon: CFG_ICONS.dropdown,
       params: MORPH_PARAMS,
