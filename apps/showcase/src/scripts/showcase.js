@@ -1855,12 +1855,23 @@ function buildTuner(sections) {
     }
     setTimeout(() => (copyBtn.textContent = 'Copy'), 1200);
   });
-  if (pos) {
-    panel.style.left = `${pos.left}px`;
-    panel.style.top = `${pos.top}px`;
+  // A saved position came from SOME window — the current one may be smaller.
+  // The drag clamps live, but restoring (or resizing) used to place the panel
+  // verbatim, which parked the whole Tuner off screen after a reload in a
+  // narrower window. Clamp whenever the position is applied.
+  const placeAt = (left, top) => {
+    const nx = Math.max(6, Math.min(window.innerWidth - panel.offsetWidth - 6, left));
+    const ny = Math.max(6, Math.min(window.innerHeight - panel.offsetHeight - 6, top));
+    panel.style.left = `${nx}px`;
+    panel.style.top = `${ny}px`;
     panel.style.right = 'auto';
     panel.style.bottom = 'auto';
-  }
+    return { left: nx, top: ny };
+  };
+  if (pos) pos = placeAt(pos.left, pos.top);
+  addEventListener('resize', () => {
+    if (pos) pos = placeAt(pos.left, pos.top);
+  });
   const bar = panel.querySelector('.cfg__bar');
   let drag = false,
     sx = 0,
@@ -1883,17 +1894,7 @@ function buildTuner(sections) {
   });
   bar.addEventListener('pointermove', (e) => {
     if (!drag) return;
-    const nx = Math.max(
-      6,
-      Math.min(window.innerWidth - panel.offsetWidth - 6, ox + e.clientX - sx),
-    );
-    const ny = Math.max(
-      6,
-      Math.min(window.innerHeight - panel.offsetHeight - 6, oy + e.clientY - sy),
-    );
-    panel.style.left = `${nx}px`;
-    panel.style.top = `${ny}px`;
-    pos = { left: nx, top: ny };
+    pos = placeAt(ox + e.clientX - sx, oy + e.clientY - sy);
   });
   bar.addEventListener('pointerup', () => {
     if (drag) {
