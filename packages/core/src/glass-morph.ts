@@ -143,6 +143,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
     spec: o.spec ?? GLASS_SURFACE_DEFAULTS.spec,
   };
 
+  let disposed = false;
   let mapW = Math.max(1, Math.round(o.width));
   let mapH = Math.max(1, Math.round(o.height));
   let radius = o.radius;
@@ -211,7 +212,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
     warm.src = mapUrl;
     ready = (typeof warm.decode === 'function' ? warm.decode() : Promise.resolve()).catch(() => {});
     const commit = () => {
-      if (gen !== n) return; // a newer rebuild superseded this one while decoding
+      if (gen !== n || disposed) return; // superseded or disposed while decoding
       // Scales are read at COMMIT time: a setDisplScale that landed during the
       // decode window is baked in rather than lost until the next applyScales.
       const s = cur.strength * frac;
@@ -299,6 +300,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
       return { ...cur };
     },
     dispose() {
+      disposed = true;
       holder?.remove();
       clearGlassFilter(o.target);
     },

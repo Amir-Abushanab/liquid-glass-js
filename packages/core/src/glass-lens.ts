@@ -105,6 +105,7 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
   let ly = 0;
   let n = 0;
   let active = o.active ?? true;
+  let disposed = false;
   let displ = 1; // setDisplScale's live multiplier — attribute-only, never in the map
   let curId = '';
   let holder: HTMLElement | null = null;
@@ -116,9 +117,7 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
 
   const rebuild = () => {
     const id = `${base}-${++n}`; // fresh id on every map change (Safari cache bust)
-    const s1 = cur.strength * displ * (1 + 0.2 * cur.chroma);
-    const s2 = cur.strength * displ * (1 + 0.1 * cur.chroma);
-    const s3 = cur.strength * displ;
+    const gen = n;
     // Supersample: render the dome field at s× device resolution and let the
     // <feImage> (kept at CSS px below) scale it down, so the rim doesn't alias on
     // retina (item 4). The field is scale-invariant, so every length scales by s.
@@ -136,6 +135,25 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
       specularRotation: cur.specularRotation,
       pxScale: s,
     });
+    // Decode BEFORE swapping — same gate as createGlassSurface: an undecoded
+    // feImage falls through to the neutral flood, so WebKit flashed FLAT on
+    // every setSize / map-key reconfigure. The old lens stays up until the new
+    // map can paint; a newer rebuild (or dispose) supersedes a pending one.
+    const warm = new Image();
+    warm.src = map;
+    const ready = (typeof warm.decode === 'function' ? warm.decode() : Promise.resolve()).catch(
+      () => {},
+    );
+    void ready.then(() => {
+      if (gen !== n || disposed) return;
+      commit(id, map);
+    });
+  };
+
+  const commit = (id: string, map: string) => {
+    const s1 = cur.strength * displ * (1 + 0.2 * cur.chroma);
+    const s2 = cur.strength * displ * (1 + 0.1 * cur.chroma);
+    const s3 = cur.strength * displ;
     const div = document.createElement('div');
     div.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
     div.innerHTML =
@@ -255,6 +273,7 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
       else clearGlassFilter(o.target);
     },
     dispose() {
+      disposed = true;
       holder?.remove();
       clearGlassFilter(o.target);
     },

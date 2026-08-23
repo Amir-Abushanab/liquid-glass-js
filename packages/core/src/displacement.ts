@@ -212,6 +212,41 @@ export function renderDisplacementMap(o: GlassMapOptions): HTMLCanvasElement {
   return cv;
 }
 
+// The generator is a pure function of its options, so identical asks can
+// share one PNG — Glacé (glaceui) caches its maps the same way. This pays on
+// A/B toggles (profile, light angle), re-mounts of same-sized surfaces, and
+// React double-mounts; a small LRU keeps a resize sweep from pinning dozens
+// of stale sizes.
+const mapCache = new Map<string, string>();
+const MAP_CACHE_MAX = 24;
+
 export function buildDisplacementMap(o: GlassMapOptions): string {
-  return renderDisplacementMap(o).toDataURL();
+  const key = [
+    o.width,
+    o.height,
+    o.radius,
+    o.depth,
+    o.profile ?? 'erf',
+    o.dome ?? 0,
+    o.edge ?? 0,
+    o.glow ?? 0,
+    o.shade ?? 0,
+    o.margin ?? 0,
+    o.specularRotation ?? 45,
+    o.pxScale ?? 1,
+  ].join('|');
+  const hit = mapCache.get(key);
+  if (hit) {
+    // Re-insert on hit: Map iterates in insertion order, so this is the LRU touch.
+    mapCache.delete(key);
+    mapCache.set(key, hit);
+    return hit;
+  }
+  const url = renderDisplacementMap(o).toDataURL();
+  mapCache.set(key, url);
+  if (mapCache.size > MAP_CACHE_MAX) {
+    const oldest = mapCache.keys().next().value;
+    if (oldest != null) mapCache.delete(oldest);
+  }
+  return url;
 }
