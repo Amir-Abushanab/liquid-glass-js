@@ -2058,6 +2058,6 @@ document.querySelectorAll('.lgf__text[contenteditable]').forEach((el) => {
     }
   });
   el.addEventListener('blur', () => {
-    if (!(el.textContent || '').trim()) el.textContent = 'Refraction'; // don't strand an empty demo
+    if (!(el.textContent || '').trim()) el.textContent = 'Type Here'; // don't strand an empty demo
   });
 });
