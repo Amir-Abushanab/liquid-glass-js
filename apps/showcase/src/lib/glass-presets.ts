@@ -199,8 +199,9 @@ export const GLASS_PRESETS = {
     { key: 'glow', min: 0, max: 2, step: 0.05, default: 0.32 },
   ],
 
-  // Merged glass: pills fused by one smooth-min map. `blend` is the fuse
-  // distance — silhouettes bridge at a gap of about half of it.
+  // Merged glass — the Lens stage's lens + blob, and the registry's Glass
+  // Merge pills. `blend` is the fuse distance; silhouettes bridge at a gap of
+  // about half of it.
   merge: [
     { key: 'blend', min: 0, max: 64, step: 1, default: 28 },
     { key: 'strength', min: 0, max: 40, step: 0.5, default: 20 },

@@ -85,28 +85,65 @@ export function renderGroupDisplacementMap(o: GroupMapOptions): HTMLCanvasElemen
   const img = ctx.createImageData(cw, chh);
   new Uint32Array(img.data.buffer).fill(NEUTRAL_PX);
 
-  // Active rect: the union bbox padded by everything that can reach past a
-  // shape's own edge — the fuse distance and a little slack for the gradient
-  // apron. (depth and the specular band reach INWARD, not outward.)
-  let x0 = Infinity;
-  let y0 = Infinity;
-  let x1 = -Infinity;
-  let y1 = -Infinity;
-  for (const s of o.shapes) {
-    x0 = Math.min(x0, s.x);
-    y0 = Math.min(y0, s.y);
-    x1 = Math.max(x1, s.x + s.w);
-    y1 = Math.max(y1, s.y + s.h);
-  }
+  // Active rects: each shape's bbox expanded by the fuse reach, with
+  // overlapping expansions merged into clusters, and the field evaluated per
+  // cluster. Far-apart shapes then cost two small patches instead of one rect
+  // spanning the gap — the case a drifting lens far from its blob lives in.
+  // Cluster-local smin is exact, not approximate: a pixel inside cluster A's
+  // patch sits outside every other cluster's patch, so every foreign SDF
+  // there exceeds `pad` — too far to win the min where it matters (the pixels
+  // that render have sdf < ~blend/4) and too far to engage the smooth band.
   const pad = Math.ceil(blend + 4);
-  x0 = Math.max(0, Math.floor(x0 - pad));
-  y0 = Math.max(0, Math.floor(y0 - pad));
-  x1 = Math.min(cw, Math.ceil(x1 + pad));
-  y1 = Math.min(chh, Math.ceil(y1 + pad));
-  const aw = x1 - x0;
-  const ah = y1 - y0;
-  if (o.shapes.length && aw > 0 && ah > 0) {
-    // The merged field, with a 1px apron so every active pixel has neighbours.
+  interface Cluster {
+    x0: number;
+    y0: number;
+    x1: number;
+    y1: number;
+    shapes: GroupShape[];
+  }
+  const clusters: Cluster[] = o.shapes.map((s) => ({
+    x0: Math.max(0, Math.floor(s.x - pad)),
+    y0: Math.max(0, Math.floor(s.y - pad)),
+    x1: Math.min(cw, Math.ceil(s.x + s.w + pad)),
+    y1: Math.min(chh, Math.ceil(s.y + s.h + pad)),
+    shapes: [s],
+  }));
+  for (let merged = true; merged;) {
+    merged = false;
+    outer: for (let a = 0; a < clusters.length; a++) {
+      for (let b = a + 1; b < clusters.length; b++) {
+        const A = clusters[a];
+        const B = clusters[b];
+        if (A.x0 < B.x1 && B.x0 < A.x1 && A.y0 < B.y1 && B.y0 < A.y1) {
+          A.x0 = Math.min(A.x0, B.x0);
+          A.y0 = Math.min(A.y0, B.y0);
+          A.x1 = Math.max(A.x1, B.x1);
+          A.y1 = Math.max(A.y1, B.y1);
+          A.shapes.push(...B.shapes);
+          clusters.splice(b, 1);
+          merged = true;
+          break outer;
+        }
+      }
+    }
+  }
+
+  const E = depth > 0 ? 1 / (depth * Math.SQRT2) : 1e6;
+  const rot = ((o.specularRotation ?? 45) * Math.PI) / 180;
+  const ck = Math.cos(rot);
+  const sk = Math.sin(rot);
+  const specOn = edge > 0 || glow > 0 || shade > 0;
+  const edgeW = 3;
+  const edgeExp = 1.5;
+  const glowExp = 1.5;
+  const GT = Math.SQRT2; // glowSpread 1, as the single-shape generator ships
+
+  for (const c of clusters) {
+    const { x0, y0 } = c;
+    const aw = c.x1 - c.x0;
+    const ah = c.y1 - c.y0;
+    if (aw <= 0 || ah <= 0) continue;
+    // The cluster's field, with a 1px apron so every active pixel has neighbours.
     const fw = aw + 2;
     const fh = ah + 2;
     const f = new Float32Array(fw * fh);
@@ -115,20 +152,10 @@ export function renderGroupDisplacementMap(o: GroupMapOptions): HTMLCanvasElemen
       for (let i2 = 0; i2 < fw; i2++) {
         const px = x0 + i2 - 1 + 0.5;
         let d = Infinity;
-        for (const s of o.shapes) d = smin(d, sdRoundedRect(px, py, s), blend);
+        for (const s of c.shapes) d = smin(d, sdRoundedRect(px, py, s), blend);
         f[j * fw + i2] = d;
       }
     }
-
-    const E = depth > 0 ? 1 / (depth * Math.SQRT2) : 1e6;
-    const rot = ((o.specularRotation ?? 45) * Math.PI) / 180;
-    const ck = Math.cos(rot);
-    const sk = Math.sin(rot);
-    const specOn = edge > 0 || glow > 0 || shade > 0;
-    const edgeW = 3;
-    const edgeExp = 1.5;
-    const glowExp = 1.5;
-    const GT = Math.SQRT2; // glowSpread 1, as the single-shape generator ships
 
     for (let row = 0; row < ah; row++) {
       for (let col = 0; col < aw; col++) {

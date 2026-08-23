@@ -63,9 +63,6 @@ const CFG_ICONS = {
   switch:
     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="5" width="13" height="6" rx="3"/><circle cx="11" cy="8" r="2" fill="currentColor" stroke="none"/></svg>',
   lens: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="6.8" cy="6.8" r="4.3"/><line x1="10.2" y1="10.2" x2="14" y2="14"/></svg>',
-  // Two rims mid-fuse.
-  merge:
-    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="5.8" cy="8" r="4.4"/><circle cx="10.2" cy="8" r="4.4"/></svg>',
   // Same glass as the lens, but it magnifies — hence the plus.
   loupe:
     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="6.8" cy="6.8" r="4.3"/><line x1="10.2" y1="10.2" x2="14" y2="14"/><line x1="6.8" y1="4.9" x2="6.8" y2="8.7"/><line x1="4.9" y1="6.8" x2="8.7" y2="6.8"/></svg>',
@@ -783,27 +780,44 @@ if (isw && iswTrack && iswThumb) {
 const lstage = document.querySelector('[data-lens]');
 const lcard = document.getElementById('lenscard');
 const lensEl = lstage?.querySelector('.lens-stage__lens');
-if (lstage && lcard && lensEl) {
+const blobEl = lstage?.querySelector('.lens-stage__blob');
+if (lstage && lcard && lensEl && blobEl) {
   const LW = 150,
     LH = 150;
-  const LENS_OPTS = presetDefaults('lens');
-  // glint (item 6): a warm specular tint on the draggable lens
-  const lens = mountGlassLens({
+  const MERGE_OPTS = presetDefaults('merge');
+  // The drifting lens and the resting blob share ONE smooth-min map, so
+  // steering the lens into the blob fuses them. mountGlassLens moved only an
+  // <feImage> per frame; a merge has no cheap-attribute form (the neck's
+  // shape changes), so this stage re-encodes the map per move instead —
+  // cluster-limited in group-map, decode-gated against strobing in
+  // glass-morph, and skipped entirely while the stage is off screen.
+  const group = mountGlassGroup({
     target: lcard,
     host: lstage,
-    lensW: LW,
-    lensH: LH,
-    glint: '#ffd9a0',
-    ...LENS_OPTS,
+    items: [lensEl, blobEl],
+    ...MERGE_OPTS,
   });
   cfgSections.push({
     id: 'lens',
     label: 'Lens',
     icon: CFG_ICONS.lens,
-    params: LENS_PARAMS,
-    opts: { ...LENS_OPTS },
-    apply: (patch) => lens.reconfigure(patch),
+    params: MERGE_PARAMS,
+    opts: { ...MERGE_OPTS },
+    apply: (patch) => group.reconfigure(patch),
+    picker: {
+      options: [
+        { label: 'Meniscus', value: 'erf' },
+        { label: 'Ring', value: 'circle' },
+      ],
+      value: 'erf',
+      apply: (v) => group.reconfigure({ profile: v }),
+    },
   });
+  let onScreen = true;
+  new IntersectionObserver((es) => {
+    onScreen = es[0].isIntersecting;
+    if (onScreen) group.update();
+  }).observe(lstage);
   // The lens drifts on its own — DVD-style, bouncing off the stage edges — and
   // snaps to the cursor while the pointer is over the stage, no press needed.
   let lx = 30,
@@ -819,7 +833,7 @@ if (lstage && lcard && lensEl) {
     maxY = 0;
   const place = () => {
     lensEl.style.transform = `translate(${lx}px, ${ly}px)`;
-    lens.setPos(lx, ly);
+    if (onScreen) group.update();
   };
   const measure = () => {
     const r = lstage.getBoundingClientRect();
@@ -941,46 +955,6 @@ if (svgBtn && svgBg) {
     params: RIPPLE_PARAMS,
     opts: ripple.getOptions(),
     apply: (patch) => ripple.reconfigure(patch),
-  });
-}
-// ── Merge: two pills fused into ONE smooth-min displacement map ──
-const mstage = document.querySelector('[data-merge]');
-const mcard = document.getElementById('mergecard');
-if (mstage && mcard) {
-  const pills = [...mstage.querySelectorAll('.merge-stage__pill')];
-  const MERGE_OPTS = presetDefaults('merge');
-  const group = mountGlassGroup({
-    target: mcard,
-    host: mstage,
-    items: pills,
-    ...MERGE_OPTS,
-  });
-  const loose = pills[pills.length - 1];
-  // The loose pill chases the pointer; every move re-measures the group. The
-  // pill is chrome ABOVE the refracted card (never filtered), so driving it
-  // with a transform is safe in Safari — see glass-group.ts's header.
-  mstage.addEventListener('pointermove', (e) => {
-    const r = mstage.getBoundingClientRect();
-    const w = loose.offsetWidth;
-    const x = Math.min(Math.max(e.clientX - r.left - w / 2, 8), r.width - w - 8);
-    loose.style.transform = `translate(${x}px, -50%)`;
-    group.update();
-  });
-  cfgSections.push({
-    id: 'merge',
-    label: 'Merge',
-    icon: CFG_ICONS.merge,
-    params: MERGE_PARAMS,
-    opts: { ...MERGE_OPTS },
-    apply: (patch) => group.reconfigure(patch),
-    picker: {
-      options: [
-        { label: 'Meniscus', value: 'erf' },
-        { label: 'Ring', value: 'circle' },
-      ],
-      value: 'erf',
-      apply: (v) => group.reconfigure({ profile: v }),
-    },
   });
 }
 const rpToggle = document.getElementById('rp-toggle');
@@ -1945,7 +1919,6 @@ const TUNER_ORDER = [
   'shape',
   'orb', // lives in the Glass anything stage, so it follows the marks
   'lens',
-  'merge',
   'loupe',
   'font',
   'segmented',
