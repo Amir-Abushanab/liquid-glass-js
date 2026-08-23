@@ -52,6 +52,15 @@ let _isWebKit: boolean | null = null;
 function isWebKit(): boolean {
   if (_isWebKit !== null) return _isWebKit;
   try {
+    // Engine probe first: webkitConvertPointFromNodeToPage is WebKit-only
+    // (Blink never shipped it), so it identifies the engine even inside an
+    // embedded shell wearing a Chrome/ UA. The UA test alone called such a
+    // shell "not WebKit", the origin never got pinned, and the filter split
+    // into exactly the stuck-plus-moving double this file opens with.
+    if (typeof window !== 'undefined' && 'webkitConvertPointFromNodeToPage' in window) {
+      _isWebKit = true;
+      return true;
+    }
     const ua = navigator.userAgent;
     _isWebKit = /AppleWebKit/.test(ua) && !/Chrome|Chromium|Edg\//.test(ua);
   } catch {

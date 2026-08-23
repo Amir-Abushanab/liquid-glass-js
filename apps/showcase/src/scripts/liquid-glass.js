@@ -253,6 +253,12 @@ function mountFrost(el, surface, p) {
 }
 function mountDomRefract(el, refract, p) {
   const base = el.dataset.uid || 'g';
+  // WebKit resolves an unpinned filter against the page instead of the element,
+  // splitting the render into a stuck layer and a moving one (the core paths
+  // pin via applyGlassFilter — see filter-origin.ts; this copy writes its own
+  // filter style, so it pins its own origin). `rotate: 0deg` is inert in every
+  // engine, and this layer carries no fixed-attachment background to break.
+  refract.style.rotate = '0deg';
   let holder = null;
   let last = '';
   let n2 = 0;
