@@ -3223,3 +3223,31 @@ a {
   text-align: center;
   color: var(--muted);
 }
+
+/* ── DOM-card ticker: small type sliding through the bottom rim band, so the
+   supersample A/B has sustained motion to bite on (a static card settles into
+   one raster and hides the difference). Script-driven, never a CSS animation —
+   an animated transform would promote it onto its own layer and OUT of
+   Safari's filter (the droplet-bob rule). ── */
+.domcard__ticker {
+  position: absolute;
+  right: 0;
+  bottom: 5px;
+  left: 0;
+  overflow: hidden;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0.6;
+}
+/* No will-change: inside a filtered subtree the filter re-rasters wholesale, so
+   a layer hint buys nothing — and layer promotion near filters is exactly the
+   Safari territory the pitfalls list warns about. Plain script-set transform. */
+.domcard__ticker-track {
+  display: inline-block;
+  white-space: nowrap;
+}
+.domcard__ticker-run {
+  display: inline-block;
+}

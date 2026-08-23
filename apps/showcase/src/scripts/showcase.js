@@ -967,6 +967,36 @@ if (svgBtn && svgBg) {
     apply: (patch) => ripple.reconfigure(patch),
   });
 }
+// ── DOM-card ticker: sustained motion through the SVG card's bottom rim band,
+// the case the supersample toggle is FOR (static content settles into one
+// raster; moving content resamples fresh every frame, so 1× crawls and 2×
+// doesn't). Script-driven transform (a CSS animation would leave Safari's
+// filter), wrap via two copies, and it only runs on screen — a moving child
+// forces the filter to re-run every frame, which is also the honest way to
+// feel the supersample's G² cost.
+const tickerTrack = document.querySelector('.domcard__ticker-track');
+if (tickerTrack && !reduce) {
+  let tx = 0;
+  let tOn = false;
+  let tLast = 0;
+  new IntersectionObserver((es) => {
+    tOn = es[0].isIntersecting;
+  }).observe(tickerTrack);
+  const tStep = (now) => {
+    requestAnimationFrame(tStep);
+    if (!tOn) {
+      tLast = now;
+      return;
+    }
+    const dt = Math.min(64, now - tLast || 16);
+    tLast = now;
+    tx -= dt * 0.022; // ~22px/s — slow enough to read, fast enough to crawl at 1×
+    const w = tickerTrack.children[0]?.offsetWidth || 0;
+    if (w && -tx >= w) tx += w;
+    tickerTrack.style.transform = `translateX(${tx.toFixed(2)}px)`;
+  };
+  requestAnimationFrame(tStep);
+}
 const rpToggle = document.getElementById('rp-toggle');
 const rpLegend = document.querySelector('.rp-legend');
 if (rpToggle) {
