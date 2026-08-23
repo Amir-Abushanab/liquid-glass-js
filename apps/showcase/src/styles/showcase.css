@@ -1366,25 +1366,21 @@ a {
   cursor: default;
   will-change: transform;
 }
-/* The resting droplet the lens merges with. Chrome only — the glass look
-   (bend, rim, neck) is painted by the group's shared map on the card. */
+/* The resting droplet the lens merges with — clear of the teardrop artwork
+   (which sits at right: 48px). NO box-shadow chrome on either circle: the map
+   fuses but a per-element inset ring/shadow doesn't, so those outlines kept
+   drawing straight through the merged neck — the "line residue". The rim now
+   comes entirely from the map's B channel (edge glint + shade), which follows
+   the fused silhouette by construction. */
 .lens-stage__blob {
   position: absolute;
   top: 50%;
-  right: 40px;
-  width: 116px;
-  height: 116px;
+  left: 252px;
+  width: 104px;
+  height: 104px;
   transform: translateY(-50%);
-  border-radius: 58px;
+  border-radius: 52px;
   pointer-events: none;
-}
-.lens-stage__lens,
-.lens-stage__blob {
-  box-shadow:
-    inset 0 1px 2px rgb(255 255 255 / 45%),
-    inset 0 0 0 1px rgb(255 255 255 / 18%),
-    inset 0 -3px 6px rgb(0 0 0 / 20%),
-    0 12px 30px -12px rgb(0 0 0 / 45%);
 }
 /* ── Magnifying loupe: a page of fine print, small enough that magnifying it is
    obviously the point. The doc paints its own background so the capsule has

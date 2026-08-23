@@ -209,6 +209,7 @@ export const GLASS_PRESETS = {
     { key: 'depth', min: 1, max: 30, step: 0.5, default: 12 },
     { key: 'edge', min: 0, max: 1.5, step: 0.05, default: 0.9 },
     { key: 'glow', min: 0, max: 1, step: 0.05, default: 0.3 },
+    { key: 'shade', min: 0, max: 1, step: 0.05, default: 0.35 },
     { key: 'blur', min: 0, max: 3, step: 0.05, default: 0.4 },
   ],
 } satisfies Record<string, GlassControl[]>;

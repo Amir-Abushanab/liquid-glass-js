@@ -491,6 +491,7 @@ const group = mountGlassGroup({
   depth: ${v.depth},
   edge: ${v.edge},
   glow: ${v.glow},
+  shade: ${v.shade},
   blur: ${v.blur},
 })
 
@@ -545,6 +546,7 @@ function GlassMergeDemo({ v, o }: { v: Record<string, number>; o: TuneOptions })
       depth: v.depth,
       edge: v.edge,
       glow: v.glow,
+      shade: v.shade,
       blur: v.blur,
       profile: profileOf(o),
     });

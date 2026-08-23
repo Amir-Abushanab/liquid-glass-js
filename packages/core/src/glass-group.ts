@@ -36,6 +36,12 @@ import { buildGroupDisplacementMap, type GroupShape } from './group-map';
 export interface GlassGroupParams extends Omit<GlassSurfaceParams, 'dome'> {
   /** Smooth-min k, px — silhouettes bridge at a gap of about k/2 (see group-map). */
   blend: number;
+  /**
+   * Dark occlusion rim opposite the glint (0–1, default 0). Baked into the
+   * map's B channel, so it follows a fused neck — the map-driven stand-in for
+   * the inset-shadow chrome a single element would carry.
+   */
+  shade: number;
 }
 
 export interface GlassGroupOptions extends Partial<GlassGroupParams> {
@@ -115,6 +121,7 @@ export function mountGlassGroup(o: GlassGroupOptions): GlassGroup {
     profile: o.profile ?? GLASS_SURFACE_DEFAULTS.profile,
     edge: o.edge ?? GLASS_SURFACE_DEFAULTS.edge,
     glow: o.glow ?? GLASS_SURFACE_DEFAULTS.glow,
+    shade: o.shade ?? 0,
   };
 
   const surface: GlassSurface = createGlassSurface({
@@ -143,6 +150,7 @@ export function mountGlassGroup(o: GlassGroupOptions): GlassGroup {
         profile: mapP.profile,
         edge: mapP.edge,
         glow: mapP.glow,
+        shade: mapP.shade,
       }),
   });
 
@@ -167,18 +175,23 @@ export function mountGlassGroup(o: GlassGroupOptions): GlassGroup {
   return {
     update,
     reconfigure(patch) {
-      const { blend: nextBlend, ...rest } = patch;
+      const { blend: nextBlend, shade: nextShade, ...rest } = patch;
       const blendChanged = typeof nextBlend === 'number' && nextBlend !== blend;
       if (blendChanged) blend = nextBlend;
+      const shadeChanged = typeof nextShade === 'number' && nextShade !== mapP.shade;
+      if (shadeChanged) mapP.shade = nextShade;
       if (rest.depth != null) mapP.depth = rest.depth;
       if (rest.profile != null) mapP.profile = rest.profile;
       if (rest.edge != null) mapP.edge = rest.edge;
       if (rest.glow != null) mapP.glow = rest.glow;
-      // Surface rebuilds for its own map keys (depth/profile/edge/glow); a
-      // blend-only change re-runs the same wiring by hand.
+      // Surface rebuilds for its own map keys (depth/profile/edge/glow); the
+      // group-only keys (blend, shade) re-run the same wiring by hand.
       surface.reconfigure(rest);
-      if (blendChanged && !['depth', 'profile', 'edge', 'glow'].some((k) => k in rest)) {
-        lastKey = ''; // the key embeds blend — force the next run through
+      if (
+        (blendChanged || shadeChanged) &&
+        !['depth', 'profile', 'edge', 'glow'].some((k) => k in rest)
+      ) {
+        lastKey = ''; // the key embeds only geometry — force the next run through
         update();
       }
     },
@@ -187,7 +200,7 @@ export function mountGlassGroup(o: GlassGroupOptions): GlassGroup {
     setActive: (on) => surface.setActive(on),
     getOptions() {
       const { dome: _dome, ...p } = surface.getOptions();
-      return { ...p, blend };
+      return { ...p, blend, shade: mapP.shade };
     },
     dispose() {
       cancelAnimationFrame(raf);
