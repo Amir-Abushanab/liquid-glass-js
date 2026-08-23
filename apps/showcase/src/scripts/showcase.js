@@ -1,4 +1,4 @@
-import { mountGlassLens, mountGlassLoupe } from '@liquidglassjs/core';
+import { mountGlassLens, mountGlassLoupe, mountGlassGroup } from '@liquidglassjs/core';
 import { reconfigureAllGlassText } from '@liquidglassjs/core';
 import { cubicBezier } from '@liquidglassjs/core';
 import { presetControls, presetDefaults } from '../lib/glass-presets';
@@ -43,6 +43,7 @@ const LOUPE_PARAMS = presetControls('loupe', LOUPE_KEYS);
 const RENDER_KEYS = ['strength', 'chroma', 'blur', 'dome', 'depth', 'edge', 'glow'];
 const RENDER_PARAMS = presetControls('surface', RENDER_KEYS);
 const RIPPLE_PARAMS = presetControls('ripple');
+const MERGE_PARAMS = presetControls('merge');
 const QR_PARAMS = presetControls('qr', [
   'scaleX',
   'scaleY',
@@ -62,6 +63,9 @@ const CFG_ICONS = {
   switch:
     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="5" width="13" height="6" rx="3"/><circle cx="11" cy="8" r="2" fill="currentColor" stroke="none"/></svg>',
   lens: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="6.8" cy="6.8" r="4.3"/><line x1="10.2" y1="10.2" x2="14" y2="14"/></svg>',
+  // Two rims mid-fuse.
+  merge:
+    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="5.8" cy="8" r="4.4"/><circle cx="10.2" cy="8" r="4.4"/></svg>',
   // Same glass as the lens, but it magnifies — hence the plus.
   loupe:
     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="6.8" cy="6.8" r="4.3"/><line x1="10.2" y1="10.2" x2="14" y2="14"/><line x1="6.8" y1="4.9" x2="6.8" y2="8.7"/><line x1="4.9" y1="6.8" x2="8.7" y2="6.8"/></svg>',
@@ -937,6 +941,46 @@ if (svgBtn && svgBg) {
     params: RIPPLE_PARAMS,
     opts: ripple.getOptions(),
     apply: (patch) => ripple.reconfigure(patch),
+  });
+}
+// ── Merge: two pills fused into ONE smooth-min displacement map ──
+const mstage = document.querySelector('[data-merge]');
+const mcard = document.getElementById('mergecard');
+if (mstage && mcard) {
+  const pills = [...mstage.querySelectorAll('.merge-stage__pill')];
+  const MERGE_OPTS = presetDefaults('merge');
+  const group = mountGlassGroup({
+    target: mcard,
+    host: mstage,
+    items: pills,
+    ...MERGE_OPTS,
+  });
+  const loose = pills[pills.length - 1];
+  // The loose pill chases the pointer; every move re-measures the group. The
+  // pill is chrome ABOVE the refracted card (never filtered), so driving it
+  // with a transform is safe in Safari — see glass-group.ts's header.
+  mstage.addEventListener('pointermove', (e) => {
+    const r = mstage.getBoundingClientRect();
+    const w = loose.offsetWidth;
+    const x = Math.min(Math.max(e.clientX - r.left - w / 2, 8), r.width - w - 8);
+    loose.style.transform = `translate(${x}px, -50%)`;
+    group.update();
+  });
+  cfgSections.push({
+    id: 'merge',
+    label: 'Merge',
+    icon: CFG_ICONS.merge,
+    params: MERGE_PARAMS,
+    opts: { ...MERGE_OPTS },
+    apply: (patch) => group.reconfigure(patch),
+    picker: {
+      options: [
+        { label: 'Meniscus', value: 'erf' },
+        { label: 'Ring', value: 'circle' },
+      ],
+      value: 'erf',
+      apply: (v) => group.reconfigure({ profile: v }),
+    },
   });
 }
 const rpToggle = document.getElementById('rp-toggle');
@@ -1901,6 +1945,7 @@ const TUNER_ORDER = [
   'shape',
   'orb', // lives in the Glass anything stage, so it follows the marks
   'lens',
+  'merge',
   'loupe',
   'font',
   'segmented',

@@ -198,6 +198,18 @@ export const GLASS_PRESETS = {
     { key: 'edge', min: 0, max: 2, step: 0.05, default: 0.9 },
     { key: 'glow', min: 0, max: 2, step: 0.05, default: 0.32 },
   ],
+
+  // Merged glass: pills fused by one smooth-min map. `blend` is the fuse
+  // distance — silhouettes bridge at a gap of about half of it.
+  merge: [
+    { key: 'blend', min: 0, max: 64, step: 1, default: 28 },
+    { key: 'strength', min: 0, max: 40, step: 0.5, default: 20 },
+    { key: 'chroma', min: 0, max: 1, step: 0.02, default: 0.4 },
+    { key: 'depth', min: 1, max: 30, step: 0.5, default: 12 },
+    { key: 'edge', min: 0, max: 1.5, step: 0.05, default: 0.9 },
+    { key: 'glow', min: 0, max: 1, step: 0.05, default: 0.3 },
+    { key: 'blur', min: 0, max: 3, step: 0.05, default: 0.4 },
+  ],
 } satisfies Record<string, GlassControl[]>;
 
 export type GlassPresetId = keyof typeof GLASS_PRESETS;
