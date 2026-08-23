@@ -526,12 +526,23 @@ function mountDomRefract(el: HTMLElement, refract: HTMLElement, p: P): () => voi
       margin: MARGIN * G,
       pxScale: G,
     });
+    // Explicit userSpaceOnUse region AND feImage subregion — the refract
+    // element's own box, (W + 2M)·G square with the bleed. This was the last
+    // renderer leaning on the implicit form (bbox region, subregion-less
+    // feImage that "fills the filter region"), and mount-alpha-glass.ts's
+    // lesson caught up with it: engines don't compute that region the same
+    // way, and an embedded WebKit placed it shifted — the map's neutral bleed
+    // covered the card's left edge (rendering it untouched) while the rim
+    // band folded through the middle. Explicit px coordinates on the pinned
+    // element are the battle-tested combination every other path uses.
+    const fw = (width + 2 * MARGIN) * G;
+    const fh = (height + 2 * MARGIN) * G;
     const svg = document.createElement('div');
     svg.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
     svg.innerHTML =
-      `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" x="0" y="0" width="1" height="1" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB">` +
+      `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" filterUnits="userSpaceOnUse" x="0" y="0" width="${fw}" height="${fh}" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB">` +
       `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
-      `<feImage href="${map}" xlink:href="${map}" preserveAspectRatio="none" result="rawMap"></feImage>` +
+      `<feImage href="${map}" xlink:href="${map}" x="0" y="0" width="${fw}" height="${fh}" preserveAspectRatio="none" result="rawMap"></feImage>` +
       `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>` +
       `<feGaussianBlur in="SourceGraphic" stdDeviation="${preBlurStd(p.blur * G)}" result="blurred"></feGaussianBlur>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
