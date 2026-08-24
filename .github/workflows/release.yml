@@ -14,6 +14,13 @@ name: Release
 # credential. Each package's Trusted Publisher on npmjs.com must name exactly:
 #   Amir-Abushanab / liquid-glass-js / release.yml
 # Provenance attestations are generated automatically on this path.
+#
+# changesets/action@v2, not @v1: v1 learned what was published by grepping the
+# publish output for "New tag:" lines, which the changesets v3 CLI no longer
+# always prints — the 0.5.0 publish (2026-08-24) reached npm while the green
+# run pushed no tags and created no GitHub releases. v2 reads the CLI's
+# structured output file (CHANGESETS_OUTPUT) instead, and pushes tags and
+# releases through the GitHub API.
 
 on:
   push:
@@ -49,10 +56,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Version PR or publish
-        uses: changesets/action@v1
+        uses: changesets/action@v2
         with:
-          publish: pnpm release # build:packages && changeset publish (creates tags)
-          title: 'Version Packages'
-          commit: 'Version Packages'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Version PR, tag push, changelog-github
+          publish-script: pnpm release # build:packages && changeset publish (creates tags)
+          pr-title: 'Version Packages'
+          commit-message: 'Version Packages'
+        # No GITHUB_TOKEN env: v2 only reads its github-token input, which
+        # already defaults to this workflow's token.
