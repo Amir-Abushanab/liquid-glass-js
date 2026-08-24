@@ -293,14 +293,8 @@ nothing app-specific. Override per surface or globally:
 
 ## Gotchas
 
-Things that bite when you put an SVG filter over live DOM — Safari's page-origin
-filter coordinates and its id-keyed filter cache, composited children escaping
-filters and clips, the box-quantised blur every engine shares, what
-`backdrop-filter: url()` really renders where, and how to test any of it without
-being lied to. The list outgrew this file: it lives in
-**[docs/GOTCHAS.md](./docs/GOTCHAS.md)**, grouped by what you're doing (using the
-library · styling around the glass · building your own filter chain · testing),
-with the measurements behind every claim.
+Everything that bites when an SVG filter meets live DOM — measured, grouped, and
+kept in **[docs/GOTCHAS.md](./docs/GOTCHAS.md)**.
 
 
 ## Credits

@@ -38,13 +38,31 @@ const K_DEFAULT = Number(process.env.CAPTURE_DILATION || 3);
 /** @type {Record<string, {sel: string, seconds: number, theme?: 'dark'|'light', out?: string, gesture?: string}>} */
 const SHOTS = {
   lens: { sel: '.lens-stage', seconds: 6, theme: 'dark', out: 'lens.webp' },
-  'render-paths-dark': { sel: '.pathstage', seconds: 5, theme: 'dark' },
-  'render-paths-light': { sel: '.pathstage', seconds: 5, theme: 'light' },
+  // The trio plays its own party trick: the press-and-hold emoji burst rises
+  // through all three cards — the same stream, treated three ways.
+  'render-paths-dark': { sel: '.pathstage', seconds: 5, theme: 'dark', gesture: 'burst', k: 4 },
+  'render-paths-light': { sel: '.pathstage', seconds: 5, theme: 'light', gesture: 'burst', k: 4 },
   dropdown: { sel: '.gm-stage', seconds: 5, theme: 'dark', gesture: 'dropdown' },
   // Wider subjects raster slower — a higher per-shot k keeps the pacing honest
   // (the loop warns when it falls behind). File size is not a constraint here;
   // the orb just needs the extra dilation to raster its big region on schedule.
-  typeface: { sel: '.lgfstage', seconds: 5, theme: 'dark', gesture: 'stroke', k: 4 },
+  // The stage default says "Type Here" (an editing affordance on the live
+  // site); the README wears the wordmark instead — prep swaps the text and the
+  // glyph map rebuilds itself off the width change.
+  typeface: {
+    sel: '.lgfstage',
+    seconds: 5,
+    theme: 'dark',
+    gesture: 'stroke',
+    k: 4,
+    // The stage fits text to a constant width, so a bare textContent swap
+    // never trips the ResizeObserver that re-rasterizes the glyph map — the
+    // site's own edit path goes through 'input', so the prep dispatches one.
+    prep:
+      `const el = document.querySelector('.lgf__text[contenteditable]');` + // two .lgf__text exist; the hero wordmark is the other
+      `el.textContent = 'LiquidGlassJS';` +
+      `el.dispatchEvent(new Event('input', { bubbles: true }))`,
+  },
   anything: { sel: '.gshape-stage', seconds: 5, theme: 'dark', k: 6 },
 };
 
@@ -185,20 +203,39 @@ async function main() {
       if (t && t.checked) t.click();
     })()`);
 
-    // Scroll the subject to the viewport centre and get its rect.
+    if (shot.prep) {
+      await evaluate(`(() => { ${shot.prep}; })()`);
+      await sleep(2500); // let dilated observers/regens absorb the change
+      if (process.env.DEBUG_CAPTURE)
+        console.log('after prep:', await evaluate(`document.querySelector('.lgf__text[contenteditable]')?.textContent`));
+    }
+    // Scroll the subject to the viewport centre and wait for its rect to hold
+    // still — hydration and font loads settle late under dilated timers, and a
+    // clip framed before the layout stops moving reads as camera jitter.
     const rect = await evaluate(`(async () => {
-      // dev-server cold transforms can take a while on first hit — poll.
       let el = null;
       for (let i = 0; i < 100 && !el; i++) {
         el = document.querySelector(${JSON.stringify(shot.sel)});
         if (!el) await new Promise(r => setTimeout(r, 200));
       }
       if (!el) throw new Error('no ' + ${JSON.stringify(shot.sel)} + ' (title: ' + document.title + ', body: ' + document.body.innerHTML.length + ')');
-      el.scrollIntoView({ block: 'center' });
-      await new Promise(r => setTimeout(r, 600));
-      const r2 = el.getBoundingClientRect();
-      // captureScreenshot's clip indexes the DOCUMENT, not the viewport.
-      return { x: r2.left + scrollX, y: r2.top + scrollY, w: r2.width, h: r2.height };
+      const box = () => {
+        const r = el.getBoundingClientRect();
+        return { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height };
+      };
+      let prev = null;
+      for (let i = 0; i < 20; i++) {
+        el.scrollIntoView({ block: 'center' });
+        await new Promise(r => setTimeout(r, 400));
+        const cur = box();
+        if (
+          prev &&
+          Math.abs(cur.x - prev.x) < 0.5 && Math.abs(cur.y - prev.y) < 0.5 &&
+          Math.abs(cur.w - prev.w) < 0.5 && Math.abs(cur.h - prev.h) < 0.5
+        ) return cur;
+        prev = cur;
+      }
+      return prev;
     })()`);
     const clip = {
       x: Math.max(0, Math.floor(rect.x) - 2),
@@ -216,6 +253,18 @@ async function main() {
         btn.click(); // materialize open
         await new Promise(r => setTimeout(r, 2600));
         btn.click(); // and away
+      })()`).catch(() => {});
+    } else if (shot.gesture === 'burst') {
+      // Hold the party button for the whole shot; the stream's cadence is
+      // timer/rAF-driven, so it dilates with the page clocks.
+      // A short hold: one wave rises through the cards and clears before the
+      // loop restarts (a full-length hold buried all three under confetti).
+      evaluate(`(async () => {
+        const btn = document.querySelector('[data-pathspawn]');
+        await new Promise(r => setTimeout(r, 300));
+        btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+        await new Promise(r => setTimeout(r, 1500));
+        window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
       })()`).catch(() => {});
     } else if (shot.gesture === 'stroke') {
       // Sweep a real pointer across the letterforms: the typeface deepens its
