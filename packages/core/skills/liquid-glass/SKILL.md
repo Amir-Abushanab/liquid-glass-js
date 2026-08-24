@@ -430,7 +430,10 @@ an emoji-laden source to refract.
 
 Overflow and `border-radius` on the wrapper aren't enough: a canvas is its own
 compositing layer, and Firefox clips those to the ancestor's box but not to its rounded
-corners, so it overhangs the rim. Put `border-radius: inherit` on the canvas.
+corners, so it overhangs the rim. `border-radius` on the canvas itself is no longer
+reliable either — current Firefox composites it square anyway. Give the canvas
+`clip-path: inset(0 round <radius>)`: a real geometric clip, honoured for composited
+layers in every engine. The built-in WebGL path sets both.
 
 ### LOW — Writing your own displacement chain
 

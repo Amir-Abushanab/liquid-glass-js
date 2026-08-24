@@ -249,7 +249,12 @@ function mountWebgl(
   // box, so the canvas keeps square corners that overhang the glass rim. Carrying
   // the radius on the canvas makes it clip itself, in every engine.
   canvas.style.cssText =
-    'position:absolute;inset:0;width:100%;height:100%;display:block;border-radius:inherit';
+    'position:absolute;inset:0;width:100%;height:100%;display:block;border-radius:inherit;' +
+    // clip-path as well: `border-radius: inherit` alone stopped rounding the
+    // composited canvas layer in current Firefox (black corners overhanging the
+    // rim). A clip-path is a real geometric clip a composited layer cannot
+    // escape, and --g-radius is set on the glass root, so it inherits down.
+    'clip-path:inset(0 round var(--g-radius, 0px))';
   surface.appendChild(canvas);
   cleanups.push(() => canvas.remove());
   void (async () => {

@@ -364,8 +364,11 @@ filter.
   canvas and `drawImage` it in.
 - **A WebGL canvas keeps square corners inside a rounded box (Firefox).** Overflow and
   `border-radius` on the wrapper aren't enough: a canvas is its own compositing layer,
-  and Firefox clips those to the ancestor's box but not to its rounded corners. Put
-  `border-radius: inherit` on the canvas.
+  and Firefox clips those to the ancestor's box but not to its rounded corners.
+  `border-radius` on the canvas itself used to be enough and no longer reliably is —
+  the composited layer ships square anyway. `clip-path: inset(0 round <radius>)` on
+  the canvas is a real geometric clip no compositor shortcut can skip; the library
+  sets both.
 - **`repeating-linear-gradient` dilutes a 1px hard stop (Firefox)** — but only enough to
   matter when the line was already faint. A hairline grid at 3.5% opacity disappears;
   the same grid at 12% is indistinguishable from the other engines (measured: peak
