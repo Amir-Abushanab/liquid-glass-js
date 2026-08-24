@@ -41,6 +41,7 @@ but never scale.** Magnification has to come from elsewhere (see the loupe).
 | Want                                            | Use                                       | Refracts                            |
 | ----------------------------------------------- | ----------------------------------------- | ----------------------------------- |
 | A glass card / panel / navbar over page content | `mountGlass({ refract })`                 | the live DOM you point it at        |
+| A bar floating over content it doesn't own      | `mountGlass({ behind })`                  | the live page (engine-dependent)    |
 | A lens that moves across a surface              | `mountGlass` → `mountGlassLens`           | whatever it's parked over           |
 | iOS press-and-hold text magnifier               | `mountGlassLoupe`                         | a scaled clone (real magnification) |
 | Letterforms made of glass                       | `mountGlassText`                          | the page behind the glyphs          |
@@ -57,6 +58,13 @@ but never scale.** Magnification has to come from elsewhere (see the loupe).
 - **webgl** — for a `<canvas>` / `<video>` / `<img>` source. Those are volatile, so
   the browser re-filters them _every frame_ even when static; the WebGL path exists
   to avoid that. Lazy-imported, so SVG-only consumers ship none of it.
+- **behind** — `behind: sceneEl` names live page content the glass floats over but
+  doesn't own (a navbar's sibling `<main>` — a SIBLING, never an ancestor). On
+  Firefox the backdrop becomes a LIVE `-moz-element()` image of that element,
+  refracted by the normal chain (lazy-imported behind a capability probe, zero
+  bytes elsewhere); on Chromium the case falls through to frost, which refracts
+  the real page there; on Safari it stays a frosted blur — no backdrop route
+  exists in WebKit at all.
 - **frost** — a blurred backdrop. Refractive on Chromium, plain `blur()` elsewhere
   (see Pitfalls).
 
@@ -339,7 +347,10 @@ Safari and Firefox accept `url(#…)` in the `backdrop-filter` grammar and paint
 nothing for it ([WebKit 245510](https://bugs.webkit.org/show_bug.cgi?id=245510)), so
 `CSS.supports()` cannot gate it. The frost path checks the engine and falls back to
 a plain `blur()`. If you need real refraction everywhere, use the SVG path
-(`refract`) rather than frost.
+(`refract`) rather than frost. For a bar over content it doesn't own, pass
+`behind` — that upgrades Firefox to live refraction via `-moz-element()` and
+leaves only Safari on the blur; there is no route to real backdrop refraction
+in WebKit, so never promise one.
 
 ### MEDIUM — A filter target with no bleed
 
