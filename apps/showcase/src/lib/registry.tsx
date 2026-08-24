@@ -1185,7 +1185,7 @@ export const registry: RegistryItem[] = [
     icon: Aperture,
     npm: '@liquidglassjs/react',
     description:
-      'A movable refraction lens over live content; the text, grid, and chips beneath it bend in place.',
+      'A movable refraction lens over live content; the text, grid, and chips beneath it bend in place. For lenses that merge with each other, see Glass Group.',
     tune: LENS_TUNE,
     code: LENS_TUNE.code(tuneDefaults(LENS_TUNE)),
     Demo: ({ values: v = tuneDefaults(LENS_TUNE), options: o = controlDefaults(LENS_TUNE) }) => (
@@ -1285,13 +1285,13 @@ export const registry: RegistryItem[] = [
     ),
   },
   {
-    slug: 'glass-merge',
-    title: 'Glass Merge',
+    slug: 'glass-group',
+    title: 'Glass Group',
     category: 'Effects',
     icon: Droplets,
     npm: '@liquidglassjs/core',
     description:
-      'Two pills in one displacement map. Get them within half the blend distance and the rims join — no seam, because there is only one field to bend. Separate glass surfaces can never do this.',
+      'Two pills in one displacement map. Get them within half the blend distance and the rims join — no seam, because there is only one field to bend. Separate glass surfaces can never do this; the showcase\u2019s Lens stage runs on it.',
     tune: MERGE_TUNE,
     code: MERGE_TUNE.code(tuneDefaults(MERGE_TUNE)),
     Demo: ({ values: v = tuneDefaults(MERGE_TUNE), options: o = controlDefaults(MERGE_TUNE) }) => (
