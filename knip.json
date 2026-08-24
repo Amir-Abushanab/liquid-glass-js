@@ -5,7 +5,8 @@
     "apps/registry"
   ],
   "ignore": [
-    ".ncurc.cjs"
+    ".ncurc.cjs",
+    "scripts/capture-media.mjs"
   ],
   "workspaces": {
     "packages/core": {

@@ -9,7 +9,7 @@ cover.
 
 <p align="center">
   <a href="https://amir-abushanab.github.io/liquid-glass-js/">
-    <img src="docs/media/lens.png" alt="A draggable glass lens refracting live DOM text, grid lines, and colour chips" width="592">
+    <img src="docs/media/lens.webp" alt="The glass lens drifting across live DOM text and colour chips, merging with the resting blob as it passes" width="592">
   </a>
 </p>
 
@@ -59,8 +59,8 @@ renderer (`mode: 'auto'`):
 <p align="center">
   <a href="https://amir-abushanab.github.io/liquid-glass-js/">
     <picture>
-      <source media="(prefers-color-scheme: light)" srcset="docs/media/render-paths-light.png">
-      <img src="docs/media/render-paths-dark.png" alt="The three render paths side by side: an SVG filter over live selectable DOM, WebGL for a canvas or video, and the frost fallback" width="800">
+      <source media="(prefers-color-scheme: light)" srcset="docs/media/render-paths-light.webp">
+      <img src="docs/media/render-paths-dark.webp" alt="The three render paths side by side: an SVG filter over live selectable DOM, WebGL for a canvas or video, and the frost fallback" width="800">
     </picture>
   </a>
 </p>
@@ -108,7 +108,7 @@ const dd = mountGlassDropdown({
 
 <p align="center">
   <a href="https://amir-abushanab.github.io/liquid-glass-js/">
-    <img src="docs/media/dropdown.png" alt="A glass dropdown menu refracting the vivid gradient scene behind it" width="800">
+    <img src="docs/media/dropdown.webp" alt="The glass dropdown materializing open over the gradient scene, refraction ramping in as the items stagger" width="800">
   </a>
 </p>
 
@@ -156,7 +156,7 @@ artwork's silhouette.
 
 <p align="center">
   <a href="https://amir-abushanab.github.io/liquid-glass-js/">
-    <img src="docs/media/typeface.png" alt="Glass typeface: letterforms rasterized into a displacement map, refracting an animated gradient" width="800">
+    <img src="docs/media/typeface.webp" alt="Glass typeface: letterforms rasterized into a displacement map, refracting an animated gradient" width="800">
   </a>
 </p>
 
@@ -171,7 +171,7 @@ const glass = mountGlassShape({ target: mark, host: mark.parentElement, source: 
 
 <p align="center">
   <a href="https://amir-abushanab.github.io/liquid-glass-js/">
-    <img src="docs/media/anything.png" alt="Glass from any alpha source: a droplet, a sparkle, an emoji orb, a meme card, and framework logos as glass" width="800">
+    <img src="docs/media/anything.webp" alt="Glass from any alpha source: a droplet, a sparkle, an emoji orb, a meme card, and framework logos as glass" width="800">
   </a>
 </p>
 
