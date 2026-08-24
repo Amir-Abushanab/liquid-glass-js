@@ -846,6 +846,12 @@ a {
   width: 100%;
   height: 100%;
   border-radius: 20px;
+  /* A live canvas is its own compositing layer, and Firefox ships that layer
+     square no matter what border-radius says — the same bug the GL output
+     canvas works around. When the GL canvas above gained its clip-path, its
+     rounded corners stopped covering THIS square one beneath: black corner
+     tabs. A clip-path is honoured for composited layers in every engine. */
+  clip-path: inset(0 round var(--g-radius, 20px));
   display: block;
 }
 .domcard__dom {
