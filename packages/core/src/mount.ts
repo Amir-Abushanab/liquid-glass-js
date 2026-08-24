@@ -255,6 +255,14 @@ function mountWebgl(
     // rim). A clip-path is a real geometric clip a composited layer cannot
     // escape, and --g-radius is set on the glass root, so it inherits down.
     'clip-path:inset(0 round var(--g-radius, 0px))';
+  // Gecko's compositor ships a live canvas square: border-radius AND
+  // clip-path are both skipped on the composited layer (verified windowed,
+  // Firefox 154 — headless software WR renders it correctly, which is why
+  // this took two rounds to pin). A fully-opaque mask is visually a no-op
+  // but forces the element off the compositor fast path, where the
+  // clip-path above finally applies. Gecko-gated: elsewhere it would only
+  // tax direct compositing.
+  if (supportsMozElement()) canvas.style.maskImage = 'linear-gradient(#000 0 0)';
   surface.appendChild(canvas);
   cleanups.push(() => canvas.remove());
   void (async () => {

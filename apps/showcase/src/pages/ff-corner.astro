@@ -1,0 +1,114 @@
+---
+// Corner bench for the Firefox composited-canvas clipping bug: the render-paths
+// WebGL card's exact layer sandwich (live 2D source canvas as a SIBLING under a
+// mounted glass root whose surface holds the GL output canvas), at the top of
+// an otherwise empty page so a windowed screenshot needs no scrolling. High-
+// contrast ground so a square corner overhang is unmissable. Variants let the
+// candidate mitigations be compared in ONE capture.
+import '@liquidglassjs/core/css';
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>ff corner bench</title>
+  </head>
+  <body>
+    <div class="grid">
+      <div class="cell">
+        <div class="wrap" data-variant="prod">
+          <canvas class="src"></canvas>
+          <div class="glass" data-mount></div>
+        </div>
+        <p>A: production (radius + clip-path)</p>
+      </div>
+      <div class="cell">
+        <div class="wrap" data-variant="selffilter">
+          <canvas class="src forceF"></canvas>
+          <div class="glass" data-mount data-fix="filter"></div>
+        </div>
+        <p>D: canvas filter:opacity(.999)</p>
+      </div>
+      <div class="cell">
+        <div class="wrap" data-variant="selfmask">
+          <canvas class="src forceM"></canvas>
+          <div class="glass" data-mount data-fix="mask"></div>
+        </div>
+        <p>E: canvas opaque mask</p>
+      </div>
+    </div>
+
+    <script>
+      import { mountGlass } from '@liquidglassjs/core';
+
+      document.querySelectorAll<HTMLElement>('.wrap').forEach((wrap) => {
+        const src = wrap.querySelector<HTMLCanvasElement>('.src')!;
+        src.width = 240;
+        src.height = 150;
+        const ctx = src.getContext('2d')!;
+        const draw = (t: number) => {
+          ctx.fillStyle = '#141126';
+          ctx.fillRect(0, 0, 240, 150);
+          ctx.fillStyle = '#39d1f9';
+          ctx.fillRect((t / 16) % 240, 60, 26, 26);
+          requestAnimationFrame(draw);
+        };
+        requestAnimationFrame(draw);
+        const glass = wrap.querySelector<HTMLElement>('.glass')!;
+        mountGlass(glass, { source: src, radius: 20, strength: 14, depth: 12, dome: 10 });
+        if (glass.dataset.fix) {
+          // apply the candidate treatment to the GL output canvas once it mounts
+          const kind = glass.dataset.fix;
+          const fix = () => {
+            const gl = glass.querySelector<HTMLElement>('.ps-glass__surface canvas');
+            if (!gl) return void setTimeout(fix, 120);
+            if (kind === 'filter') gl.style.filter = 'opacity(0.999)';
+            else gl.style.maskImage = 'linear-gradient(#000 0 0)';
+          };
+          fix();
+        }
+      });
+    </script>
+
+    <style>
+      body {
+        margin: 16px;
+        background: #ffd400;
+        font: 12px monospace;
+        color: #000;
+      }
+      .grid {
+        display: flex;
+        gap: 20px;
+      }
+      .wrap {
+        position: relative;
+        width: 240px;
+        height: 150px;
+      }
+      .src {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: 20px;
+        clip-path: inset(0 round 20px);
+        display: block;
+      }
+      .src.forceF {
+        filter: opacity(0.999);
+      }
+      .src.forceM {
+        mask-image: linear-gradient(#000 0 0);
+      }
+      .glass {
+        position: absolute;
+        inset: 0;
+        border-radius: 20px;
+      }
+      p {
+        margin: 6px 0 0;
+      }
+    </style>
+  </body>
+</html>

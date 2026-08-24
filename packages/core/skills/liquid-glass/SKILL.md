@@ -428,12 +428,16 @@ an emoji-laden source to refract.
 
 ### LOW — A WebGL canvas with square corners (Firefox)
 
-Overflow and `border-radius` on the wrapper aren't enough: a canvas is its own
-compositing layer, and Firefox clips those to the ancestor's box but not to its rounded
-corners, so it overhangs the rim. `border-radius` on the canvas itself is no longer
-reliable either — current Firefox composites it square anyway. Give the canvas
-`clip-path: inset(0 round <radius>)`: a real geometric clip, honoured for composited
-layers in every engine. The built-in WebGL path sets both.
+A live canvas is its own compositing layer, and Firefox ships that layer square:
+wrapper overflow, `border-radius` on the canvas, and `clip-path` on the canvas are
+ALL skipped by the compositor (verified windowed on Firefox 154; headless/software
+WebRender renders it correctly, so screenshots from CI will lie). The fix is to
+force rasterization with a visually-no-op opaque mask —
+`mask-image: linear-gradient(#000 0 0)` — after which the clip-path applies. The
+built-in WebGL path does this, Gecko-gated via
+`@supports (background-image: -moz-element(#a))`; do the same for any live canvas
+YOU place inside rounded glass, because a rounded layer above a square one merely
+covers it.
 
 ### LOW — Writing your own displacement chain
 

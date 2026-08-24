@@ -2,12 +2,15 @@
 '@liquidglassjs/core': patch
 ---
 
-Clip the WebGL canvas with `clip-path`, not only `border-radius`.
+Round the WebGL canvas in Firefox for real.
 
-A canvas is its own compositing layer, and Firefox clips composited layers to
-the ancestor's box but never its rounded corners — the long-documented gotcha.
-The old mitigation (`border-radius: inherit` on the canvas itself) has stopped
-holding in current Firefox: the composited layer ships square anyway, and the
-WebGL card's dark corners overhang the glass rim. The canvas now also carries
-`clip-path: inset(0 round var(--g-radius))` — a real geometric clip no
-compositor shortcut can skip, honoured for composited layers in every engine.
+Gecko's compositor ships a live canvas's layer square: the wrapper's rounded
+overflow, `border-radius` on the canvas, and even `clip-path` on the canvas
+are all skipped (verified windowed on Firefox 154 with a variant bench;
+headless/software WebRender renders every variant correctly, which is why the
+first two fixes looked plausible and weren't). The canvas now carries
+`clip-path: inset(0 round var(--g-radius))` plus — Gecko-gated on
+`-moz-element` support, since elsewhere it would only tax direct compositing —
+a visually-no-op fully-opaque `mask-image: linear-gradient(#000 0 0)` that
+forces the element off the compositor fast path, where the clip finally
+applies. Corners verified clean in windowed Firefox on the production mount.

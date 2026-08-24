@@ -362,13 +362,18 @@ filter.
   drawn into that context afterwards comes out a grey silhouette. A flat translucent
   `fillRect` is fine, so it's gradients specifically. Bake the gradient into its own
   canvas and `drawImage` it in.
-- **A WebGL canvas keeps square corners inside a rounded box (Firefox).** Overflow and
-  `border-radius` on the wrapper aren't enough: a canvas is its own compositing layer,
-  and Firefox clips those to the ancestor's box but not to its rounded corners.
-  `border-radius` on the canvas itself used to be enough and no longer reliably is —
-  the composited layer ships square anyway. `clip-path: inset(0 round <radius>)` on
-  the canvas is a real geometric clip no compositor shortcut can skip; the library
-  sets both.
+- **A live canvas keeps square corners inside rounded glass (Firefox).** The
+  compositor ships the canvas's layer square: wrapper overflow, `border-radius` on
+  the canvas, and even `clip-path` on the canvas are ALL skipped (verified windowed,
+  Firefox 154 — and beware, headless/software WebRender renders it correctly, so a
+  CI screenshot will swear it's fine). What works: force the element off the
+  compositor fast path with a visually-no-op fully-opaque mask
+  (`mask-image: linear-gradient(#000 0 0)`) — rasterized, the clip-path finally
+  applies. The library sets clip-path everywhere and adds the mask Gecko-gated
+  (`@supports (background-image: -moz-element(#a))`), since elsewhere it would only
+  tax direct compositing. Applies to EVERY live canvas in rounded glass, not just
+  the WebGL output — a rounded layer above a square one merely covers it until the
+  day it doesn't.
 - **`repeating-linear-gradient` dilutes a 1px hard stop (Firefox)** — but only enough to
   matter when the line was already faint. A hairline grid at 3.5% opacity disappears;
   the same grid at 12% is indistinguishable from the other engines (measured: peak

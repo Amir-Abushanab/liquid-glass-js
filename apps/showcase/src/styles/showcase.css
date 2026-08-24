@@ -3294,3 +3294,17 @@ a {
 .seg.has-copy > .seg__labels .seg__opt[aria-selected='true'] {
   color: var(--muted);
 }
+
+/* ── Gecko only: its compositor ships a live canvas square — border-radius AND
+   clip-path are both skipped on the composited layer (verified windowed,
+   Firefox 154; headless software WebRender renders correctly, beware). A
+   fully-opaque mask is visually a no-op that forces rasterization, where the
+   clip-paths above these elements finally apply. @supports on -moz-element is
+   the same capability signal the library's behind path gates on. ── */
+@supports (background-image: -moz-element(#a)) {
+  .glcard__src,
+  .emoji-canvas,
+  canvas.pathfx {
+    mask-image: linear-gradient(#000 0 0);
+  }
+}
