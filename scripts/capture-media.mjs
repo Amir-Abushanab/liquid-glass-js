@@ -26,10 +26,14 @@ const OUT = new URL('../docs/media/', import.meta.url).pathname;
 const CHROME =
   process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const FPS = 12;
-// Capture scale: 2 is retina-crisp but the filtered scene re-rasters per frame
-// and throughput drops to ~5fps; 1 sustains the full FPS. Motion beats pixels
-// for animated docs media, so 1 is the default — bump per run if a shot needs it.
-const SCALE = Number(process.env.CAPTURE_SCALE || 1);
+// Retina AND smooth, via time dilation: the page's clocks (performance.now,
+// rAF timestamps, timers) run K× slow during capture, so the ~250ms it takes
+// to rasterize a retina frame of a filtered scene only covers ~83ms of page
+// time. Frames play back at true speed. Everything animated here is rAF- or
+// timer-driven, so it dilates with the clocks; a CSS animation would not, and
+// would play K× fast in the result — none of the captured subjects use one.
+const SCALE = Number(process.env.CAPTURE_SCALE || 2);
+const K_DEFAULT = Number(process.env.CAPTURE_DILATION || 3);
 
 /** @type {Record<string, {sel: string, seconds: number, theme?: 'dark'|'light', out?: string, gesture?: string}>} */
 const SHOTS = {
@@ -37,8 +41,11 @@ const SHOTS = {
   'render-paths-dark': { sel: '.pathstage', seconds: 5, theme: 'dark' },
   'render-paths-light': { sel: '.pathstage', seconds: 5, theme: 'light' },
   dropdown: { sel: '.gm-stage', seconds: 5, theme: 'dark', gesture: 'dropdown' },
-  typeface: { sel: '.lgfstage', seconds: 5, theme: 'dark', gesture: 'stroke' },
-  anything: { sel: '.gshape-stage', seconds: 5, theme: 'dark' },
+  // Wider subjects raster slower — a higher per-shot k keeps the pacing honest
+  // (the loop warns when it falls behind). The orb shot moves a lot of pixels
+  // every frame, so it also trades quality and a second for its waistline.
+  typeface: { sel: '.lgfstage', seconds: 5, theme: 'dark', gesture: 'stroke', k: 4 },
+  anything: { sel: '.gshape-stage', seconds: 4, theme: 'dark', k: 4, q: 56, scale: 1.5 },
 };
 
 // ── minimal flat-mode CDP client ──
@@ -117,6 +124,25 @@ async function main() {
     s,
   );
 
+  // The clock patch must be plain string concatenation: a template literal
+  // here would interpolate in NODE, and these ${}s belong to no one.
+  const clockPatchFor = (K) =>
+    '(() => {' +
+    ' const K = ' + K + ';' +
+    ' const realNow = performance.now.bind(performance);' +
+    ' const t0 = realNow();' +
+    ' performance.now = () => t0 + (realNow() - t0) / K;' +
+    ' const realRaf = window.requestAnimationFrame.bind(window);' +
+    ' window.requestAnimationFrame = (cb) => realRaf((t) => cb(t0 + (t - t0) / K));' +
+    ' const realDateNow = Date.now.bind(Date);' +
+    ' const d0 = realDateNow();' +
+    ' Date.now = () => d0 + (realDateNow() - d0) / K;' +
+    ' const realST = window.setTimeout.bind(window);' +
+    ' window.setTimeout = (fn, ms = 0, ...a) => realST(fn, (ms || 0) * K, ...a);' +
+    ' const realSI = window.setInterval.bind(window);' +
+    ' window.setInterval = (fn, ms = 0, ...a) => realSI(fn, (ms || 0) * K, ...a);' +
+    '})();';
+
   const evaluate = async (expr) => {
     const r = await cdp.send(
       'Runtime.evaluate',
@@ -141,10 +167,16 @@ async function main() {
       { features: [{ name: 'prefers-color-scheme', value: shot.theme || 'dark' }] },
       s,
     );
+    const K = shot.k || K_DEFAULT;
+    const { identifier } = await cdp.send(
+      'Page.addScriptToEvaluateOnNewDocument',
+      { source: clockPatchFor(K) },
+      s,
+    );
     const loaded = new Promise((r) => cdp.on('Page.loadEventFired', () => r()));
     await cdp.send('Page.navigate', { url: BASE }, s);
     await loaded;
-    await sleep(2500); // glass mounts, maps decode, fonts settle
+    await sleep(3500); // glass mounts, maps decode, fonts settle (page timers run K× slow)
     // Strip the interactive chrome that would photobomb a fixed-position shot:
     // the Glass Tuner panel, and the render-path badge overlay if it's on.
     await evaluate(`(() => {
@@ -191,8 +223,9 @@ async function main() {
       (async () => {
         const cx = clip.x + clip.width / 2;
         const cy = clip.y + clip.height / 2;
-        for (let t = 0; t < shot.seconds * 1000; t += 80) {
-          const x = clip.x + clip.width * (0.15 + 0.7 * (0.5 + 0.5 * Math.sin(t / 900)));
+        for (let t = 0; t < shot.seconds * 1000 * K; t += 80) {
+          const pageT = t / K; // the page's clocks run K× slow
+          const x = clip.x + clip.width * (0.15 + 0.7 * (0.5 + 0.5 * Math.sin(pageT / 900)));
           await cdp
             .send(
               'Input.dispatchMouseEvent',
@@ -231,30 +264,31 @@ async function main() {
     // way — measured wall-clock per frame becomes the WebP frame duration, so
     // playback speed is honest whatever rate we achieved.
     const frames = [];
-    const total = Math.round(shot.seconds * FPS);
-    const interval = 1000 / FPS;
+    const total = Math.round(shot.seconds * FPS); // seconds are PAGE seconds
+    const realInterval = (1000 / FPS) * K; // one page-frame per this much wall time
     const t0 = Date.now();
     for (let i = 0; i < total; i++) {
-      const target = t0 + i * interval;
+      const target = t0 + i * realInterval;
       const wait = target - Date.now();
       if (wait > 0) await sleep(wait);
       const { data } = await cdp.send(
         'Page.captureScreenshot',
-        { format: 'jpeg', quality: 92, clip: { ...clip, scale: SCALE }, fromSurface: true },
+        { format: 'jpeg', quality: 95, clip: { ...clip, scale: shot.scale || SCALE }, fromSurface: true },
         s,
       );
       const f = join(dir, `f${String(i).padStart(3, '0')}.jpg`);
       writeFileSync(f, Buffer.from(data, 'base64'));
       frames.push(f);
     }
-    const elapsed = Date.now() - t0;
-    const frameMs = Math.round(elapsed / frames.length);
+    const behind = Date.now() - (t0 + total * realInterval);
+    if (behind > realInterval) console.warn(`(fell ${Math.round(behind)}ms behind — raise K)`);
+    const frameMs = Math.round(1000 / FPS);
     execFileSync('img2webp', [
       '-loop',
       '0',
       '-lossy',
       '-q',
-      '68',
+      String(shot.q || 78),
       '-d',
       String(frameMs),
       ...frames,
@@ -263,6 +297,7 @@ async function main() {
     ]);
     if (process.env.DEBUG_CAPTURE) console.log('frames kept at', dir);
     else rmSync(dir, { recursive: true, force: true });
+    await cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier }, s).catch(() => {});
     const kb = Math.round(statSync(join(OUT, out)).size / 1024);
     console.log(`${frames.length} frames @ ~${Math.round(1000 / frameMs)}fps → ${out} (${kb}KB)`);
   }
