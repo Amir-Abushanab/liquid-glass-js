@@ -16,7 +16,7 @@
 // filter-origin.ts. applyGlassFilter pins it; without that the lens refracts
 // wherever the target happens to sit in the document instead of under the pointer.
 
-import { buildDisplacementMap } from './displacement';
+import { buildDisplacementMap, type MapProfile } from './displacement';
 import { specMaskValues, darkMaskValues } from './map-encode';
 import { parseCssColor } from './color';
 import { applyGlassFilter, clearGlassFilter, refreshGlassFilter } from './filter-origin';
@@ -29,6 +29,7 @@ export interface GlassLensOptions {
   lensH: number;
   radius?: number;
   depth?: number;
+  profile?: MapProfile;
   dome?: number;
   edge?: number;
   glow?: number;
@@ -36,6 +37,7 @@ export interface GlassLensOptions {
   chroma?: number;
   blur?: number;
   shade?: number; // dark occlusion rim opposite the glint (0–1, default 0)
+  specularRotation?: number; // light angle, degrees (default 45)
   glint?: string; // CSS colour for the specular glint (default white)
   active?: boolean; // start with the filter applied? (default true; false = solid until setActive)
 }
@@ -44,6 +46,7 @@ export interface GlassLensOptions {
 export interface GlassLensParams {
   radius: number;
   depth: number;
+  profile: MapProfile;
   dome: number;
   edge: number;
   glow: number;
@@ -51,11 +54,23 @@ export interface GlassLensParams {
   chroma: number;
   blur: number;
   shade: number;
+  /**
+   * Light angle in degrees (default 45). A map input — reconfiguring it
+   * re-bakes the B channel — so drive it QUANTIZED (5–10° steps) when tying
+   * it to pointer or device orientation, not per event.
+   */
+  specularRotation: number;
 }
 
 export interface GlassLens {
   setPos(x: number, y: number): void;
   setSize(w: number, h: number): void;
+  /**
+   * Cheap per-frame multiplier on the displacement scales (1 = as configured).
+   * Touches only filter attributes, never the map, so it's safe to drive from a
+   * spring — the press "energize" boost, a materialize ramp.
+   */
+  setDisplScale(frac: number): void;
   reconfigure(patch: Partial<GlassLensParams>): void;
   getOptions(): GlassLensParams;
   setActive(on: boolean): void; // toggle the refraction filter on/off (glass-while-interacting)
@@ -68,6 +83,7 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
   const cur: GlassLensParams = {
     radius: o.radius ?? Math.min(o.lensW, o.lensH) / 2,
     depth: o.depth ?? 6,
+    profile: o.profile ?? 'erf',
     dome: o.dome ?? 8,
     edge: o.edge ?? 0.8,
     glow: o.glow ?? 0.3,
@@ -75,6 +91,7 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
     chroma: o.chroma ?? 0.5,
     blur: o.blur ?? 0.5,
     shade: o.shade ?? 0,
+    specularRotation: o.specularRotation ?? 45,
   };
   const glintRgb = parseCssColor(o.glint ?? '#ffffff'); // mount-only; white = no tint
 
@@ -88,6 +105,8 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
   let ly = 0;
   let n = 0;
   let active = o.active ?? true;
+  let disposed = false;
+  let displ = 1; // setDisplScale's live multiplier — attribute-only, never in the map
   let curId = '';
   let holder: HTMLElement | null = null;
   let feImage: SVGFEImageElement | null = null;
@@ -98,9 +117,7 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
 
   const rebuild = () => {
     const id = `${base}-${++n}`; // fresh id on every map change (Safari cache bust)
-    const s1 = cur.strength * (1 + 0.2 * cur.chroma);
-    const s2 = cur.strength * (1 + 0.1 * cur.chroma);
-    const s3 = cur.strength;
+    const gen = n;
     // Supersample: render the dome field at s× device resolution and let the
     // <feImage> (kept at CSS px below) scale it down, so the rim doesn't alias on
     // retina (item 4). The field is scale-invariant, so every length scales by s.
@@ -110,12 +127,33 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
       height: lensH * s,
       radius: cur.radius * s,
       depth: cur.depth * s,
+      profile: cur.profile,
       dome: cur.dome * s,
       edge: cur.edge,
       glow: cur.glow,
       shade: cur.shade,
+      specularRotation: cur.specularRotation,
       pxScale: s,
     });
+    // Decode BEFORE swapping — same gate as createGlassSurface: an undecoded
+    // feImage falls through to the neutral flood, so WebKit flashed FLAT on
+    // every setSize / map-key reconfigure. The old lens stays up until the new
+    // map can paint; a newer rebuild (or dispose) supersedes a pending one.
+    const warm = new Image();
+    warm.src = map;
+    const ready = (typeof warm.decode === 'function' ? warm.decode() : Promise.resolve()).catch(
+      () => {},
+    );
+    void ready.then(() => {
+      if (gen !== n || disposed) return;
+      commit(id, map);
+    });
+  };
+
+  const commit = (id: string, map: string) => {
+    const s1 = cur.strength * displ * (1 + 0.2 * cur.chroma);
+    const s2 = cur.strength * displ * (1 + 0.1 * cur.chroma);
+    const s3 = cur.strength * displ;
     const div = document.createElement('div');
     div.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
     div.innerHTML =
@@ -158,10 +196,19 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
   // re-encoding a PNG. Same split mountGlassText has had all along, which is why
   // animating `strength` there is smooth and doing it here used to rebuild the map
   // sixty times a second.
-  const MAP_KEYS = ['radius', 'depth', 'dome', 'edge', 'glow', 'shade'] as const;
+  const MAP_KEYS = [
+    'radius',
+    'depth',
+    'profile',
+    'dome',
+    'edge',
+    'glow',
+    'shade',
+    'specularRotation',
+  ] as const;
 
   const applyAttrs = () => {
-    const s = cur.strength;
+    const s = cur.strength * displ;
     dispNodes[0]?.setAttribute('scale', String(s * (1 + 0.2 * cur.chroma)));
     dispNodes[1]?.setAttribute('scale', String(s * (1 + 0.1 * cur.chroma)));
     dispNodes[2]?.setAttribute('scale', String(s));
@@ -207,6 +254,11 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
       lensH = h;
       rebuild();
     },
+    setDisplScale(frac) {
+      if (frac === displ) return;
+      displ = frac;
+      applyAttrs();
+    },
     reconfigure(patch) {
       Object.assign(cur, patch);
       if (MAP_KEYS.some((k) => patch[k] != null)) rebuild();
@@ -221,6 +273,7 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
       else clearGlassFilter(o.target);
     },
     dispose() {
+      disposed = true;
       holder?.remove();
       clearGlassFilter(o.target);
     },

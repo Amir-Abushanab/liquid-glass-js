@@ -16,7 +16,8 @@
 // We drive the same two ideas: `setDisplScale(0..1)` fades the refraction in,
 // and `setBox()` stretches the region during a morph.
 
-import { buildDisplacementMap } from './displacement';
+import { buildDisplacementMap, type MapProfile } from './displacement';
+import { prefersReducedMotion } from './dynamics';
 import { NEUTRAL } from './map-encode';
 import {
   applyGlassFilter,
@@ -28,7 +29,8 @@ import { preBlurStd } from './blur-quantize';
 
 // The live-tunable refraction params (everything except the box geometry).
 export interface GlassSurfaceParams {
-  depth: number; // SDF inset before the erf edge falloff, px
+  depth: number; // SDF inset before the edge falloff, px
+  profile: MapProfile; // edge-falloff curve ('erf' meniscus | 'circle' rim ring)
   dome: number; // interior meniscus swell, px sagitta
   edge: number; // rim glint strength
   glow: number; // soft axial sheen strength
@@ -40,6 +42,7 @@ export interface GlassSurfaceParams {
 
 export const GLASS_SURFACE_DEFAULTS: GlassSurfaceParams = {
   depth: 10,
+  profile: 'erf',
   dome: 12,
   edge: 0.9,
   glow: 0.3,
@@ -56,6 +59,15 @@ export interface GlassSurfaceOptions extends Partial<GlassSurfaceParams> {
   height: number;
   radius: number;
   active?: boolean; // apply the filter immediately? (default true)
+  /**
+   * Override the map generator: return a data-URL PNG for a w×h map (the
+   * map-encode wire format). Default is the rounded-rect dome; the glass
+   * group hands in its smooth-min union. With a buildMap the surface's own
+   * radius/depth/profile/dome/edge/glow stop shaping the map — the hook owns
+   * that — but reconfiguring one of them still triggers a rebuild, so a hook
+   * that reads live params regenerates on the same wiring.
+   */
+  buildMap?: (w: number, h: number) => string;
 }
 
 // A resizable, fade-able glass filter over one live element.
@@ -121,6 +133,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
   const base = 'gm-' + Math.random().toString(36).slice(2, 8);
   const cur: GlassSurfaceParams = {
     depth: o.depth ?? GLASS_SURFACE_DEFAULTS.depth,
+    profile: o.profile ?? GLASS_SURFACE_DEFAULTS.profile,
     dome: o.dome ?? GLASS_SURFACE_DEFAULTS.dome,
     edge: o.edge ?? GLASS_SURFACE_DEFAULTS.edge,
     glow: o.glow ?? GLASS_SURFACE_DEFAULTS.glow,
@@ -130,6 +143,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
     spec: o.spec ?? GLASS_SURFACE_DEFAULTS.spec,
   };
 
+  let disposed = false;
   let mapW = Math.max(1, Math.round(o.width));
   let mapH = Math.max(1, Math.round(o.height));
   let radius = o.radius;
@@ -158,7 +172,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
 
   // The map is built from depth/dome/edge/glow and the box; strength, chroma, spec
   // and blur are filter attributes, so a change to those never needs a new PNG.
-  const MAP_KEYS = ['depth', 'dome', 'edge', 'glow'] as const;
+  const MAP_KEYS = ['depth', 'profile', 'dome', 'edge', 'glow'] as const;
 
   const applyScales = () => {
     const s = cur.strength * frac;
@@ -173,51 +187,67 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
 
   const rebuild = () => {
     const id = `${base}-${++n}`; // fresh id every rebuild (Safari filter-cache bust)
-    const mapUrl = buildDisplacementMap({
-      width: mapW,
-      height: mapH,
-      radius,
-      depth: cur.depth,
-      dome: cur.dome,
-      edge: cur.edge,
-      glow: cur.glow,
-    });
-    // Pre-decode the map bitmap so the <feImage> is ready on the surface's first
-    // paint. Until it decodes, the filter's neutral-gray flood stands in for the
-    // map (zero displacement), so the pane renders FLAT for a frame or two before
-    // the glass snaps in. Callers await whenReady() to hold a reveal until then.
+    const gen = n;
+    const mapUrl = o.buildMap
+      ? o.buildMap(mapW, mapH)
+      : buildDisplacementMap({
+          width: mapW,
+          height: mapH,
+          radius,
+          depth: cur.depth,
+          profile: cur.profile,
+          dome: cur.dome,
+          edge: cur.edge,
+          glow: cur.glow,
+        });
+    // Decode BEFORE swapping. An feImage whose data URL hasn't decoded yet
+    // contributes nothing, so the chain falls through to the neutral flood —
+    // a FLAT frame. Chromium decodes a data URL practically synchronously;
+    // WebKit does not, and a per-move regenerate (the merge group, a squish)
+    // strobed flat/glass/flat there on every update. Building the new holder
+    // only once its bitmap is ready keeps the OLD glass on screen until the
+    // new one can actually paint — the strobe becomes ≤ one frame of map lag.
+    // Callers still await whenReady() to hold a first reveal.
     const warm = new Image();
     warm.src = mapUrl;
     ready = (typeof warm.decode === 'function' ? warm.decode() : Promise.resolve()).catch(() => {});
-    const s = cur.strength * frac;
-    const div = document.createElement('div');
-    div.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
-    const origin = glassOriginOffset(o.target);
-    div.innerHTML = filterHTML(
-      id,
-      mapW,
-      mapH,
-      cur.blur,
-      mapUrl,
-      s * (1 + 0.2 * cur.chroma),
-      s * (1 + 0.1 * cur.chroma),
-      s,
-      cur.spec * frac,
-      origin.x,
-      origin.y,
-    );
-    o.host.appendChild(div);
-    curId = id;
-    feImage = div.querySelector('feImage');
-    filterNode = div.querySelector('filter');
-    blurNode = div.querySelector('feGaussianBlur');
-    dm = Array.from(div.querySelectorAll('feDisplacementMap'));
-    spec = div.querySelector<SVGFEColorMatrixElement>('[result="specMask"]');
-    if (active) {
-      applyGlassFilter(o.target, id);
-    }
-    if (holder) holder.remove();
-    holder = div;
+    const commit = () => {
+      if (gen !== n || disposed) return; // superseded or disposed while decoding
+      // Scales are read at COMMIT time: a setDisplScale that landed during the
+      // decode window is baked in rather than lost until the next applyScales.
+      const s = cur.strength * frac;
+      const div = document.createElement('div');
+      div.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
+      const origin = glassOriginOffset(o.target);
+      div.innerHTML = filterHTML(
+        id,
+        mapW,
+        mapH,
+        cur.blur,
+        mapUrl,
+        s * (1 + 0.2 * cur.chroma),
+        s * (1 + 0.1 * cur.chroma),
+        s,
+        cur.spec * frac,
+        origin.x,
+        origin.y,
+      );
+      o.host.appendChild(div);
+      curId = id;
+      feImage = div.querySelector('feImage');
+      filterNode = div.querySelector('filter');
+      blurNode = div.querySelector('feGaussianBlur');
+      dm = Array.from(div.querySelectorAll('feDisplacementMap'));
+      spec = div.querySelector<SVGFEColorMatrixElement>('[result="specMask"]');
+      if (active) {
+        applyGlassFilter(o.target, id);
+      }
+      if (holder) holder.remove();
+      holder = div;
+    };
+    // Registered before any caller's whenReady() handler, so by the time an
+    // awaited reveal proceeds the swap has already happened.
+    void ready.then(commit);
   };
 
   rebuild();
@@ -270,6 +300,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
       return { ...cur };
     },
     dispose() {
+      disposed = true;
       holder?.remove();
       clearGlassFilter(o.target);
     },
@@ -289,9 +320,6 @@ function overshoot(t: number): number {
 function easeInOut(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
-
-const prefersReduced = () =>
-  typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Glass button — reshapes when its content changes
@@ -430,7 +458,7 @@ export function mountGlassButton(el: HTMLElement, opts: GlassButtonOptions = {})
     outgoing.classList.add('is-gone'); // old lifts out + fades first (no rAF: works on hidden tabs)
     setTimeout(() => outgoing.remove(), 400);
 
-    if (prefersReduced()) {
+    if (prefersReducedMotion()) {
       el.style.width = `${toW}px`;
       surface.regenerate(toW, height, radius());
       return Promise.resolve();
@@ -545,6 +573,7 @@ export function mountGlassDropdown(o: GlassDropdownOptions): GlassDropdown {
   // the resolved params here too — the Tuner reads/writes them before first open.
   const curParams: GlassSurfaceParams = {
     depth: o.depth ?? GLASS_SURFACE_DEFAULTS.depth,
+    profile: o.profile ?? GLASS_SURFACE_DEFAULTS.profile,
     dome: o.dome ?? GLASS_SURFACE_DEFAULTS.dome,
     edge: o.edge ?? GLASS_SURFACE_DEFAULTS.edge,
     glow: o.glow ?? GLASS_SURFACE_DEFAULTS.glow,
@@ -621,7 +650,7 @@ export function mountGlassDropdown(o: GlassDropdownOptions): GlassDropdown {
       paint(opening ? 1 : 0, 1); // pin the exact end state
       after?.();
     };
-    if (prefersReduced()) {
+    if (prefersReducedMotion()) {
       setReveal(1);
       finish();
       return;

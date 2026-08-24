@@ -5,11 +5,12 @@
 // lens mask in-shader, does chroma + frost, then Aave's two signature moves:
 // adaptive specular (additive on dark / multiplicative on bright) and adaptive
 // brightness/vibrancy (pull toward mid-gray for legibility through the glass).
-import { renderDisplacementMap } from './displacement';
+import { renderDisplacementMap, type MapProfile } from './displacement';
 
 export interface GlassGLConfig {
   radius: number;
   depth: number;
+  profile?: MapProfile; // edge-falloff curve (default 'erf')
   dome: number; // px sagitta
   strength: number; // displacement px
   chroma: number;
@@ -233,6 +234,7 @@ export class GlassGL {
       height: h,
       radius: this.cfg.radius,
       depth: this.cfg.depth,
+      profile: this.cfg.profile,
       dome: this.cfg.dome,
       edge: 1.0,
       glow: 0.35,

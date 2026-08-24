@@ -25,10 +25,11 @@ const NUMERIC = [
   'chroma',
   'blur',
   'tint',
+  'supersample',
   'spec',
   'vibrancy',
 ] as const;
-const STRING = ['backdrop', 'source', 'mode'] as const;
+const STRING = ['profile', 'backdrop', 'source', 'mode'] as const;
 
 export class LiquidGlassElement extends HTMLElement {
   static get observedAttributes(): string[] {

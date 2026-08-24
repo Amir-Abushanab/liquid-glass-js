@@ -1,8 +1,9 @@
-import { useState, type FC } from 'react';
+import { useEffect, useRef, useState, type FC } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   AppWindow,
   Aperture,
+  Droplets,
   Menu,
   MousePointerClick,
   PanelTop,
@@ -51,6 +52,7 @@ import {
   GlassButton,
   GlassRipple,
 } from '@liquidglassjs/react';
+import { mountGlassGroup, type GlassGroup } from '@liquidglassjs/core';
 import { GlassQR } from '@liquidglassjs/qr/react';
 
 /** Where the registry JSON is hosted (served from the showcase's own deploy). */
@@ -62,6 +64,28 @@ import { SCENE } from './scene';
 
 // The lens preview sizes its own lens, so `radius` isn't a knob here.
 const LENS_KEYS = ['strength', 'chroma', 'blur', 'dome', 'depth', 'edge', 'glow', 'shade'];
+
+// The rim-falloff curve of the displacement map — a structural control shared by
+// every rounded-rect glass (lens/loupe/surface/card/button). 'circle' is the
+// iOS-style ring: full displacement exactly at the rim; 'erf' the soft meniscus.
+const profileControl = {
+  kind: 'select',
+  key: 'profile',
+  label: 'Rim profile',
+  options: [
+    { label: 'Meniscus (erf)', value: 'erf' },
+    { label: 'Ring (circle)', value: 'circle' },
+  ],
+  default: 'erf',
+} satisfies TuneControl;
+const profileOf = (o?: TuneOptions): 'erf' | 'circle' =>
+  o?.profile === 'circle' ? 'circle' : 'erf';
+// Snippet fragment: the prop appears only when it differs from the default.
+const profileAttr = (o?: TuneOptions): string =>
+  o?.profile === 'circle' ? '\n      profile="circle"' : '';
+// Same, for the single-line prop templates (tabs/dialog/dropdown/slider/switch).
+const profileAttrInline = (o?: TuneOptions): string =>
+  o?.profile === 'circle' ? ' profile="circle"' : '';
 
 export type Category = 'Components' | 'Effects';
 
@@ -248,8 +272,14 @@ export function Example() {
 };
 
 const LENS_TUNE: TuneConfig = {
-  params: presetControls('lens', LENS_KEYS),
-  code: (v) => `import { GlassLens } from "@liquidglassjs/react"
+  // `press` is the react binding's held-pointer boost, not a core lens param, so it
+  // lives here rather than in glass-presets (the vanilla showcase has no gesture).
+  params: [
+    ...presetControls('lens', LENS_KEYS),
+    { key: 'press', label: 'press', min: 1, max: 1.6, step: 0.05, default: 1.25 },
+  ],
+  controls: [profileControl],
+  code: (v, o) => `import { GlassLens } from "@liquidglassjs/react"
 
 export function Example() {
   return (
@@ -261,10 +291,11 @@ export function Example() {
       chroma={${v.chroma}}
       blur={${v.blur}}
       dome={${v.dome}}
-      depth={${v.depth}}
+      depth={${v.depth}}${profileAttr(o)}
       edge={${v.edge}}
       glow={${v.glow}}
       shade={${v.shade}}
+      press={${v.press}}
       glint="#ffd9a0"
       className="h-[280px] w-full max-w-[560px] overflow-hidden rounded-xl"
     >
@@ -283,7 +314,8 @@ export function Example() {
 // at pointerdown, so a change lands on the next gesture without a remount.
 const LOUPE_TUNE: TuneConfig = {
   params: presetControls('loupe'),
-  code: (v) => `import { GlassLoupe } from "@liquidglassjs/react"
+  controls: [profileControl],
+  code: (v, o) => `import { GlassLoupe } from "@liquidglassjs/react"
 
 export function Example() {
   return (
@@ -298,7 +330,7 @@ export function Example() {
       chroma={${v.chroma}}
       blur={${v.blur}}
       dome={${v.dome}}
-      depth={${v.depth}}
+      depth={${v.depth}}${profileAttr(o)}
       edge={${v.edge}}
       glow={${v.glow}}
       shade={${v.shade}}
@@ -340,7 +372,8 @@ export function Example() {
 // nothing to refract.
 const SURFACE_TUNE: TuneConfig = {
   params: presetControls('surface'),
-  code: (v) => `import { GlassSurface } from "@/components/liquid-glass/glass-surface"
+  controls: [profileControl],
+  code: (v, o) => `import { GlassSurface } from "@/components/liquid-glass/glass-surface"
 
 export function Example() {
   return (
@@ -349,7 +382,7 @@ export function Example() {
       chroma={${v.chroma}}
       blur={${v.blur}}
       dome={${v.dome}}
-      depth={${v.depth}}
+      depth={${v.depth}}${profileAttr(o)}
       edge={${v.edge}}
       glow={${v.glow}}
       spec={${v.spec}}
@@ -369,7 +402,8 @@ export function Example() {
 
 const CARD_TUNE: TuneConfig = {
   params: SURFACE_TUNE.params,
-  code: (v) => `import { GlassCard } from "@/components/liquid-glass/glass-card"
+  controls: [profileControl],
+  code: (v, o) => `import { GlassCard } from "@/components/liquid-glass/glass-card"
 
 export function Example() {
   return (
@@ -378,7 +412,7 @@ export function Example() {
       chroma={${v.chroma}}
       blur={${v.blur}}
       dome={${v.dome}}
-      depth={${v.depth}}
+      depth={${v.depth}}${profileAttr(o)}
       edge={${v.edge}}
       glow={${v.glow}}
       spec={${v.spec}}
@@ -399,7 +433,8 @@ export function Example() {
 const BUTTON_TUNE: TuneConfig = {
   // Surface knobs, then geometry + morph-animation (radius/duration/pulse re-mount).
   params: presetControls('button'),
-  code: (v) => `import { GlassButton } from "@liquidglassjs/react"
+  controls: [profileControl],
+  code: (v, o) => `import { GlassButton } from "@liquidglassjs/react"
 
 export function Example() {
   return (
@@ -408,7 +443,7 @@ export function Example() {
       chroma={${v.chroma}}
       blur={${v.blur}}
       dome={${v.dome}}
-      depth={${v.depth}}
+      depth={${v.depth}}${profileAttr(o)}
       edge={${v.edge}}
       glow={${v.glow}}
       spec={${v.spec}}
@@ -443,6 +478,125 @@ export function Example() {
   )
 }`,
 };
+
+const MERGE_TUNE: TuneConfig = {
+  params: presetControls('merge'),
+  controls: [profileControl],
+  code: (v, o) => `import { mountGlassGroup } from "@liquidglassjs/core"
+
+const group = mountGlassGroup({
+  target: scene,          // the live DOM that bends
+  host: wrap,
+  items: [pillA, pillB],  // chrome above the scene — measured, never filtered
+  blend: ${v.blend},${o?.profile === 'circle' ? '\n  profile: "circle",' : ''}
+  strength: ${v.strength},
+  chroma: ${v.chroma},
+  depth: ${v.depth},
+  edge: ${v.edge},
+  glow: ${v.glow},
+  shade: ${v.shade},
+  specularRotation: ${v.specularRotation}, // light angle — quantize if you drive it live
+  blur: ${v.blur},
+})
+
+// after moving an item (transform, layout, drag):
+group.update() // rAF-coalesced re-measure + map re-encode`,
+};
+
+/**
+ * Two pills over one scene, one following the pointer: both live in a single
+ * smooth-min displacement map, so bringing them within `blend` px fuses their
+ * rims through a neck — Apple's droplet merge. The pills are chrome ABOVE the
+ * refracted pane (never filtered), so sliding one with a transform is safe in
+ * Safari; the map is measured from where they visually are.
+ */
+function GlassMergeDemo({ v, o }: { v: Record<string, number>; o: TuneOptions }) {
+  const wrap = useRef<HTMLDivElement>(null);
+  const scene = useRef<HTMLDivElement>(null);
+  const pillA = useRef<HTMLDivElement>(null);
+  const pillB = useRef<HTMLDivElement>(null);
+  const group = useRef<GlassGroup | null>(null);
+  useEffect(() => {
+    const el = wrap.current;
+    if (!el || !scene.current || !pillA.current || !pillB.current) return;
+    const g = mountGlassGroup({
+      target: scene.current,
+      host: el,
+      items: [pillA.current, pillB.current],
+    });
+    group.current = g;
+    const move = (e: PointerEvent) => {
+      const r = el.getBoundingClientRect();
+      const pb = pillB.current;
+      if (!pb) return;
+      const w = pb.offsetWidth;
+      const x = Math.min(Math.max(e.clientX - r.left - w / 2, 8), r.width - w - 8);
+      pb.style.transform = `translate(${x}px, -50%)`;
+      g.update();
+    };
+    el.addEventListener('pointermove', move);
+    return () => {
+      el.removeEventListener('pointermove', move);
+      g.dispose();
+      group.current = null;
+    };
+  }, []);
+  const key = JSON.stringify([v, o]);
+  useEffect(() => {
+    group.current?.reconfigure({
+      blend: v.blend,
+      strength: v.strength,
+      chroma: v.chroma,
+      depth: v.depth,
+      edge: v.edge,
+      glow: v.glow,
+      shade: v.shade,
+      specularRotation: v.specularRotation,
+      blur: v.blur,
+      profile: profileOf(o),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- key captures both
+  }, [key]);
+  return (
+    <div
+      ref={wrap}
+      className="relative w-full max-w-[560px] cursor-ew-resize touch-none overflow-hidden rounded-xl ring-1 ring-white/10"
+    >
+      <div ref={scene} className="relative h-[220px] w-full overflow-hidden bg-zinc-950 text-white">
+        <div className="absolute inset-0 [background:radial-gradient(90%_130%_at_50%_0%,rgba(123,60,255,0.4),transparent_62%),repeating-linear-gradient(0deg,rgb(255_255_255/6%)_0_1px,transparent_1px_22px),repeating-linear-gradient(90deg,rgb(255_255_255/6%)_0_1px,transparent_1px_22px)]" />
+        <span className="absolute top-5 left-6 rounded border border-white/25 px-1.5 py-0.5 text-[10px] font-medium tracking-[0.2em] text-white/80 uppercase">
+          SMOOTH · MIN
+        </span>
+        <h3 className="absolute top-12 left-6 text-lg font-semibold">One map, two droplets</h3>
+        <p className="absolute top-[76px] left-6 text-[11px] text-white/50">
+          move the pointer — the loose pill chases it
+        </p>
+        <div className="absolute bottom-5 left-6 flex gap-1.5">
+          {swatches.slice(0, 6).map((c, i) => (
+            <i
+              key={i}
+              className="block h-[15px] w-[24px] rounded-[3px]"
+              style={{ background: c }}
+            />
+          ))}
+        </div>
+      </div>
+      <div
+        ref={pillA}
+        className="pointer-events-none absolute top-1/2 left-8 flex h-14 w-36 -translate-y-1/2 items-center justify-center rounded-full text-sm font-medium text-white/90"
+      >
+        Merge
+      </div>
+      <div
+        ref={pillB}
+        className="pointer-events-none absolute top-1/2 left-0 flex h-14 w-28 items-center justify-center rounded-full text-sm font-medium text-white/90"
+        style={{ transform: 'translate(320px, -50%)' }}
+      >
+        me
+      </div>
+    </div>
+  );
+}
 
 // The centre mark for the QR's "Emoji" logo choice — a markup string (GlassQR
 // accepts `string | Node | false`); the span self-centres and sizes the glyph.
@@ -637,14 +791,15 @@ const FROST_PARAMS: TuneParam[] = [
 const TABS_TUNE: TuneConfig = {
   needs: 'backdrop-url',
   params: FROST_PARAMS,
-  code: (v) => `import {
+  controls: [profileControl],
+  code: (v, o) => `import {
   GlassTabs, GlassTabsList, GlassTabsTab, GlassTabsPanel,
 } from "@/components/liquid-glass/glass-tabs"
 
 export function Example() {
   return (
     <GlassTabs defaultValue="overview">
-      <GlassTabsList strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}}>
+      <GlassTabsList strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}}${profileAttrInline(o)}>
         <GlassTabsTab value="overview">Overview</GlassTabsTab>
         <GlassTabsTab value="activity">Activity</GlassTabsTab>
         <GlassTabsTab value="settings">Settings</GlassTabsTab>
@@ -657,7 +812,8 @@ export function Example() {
 const DIALOG_TUNE: TuneConfig = {
   needs: 'backdrop-url',
   params: FROST_PARAMS,
-  code: (v) => `import {
+  controls: [profileControl],
+  code: (v, o) => `import {
   GlassDialog, GlassDialogTrigger, GlassDialogContent,
   GlassDialogHeader, GlassDialogTitle, GlassDialogDescription,
 } from "@/components/liquid-glass/glass-dialog"
@@ -666,7 +822,7 @@ export function Example() {
   return (
     <GlassDialog>
       <GlassDialogTrigger>Open dialog</GlassDialogTrigger>
-      <GlassDialogContent strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}}>
+      <GlassDialogContent strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}}${profileAttrInline(o)}>
         <GlassDialogHeader>
           <GlassDialogTitle>Delete project</GlassDialogTitle>
           <GlassDialogDescription>This can&apos;t be undone.</GlassDialogDescription>
@@ -680,7 +836,8 @@ export function Example() {
 const DROPDOWN_TUNE: TuneConfig = {
   needs: 'backdrop-url',
   params: FROST_PARAMS,
-  code: (v) => `import {
+  controls: [profileControl],
+  code: (v, o) => `import {
   GlassDropdownMenu, GlassDropdownMenuTrigger, GlassDropdownMenuContent,
   GlassDropdownMenuItem, GlassDropdownMenuSeparator,
 } from "@/components/liquid-glass/glass-dropdown-menu"
@@ -689,7 +846,7 @@ export function Example() {
   return (
     <GlassDropdownMenu>
       <GlassDropdownMenuTrigger>Options</GlassDropdownMenuTrigger>
-      <GlassDropdownMenuContent strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}}>
+      <GlassDropdownMenuContent strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}}${profileAttrInline(o)}>
         <GlassDropdownMenuItem>Profile</GlassDropdownMenuItem>
         <GlassDropdownMenuItem>Settings</GlassDropdownMenuItem>
         <GlassDropdownMenuSeparator />
@@ -702,24 +859,26 @@ export function Example() {
 
 const SLIDER_TUNE: TuneConfig = {
   params: presetControls('slider'),
-  code: (v) => `import { GlassSlider } from "@/components/liquid-glass/glass-slider"
+  controls: [profileControl],
+  code: (v, o) => `import { GlassSlider } from "@/components/liquid-glass/glass-slider"
 
 export function Example() {
   // Drag the thumb to see the rail refract through the glass.
   return (
-    <GlassSlider defaultValue={40} strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}} className="w-80" />
+    <GlassSlider defaultValue={40} strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}}${profileAttrInline(o)} className="w-80" />
   )
 }`,
 };
 
 const SWITCH_TUNE: TuneConfig = {
   params: presetControls('switch'),
-  code: (v) => `import { GlassSwitch } from "@/components/liquid-glass/glass-switch"
+  controls: [profileControl],
+  code: (v, o) => `import { GlassSwitch } from "@/components/liquid-glass/glass-switch"
 
 export function Example() {
   // Press-and-hold to see the track refract through the glass thumb.
   return (
-    <GlassSwitch defaultChecked strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}} />
+    <GlassSwitch defaultChecked strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}}${profileAttrInline(o)} />
   )
 }`,
 };
@@ -735,13 +894,17 @@ export const registry: RegistryItem[] = [
       'The base primitive: crisp content over a glass surface that frosts the scene behind it, and refracts it on Chromium.',
     tune: SURFACE_TUNE,
     code: SURFACE_TUNE.code(tuneDefaults(SURFACE_TUNE)),
-    Demo: ({ values: v = tuneDefaults(SURFACE_TUNE) }) => (
+    Demo: ({
+      values: v = tuneDefaults(SURFACE_TUNE),
+      options: o = controlDefaults(SURFACE_TUNE),
+    }) => (
       <GlassSurface
         strength={v.strength}
         chroma={v.chroma}
         blur={v.blur}
         dome={v.dome}
         depth={v.depth}
+        profile={profileOf(o)}
         edge={v.edge}
         glow={v.glow}
         spec={v.spec}
@@ -763,13 +926,14 @@ export const registry: RegistryItem[] = [
     description: 'A glass surface with a border, padding, and an elevation shadow.',
     tune: CARD_TUNE,
     code: CARD_TUNE.code(tuneDefaults(CARD_TUNE)),
-    Demo: ({ values: v = tuneDefaults(CARD_TUNE) }) => (
+    Demo: ({ values: v = tuneDefaults(CARD_TUNE), options: o = controlDefaults(CARD_TUNE) }) => (
       <GlassCard
         strength={v.strength}
         chroma={v.chroma}
         blur={v.blur}
         dome={v.dome}
         depth={v.depth}
+        profile={profileOf(o)}
         edge={v.edge}
         glow={v.glow}
         spec={v.spec}
@@ -792,7 +956,10 @@ export const registry: RegistryItem[] = [
       'A modal dialog: Base UI behavior (focus trap, scroll lock, ARIA) with a frosted glass panel over a dimmed backdrop.',
     tune: DIALOG_TUNE,
     code: DIALOG_TUNE.code(tuneDefaults(DIALOG_TUNE)),
-    Demo: ({ values: v = tuneDefaults(DIALOG_TUNE) }) => (
+    Demo: ({
+      values: v = tuneDefaults(DIALOG_TUNE),
+      options: o = controlDefaults(DIALOG_TUNE),
+    }) => (
       <GlassDialog>
         <GlassDialogTrigger className={triggerClass}>Open dialog</GlassDialogTrigger>
         <GlassDialogContent
@@ -802,6 +969,7 @@ export const registry: RegistryItem[] = [
           depth={v.depth}
           edge={v.edge}
           glow={v.glow}
+          profile={profileOf(o)}
         >
           <GlassDialogHeader>
             <GlassDialogTitle>Delete project</GlassDialogTitle>
@@ -828,7 +996,7 @@ export const registry: RegistryItem[] = [
       'A segmented control: Base UI Tabs with a glass pill that slides under the active label and refracts it.',
     tune: TABS_TUNE,
     code: TABS_TUNE.code(tuneDefaults(TABS_TUNE)),
-    Demo: ({ values: v = tuneDefaults(TABS_TUNE) }) => (
+    Demo: ({ values: v = tuneDefaults(TABS_TUNE), options: o = controlDefaults(TABS_TUNE) }) => (
       <GlassTabs defaultValue="daily">
         <GlassTabsList
           strength={v.strength}
@@ -837,6 +1005,7 @@ export const registry: RegistryItem[] = [
           depth={v.depth}
           edge={v.edge}
           glow={v.glow}
+          profile={profileOf(o)}
         >
           <GlassTabsTab value="daily">Daily</GlassTabsTab>
           <GlassTabsTab value="weekly">Weekly</GlassTabsTab>
@@ -863,7 +1032,10 @@ export const registry: RegistryItem[] = [
       'A toggle: Base UI Switch with a real glass thumb. Press it and the track refracts through the glass, a live SVG lens rather than a CSS blur.',
     tune: SWITCH_TUNE,
     code: SWITCH_TUNE.code(tuneDefaults(SWITCH_TUNE)),
-    Demo: ({ values: v = tuneDefaults(SWITCH_TUNE) }) => (
+    Demo: ({
+      values: v = tuneDefaults(SWITCH_TUNE),
+      options: o = controlDefaults(SWITCH_TUNE),
+    }) => (
       <div className="flex items-center gap-4">
         <GlassSwitch
           defaultChecked
@@ -873,8 +1045,10 @@ export const registry: RegistryItem[] = [
           depth={v.depth}
           edge={v.edge}
           glow={v.glow}
+          profile={profileOf(o)}
         />
         <GlassSwitch
+          profile={profileOf(o)}
           strength={v.strength}
           chroma={v.chroma}
           dome={v.dome}
@@ -894,7 +1068,10 @@ export const registry: RegistryItem[] = [
       'A slider: Base UI Slider with a real glass thumb. Drag it and the rail refracts through the glass, a live SVG lens rather than a CSS blur.',
     tune: SLIDER_TUNE,
     code: SLIDER_TUNE.code(tuneDefaults(SLIDER_TUNE)),
-    Demo: ({ values: v = tuneDefaults(SLIDER_TUNE) }) => (
+    Demo: ({
+      values: v = tuneDefaults(SLIDER_TUNE),
+      options: o = controlDefaults(SLIDER_TUNE),
+    }) => (
       <GlassSlider
         defaultValue={40}
         strength={v.strength}
@@ -903,6 +1080,7 @@ export const registry: RegistryItem[] = [
         depth={v.depth}
         edge={v.edge}
         glow={v.glow}
+        profile={profileOf(o)}
         className="w-80"
       />
     ),
@@ -916,7 +1094,10 @@ export const registry: RegistryItem[] = [
       'A dropdown menu: Base UI Menu (anchored positioning, roving focus, typeahead) with a refracting glass popup.',
     tune: DROPDOWN_TUNE,
     code: DROPDOWN_TUNE.code(tuneDefaults(DROPDOWN_TUNE)),
-    Demo: ({ values: v = tuneDefaults(DROPDOWN_TUNE) }) => (
+    Demo: ({
+      values: v = tuneDefaults(DROPDOWN_TUNE),
+      options: o = controlDefaults(DROPDOWN_TUNE),
+    }) => (
       <GlassDropdownMenu>
         <GlassDropdownMenuTrigger className={triggerClass}>Options</GlassDropdownMenuTrigger>
         <GlassDropdownMenuContent
@@ -926,6 +1107,7 @@ export const registry: RegistryItem[] = [
           depth={v.depth}
           edge={v.edge}
           glow={v.glow}
+          profile={profileOf(o)}
         >
           <GlassDropdownMenuItem>Profile</GlassDropdownMenuItem>
           <GlassDropdownMenuItem>Settings</GlassDropdownMenuItem>
@@ -1006,7 +1188,7 @@ export const registry: RegistryItem[] = [
       'A movable refraction lens over live content; the text, grid, and chips beneath it bend in place.',
     tune: LENS_TUNE,
     code: LENS_TUNE.code(tuneDefaults(LENS_TUNE)),
-    Demo: ({ values: v = tuneDefaults(LENS_TUNE) }) => (
+    Demo: ({ values: v = tuneDefaults(LENS_TUNE), options: o = controlDefaults(LENS_TUNE) }) => (
       <GlassLens
         width={150}
         height={150}
@@ -1016,9 +1198,11 @@ export const registry: RegistryItem[] = [
         blur={v.blur}
         dome={v.dome}
         depth={v.depth}
+        profile={profileOf(o)}
         edge={v.edge}
         glow={v.glow}
         shade={v.shade}
+        press={v.press}
         glint="#ffd9a0"
         className="w-full max-w-[560px] overflow-hidden rounded-xl ring-1 ring-white/10"
       >
@@ -1057,7 +1241,7 @@ export const registry: RegistryItem[] = [
       'The iOS text magnifier: press and hold, and a glass capsule floats above the pointer showing the line beneath it, enlarged. Drag straight away and you get an ordinary selection instead.',
     tune: LOUPE_TUNE,
     code: LOUPE_TUNE.code(tuneDefaults(LOUPE_TUNE)),
-    Demo: ({ values: v = tuneDefaults(LOUPE_TUNE) }) => (
+    Demo: ({ values: v = tuneDefaults(LOUPE_TUNE), options: o = controlDefaults(LOUPE_TUNE) }) => (
       <GlassLoupe
         zoom={v.zoom}
         longPressMs={v.longPressMs}
@@ -1070,6 +1254,7 @@ export const registry: RegistryItem[] = [
         blur={v.blur}
         dome={v.dome}
         depth={v.depth}
+        profile={profileOf(o)}
         edge={v.edge}
         glow={v.glow}
         shade={v.shade}
@@ -1100,6 +1285,20 @@ export const registry: RegistryItem[] = [
     ),
   },
   {
+    slug: 'glass-merge',
+    title: 'Glass Merge',
+    category: 'Effects',
+    icon: Droplets,
+    npm: '@liquidglassjs/core',
+    description:
+      'Two glass pills over one scene share a single smooth-min displacement map — bring them close and they fuse like droplets, the refraction flowing through the neck.',
+    tune: MERGE_TUNE,
+    code: MERGE_TUNE.code(tuneDefaults(MERGE_TUNE)),
+    Demo: ({ values: v = tuneDefaults(MERGE_TUNE), options: o = controlDefaults(MERGE_TUNE) }) => (
+      <GlassMergeDemo v={v} o={o} />
+    ),
+  },
+  {
     slug: 'glass-button',
     title: 'Glass Button',
     category: 'Effects',
@@ -1109,7 +1308,10 @@ export const registry: RegistryItem[] = [
       'Change a glass button’s label and it reshapes to fit, the refraction stretching through the morph.',
     tune: BUTTON_TUNE,
     code: BUTTON_TUNE.code(tuneDefaults(BUTTON_TUNE)),
-    Demo: ({ values: v = tuneDefaults(BUTTON_TUNE) }) => {
+    Demo: ({
+      values: v = tuneDefaults(BUTTON_TUNE),
+      options: o = controlDefaults(BUTTON_TUNE),
+    }) => {
       const [label, setLabel] = useState('Download');
       return (
         <div className="flex flex-col items-center gap-5">
@@ -1119,6 +1321,7 @@ export const registry: RegistryItem[] = [
             blur={v.blur}
             dome={v.dome}
             depth={v.depth}
+            profile={profileOf(o)}
             edge={v.edge}
             glow={v.glow}
             spec={v.spec}

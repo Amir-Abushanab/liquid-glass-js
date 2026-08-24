@@ -145,12 +145,14 @@ export const GLASS_LOUPE_DEFAULTS: GlassLoupeParams = {
   // the one param that has to stay near zero — magnified glyphs are the whole point.
   radius: 22,
   depth: 5,
+  profile: 'erf',
   dome: 7,
   edge: 0.9,
   glow: 0.4,
   strength: 16,
   chroma: 0.6,
   blur: 0.15,
+  specularRotation: 45,
   shade: 0.12,
 };
 
@@ -162,6 +164,7 @@ const PARAM_KEYS = [
   'longPressMs',
   'radius',
   'depth',
+  'profile',
   'dome',
   'edge',
   'glow',
@@ -169,6 +172,7 @@ const PARAM_KEYS = [
   'chroma',
   'blur',
   'shade',
+  'specularRotation',
 ] as const;
 
 // The params baked into the displacement map or the capsule's box — the ones whose
@@ -179,6 +183,7 @@ const LAYOUT_KEYS = new Set<string>([
   'height',
   'radius',
   'depth',
+  'profile',
   'dome',
   'edge',
   'glow',
@@ -186,6 +191,7 @@ const LAYOUT_KEYS = new Set<string>([
   'chroma',
   'blur',
   'shade',
+  'specularRotation',
 ]);
 
 const clampTo = (v: number, lo: number, hi: number): number =>
@@ -264,7 +270,7 @@ export function mountGlassLoupe(o: GlassLoupeOptions): GlassLoupe {
 
   const explicit: Partial<GlassLoupeParams> = {};
   PARAM_KEYS.forEach((k) => {
-    if (o[k] != null) explicit[k] = o[k];
+    if (o[k] != null) (explicit as Record<string, unknown>)[k] = o[k];
   });
   const cur: GlassLoupeParams = { ...GLASS_LOUPE_DEFAULTS, ...explicit };
 
@@ -356,6 +362,7 @@ export function mountGlassLoupe(o: GlassLoupeOptions): GlassLoupe {
         glint: o.glint,
         radius: cur.radius,
         depth: cur.depth,
+        profile: cur.profile,
         dome: cur.dome,
         edge: cur.edge,
         glow: cur.glow,
@@ -363,12 +370,14 @@ export function mountGlassLoupe(o: GlassLoupeOptions): GlassLoupe {
         chroma: cur.chroma,
         blur: cur.blur,
         shade: cur.shade,
+        specularRotation: cur.specularRotation,
       });
     } else {
       lens.setSize(w, h);
       lens.reconfigure({
         radius: cur.radius,
         depth: cur.depth,
+        profile: cur.profile,
         dome: cur.dome,
         edge: cur.edge,
         glow: cur.glow,
@@ -376,6 +385,7 @@ export function mountGlassLoupe(o: GlassLoupeOptions): GlassLoupe {
         chroma: cur.chroma,
         blur: cur.blur,
         shade: cur.shade,
+        specularRotation: cur.specularRotation,
       });
     }
     // The lens sits at the visible rim, inset from the filter target by the bleed.

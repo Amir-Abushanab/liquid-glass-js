@@ -1365,11 +1365,22 @@ a {
   border-radius: 60px;
   cursor: default;
   will-change: transform;
-  box-shadow:
-    inset 0 1px 2px rgb(255 255 255 / 45%),
-    inset 0 0 0 1px rgb(255 255 255 / 18%),
-    inset 0 -3px 6px rgb(0 0 0 / 20%),
-    0 12px 30px -12px rgb(0 0 0 / 45%);
+}
+/* The resting droplet the lens merges with — clear of the teardrop artwork
+   (which sits at right: 48px). NO box-shadow chrome on either circle: the map
+   fuses but a per-element inset ring/shadow doesn't, so those outlines kept
+   drawing straight through the merged neck — the "line residue". The rim now
+   comes entirely from the map's B channel (edge glint + shade), which follows
+   the fused silhouette by construction. */
+.lens-stage__blob {
+  position: absolute;
+  top: 50%;
+  left: 252px;
+  width: 104px;
+  height: 104px;
+  transform: translateY(-50%);
+  border-radius: 52px;
+  pointer-events: none;
 }
 /* ── Magnifying loupe: a page of fine print, small enough that magnifying it is
    obviously the point. The doc paints its own background so the capsule has
@@ -3210,5 +3221,64 @@ a {
   font-size: 0.82rem;
   line-height: 1.5;
   text-align: center;
+  color: var(--muted);
+}
+
+/* ── DOM-card ticker: small type sliding through the bottom rim band, so the
+   supersample A/B has sustained motion to bite on (a static card settles into
+   one raster and hides the difference). Script-driven, never a CSS animation —
+   an animated transform would promote it onto its own layer and OUT of
+   Safari's filter (the droplet-bob rule). ── */
+.domcard__ticker {
+  position: absolute;
+  right: 0;
+  bottom: 5px;
+  left: 0;
+  overflow: hidden;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0.6;
+}
+/* No will-change: inside a filtered subtree the filter re-rasters wholesale, so
+   a layer hint buys nothing — and layer promotion near filters is exactly the
+   Safari territory the pitfalls list warns about. Plain script-set transform. */
+.domcard__ticker-track {
+  display: inline-block;
+  white-space: nowrap;
+}
+.domcard__ticker-run {
+  display: inline-block;
+}
+
+/* ── Aave's segmented trick: a pill-sized window clips a highlighted, inert
+   COPY of the label row; the lens refracts the copy, so the selected label
+   reads bright through the glass while the live track stays dim. The window
+   rides the pill (+x) and the copy counter-translates (−x), so the text never
+   moves — only the clip does. ── */
+.seg__win {
+  position: absolute;
+  z-index: 2;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / var(--n));
+  overflow: hidden;
+  border-radius: 999px;
+  pointer-events: none;
+}
+.seg__copy {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.seg__copy .seg__opt {
+  color: var(--ink);
+}
+/* With the copy carrying the highlight, the live selected label goes back to
+   track colour — but only when JS built the copy, so the no-JS build keeps its
+   aria-selected affordance. */
+.seg.has-copy > .seg__labels .seg__opt[aria-selected='true'] {
   color: var(--muted);
 }

@@ -10,11 +10,24 @@
 
 import { encodeOffset, encodeSpec, NEUTRAL_BYTE } from './map-encode';
 
+/**
+ * Edge-falloff curve for the refraction band.
+ *   'erf'    — Aave's soft meniscus (default; byte-identical to the original
+ *              generator): ~0.92 at the rim (tanh-erf), still 0.5 where the
+ *              depth band ends, decaying ~2·depth further into the interior.
+ *   'circle' — quarter-circle bevel (the profile Kyant0 screenshot-verified
+ *              against iOS 26): magnitude is exactly 1 at the rim with a
+ *              vertical tangent — the crisp compression ring — and lands at
+ *              zero, C¹, at the band's inner edge. Nothing leaks inward.
+ */
+export type MapProfile = 'erf' | 'circle';
+
 export interface GlassMapOptions {
   width: number;
   height: number;
   radius: number;
   depth: number;
+  profile?: MapProfile; // edge-falloff curve (default 'erf')
   dome?: number; // px sagitta (bulge height)
   edge?: number; // edge-line specular strength
   glow?: number; // axial glow specular strength
@@ -25,8 +38,8 @@ export interface GlassMapOptions {
   //                   apparent width when the caller renders at s× (default 1 = byte-identical)
 }
 
-// Aave's erf: tanh(√π · x)
-function erf(x: number): number {
+// Aave's erf: tanh(√π · x). Exported for group-map.ts, which shares the falloff.
+export function erf(x: number): number {
   return Math.tanh(1.7724538509 * x);
 }
 
@@ -57,6 +70,7 @@ function domeGradient(pos: number, R: number, scale: number): number {
 
 export function renderDisplacementMap(o: GlassMapOptions): HTMLCanvasElement {
   const { radius, depth } = o;
+  const profile = o.profile ?? 'erf';
   const dome = o.dome ?? 0;
   const edge = o.edge ?? 0;
   const glow = o.glow ?? 0;
@@ -173,13 +187,20 @@ export function renderDisplacementMap(o: GlassMapOptions): HTMLCanvasElement {
           umag = domeGradient(gx, F.Rx, F.scaleX);
           mmag = domeGradient(gy, F.Ry, F.scaleY);
         }
-        const ex = gx - iw + v;
-        const ey = gy - ih + v;
-        const d2 =
-          Math.sqrt(Math.max(ex, 0) ** 2 + Math.max(ey, 0) ** 2) +
-          Math.min(Math.max(ex, ey), 0) -
-          v;
-        i = 0.5 * (1 + erf(d2 * E));
+        if (profile === 'circle') {
+          // Band position on the OUTER SDF (dist < 0 inside): t = 1 at the rim,
+          // 0 at depth px in. i = 1 − √(1 − t²) — the quarter-circle bevel.
+          const t = depth > 0 ? Math.max(0, 1 + dist / depth) : 0;
+          i = 1 - Math.sqrt(1 - t * t);
+        } else {
+          const ex = gx - iw + v;
+          const ey = gy - ih + v;
+          const d2 =
+            Math.sqrt(Math.max(ex, 0) ** 2 + Math.max(ey, 0) ** 2) +
+            Math.min(Math.max(ex, ey), 0) -
+            v;
+          i = 0.5 * (1 + erf(d2 * E));
+        }
       }
       writePixel(row, col, inside, dist, i, umag, mmag);
       if (mcol !== col) writePixel(row, mcol, inside, dist, i, umag, mmag);
@@ -191,6 +212,41 @@ export function renderDisplacementMap(o: GlassMapOptions): HTMLCanvasElement {
   return cv;
 }
 
+// The generator is a pure function of its options, so identical asks can
+// share one PNG — Glacé (glaceui) caches its maps the same way. This pays on
+// A/B toggles (profile, light angle), re-mounts of same-sized surfaces, and
+// React double-mounts; a small LRU keeps a resize sweep from pinning dozens
+// of stale sizes.
+const mapCache = new Map<string, string>();
+const MAP_CACHE_MAX = 24;
+
 export function buildDisplacementMap(o: GlassMapOptions): string {
-  return renderDisplacementMap(o).toDataURL();
+  const key = [
+    o.width,
+    o.height,
+    o.radius,
+    o.depth,
+    o.profile ?? 'erf',
+    o.dome ?? 0,
+    o.edge ?? 0,
+    o.glow ?? 0,
+    o.shade ?? 0,
+    o.margin ?? 0,
+    o.specularRotation ?? 45,
+    o.pxScale ?? 1,
+  ].join('|');
+  const hit = mapCache.get(key);
+  if (hit) {
+    // Re-insert on hit: Map iterates in insertion order, so this is the LRU touch.
+    mapCache.delete(key);
+    mapCache.set(key, hit);
+    return hit;
+  }
+  const url = renderDisplacementMap(o).toDataURL();
+  mapCache.set(key, url);
+  if (mapCache.size > MAP_CACHE_MAX) {
+    const oldest = mapCache.keys().next().value;
+    if (oldest != null) mapCache.delete(oldest);
+  }
+  return url;
 }

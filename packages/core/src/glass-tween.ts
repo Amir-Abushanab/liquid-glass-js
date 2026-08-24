@@ -13,7 +13,7 @@
 // and the refraction eases into it, which is the right way round anyway: a bevel
 // morphing mid-hover reads as a glitch, a deepening bend reads as glass.
 
-import { cubicBezier } from './dynamics';
+import { cubicBezier, prefersReducedMotion } from './dynamics';
 
 /** Params that are a filter attribute rather than an input to the map. */
 const LIVE = new Set(['strength', 'chroma', 'blur', 'spec']);
@@ -67,14 +67,6 @@ export function glassTween(target: GlassTweenTarget, base: GlassTweenOptions = {
   let dur = 0;
   let ease: (t: number) => number = DEFAULT_EASING;
 
-  const reduced = () => {
-    try {
-      return matchMedia('(prefers-reduced-motion: reduce)').matches;
-    } catch {
-      return false;
-    }
-  };
-
   const stop = () => {
     if (raf) cancelAnimationFrame(raf);
     raf = 0;
@@ -112,7 +104,7 @@ export function glassTween(target: GlassTweenTarget, base: GlassTweenOptions = {
       const keys = Object.keys(to);
       if (Object.keys(snap).length) target.reconfigure(snap);
       if (!keys.length) return;
-      if (!(dur > 0) || reduced()) {
+      if (!(dur > 0) || prefersReducedMotion()) {
         target.reconfigure(to);
         return;
       }

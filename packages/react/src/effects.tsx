@@ -24,6 +24,7 @@ import {
   type GlassShapeSource,
   mountGlassLens,
   type GlassLensParams,
+  createSpring,
   mountGlassLoupe,
   type GlassLoupeOptions,
   type GlassLoupeParams,
@@ -131,6 +132,12 @@ export interface GlassLensProps extends Partial<GlassLensParams> {
   width?: number;
   height?: number;
   glint?: string;
+  /**
+   * Displacement multiplier while the pointer is held (default 1 = off). The
+   * boost springs in and out rather than snapping — the iOS "glass energizes
+   * under your finger" cue. Purely attribute-driven; the map never rebuilds.
+   */
+  press?: number;
 }
 
 export function GlassLens({
@@ -140,11 +147,15 @@ export function GlassLens({
   width = 150,
   height = 150,
   glint,
+  press = 1,
   ...params
 }: GlassLensProps) {
   const host = useRef<HTMLDivElement>(null);
   const target = useRef<HTMLDivElement>(null);
   const inst = useRef<ReturnType<typeof mountGlassLens> | null>(null);
+  // Read at pointerdown so a Tuner drag retunes the NEXT press without remounting.
+  const pressRef = useRef(press);
+  pressRef.current = press;
   useEffect(() => {
     const wrap = host.current;
     if (!wrap || !target.current) return;
@@ -166,11 +177,24 @@ export function GlassLens({
       const r = wrap.getBoundingClientRect();
       i.setPos(e.clientX - r.left - width / 2, e.clientY - r.top - height / 2);
     };
+    const spring = createSpring(1, (v) => i.setDisplScale(v));
+    const grip = () => spring.set(pressRef.current);
+    const release = () => spring.set(1);
     wrap.addEventListener('pointermove', move);
     wrap.addEventListener('pointerleave', centre);
+    wrap.addEventListener('pointerdown', grip);
+    wrap.addEventListener('pointerleave', release);
+    wrap.addEventListener('pointercancel', release);
+    // The release can land outside the pane — a drag that wanders off, a menu.
+    window.addEventListener('pointerup', release);
     return () => {
       wrap.removeEventListener('pointermove', move);
       wrap.removeEventListener('pointerleave', centre);
+      wrap.removeEventListener('pointerdown', grip);
+      wrap.removeEventListener('pointerleave', release);
+      wrap.removeEventListener('pointercancel', release);
+      window.removeEventListener('pointerup', release);
+      spring.stop();
       i.dispose();
       inst.current = null;
     };

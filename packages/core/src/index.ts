@@ -9,7 +9,13 @@
 // Styling ships separately — import `@liquidglassjs/core/css` once.
 
 // Unified surface + framework-agnostic mount
-export { mountGlass, mountGlassFromData, readGlassOptions, GLASS_DEFAULTS } from './mount';
+export {
+  mountGlass,
+  mountGlassFromData,
+  readGlassOptions,
+  GLASS_DEFAULTS,
+  isChromium,
+} from './mount';
 export type { GlassOptions, GlassInstance } from './mount';
 
 // Displacement-map generator (SDF rounded-rect dome; R/G/B encoding)
@@ -18,7 +24,17 @@ export { buildDisplacementMap, renderDisplacementMap, computeDomeConstants } fro
 // chain has to normalise the pre-blur or their sub-pixel `blur` renders three different
 // pictures in three engines. See filter-origin.ts for the measurements.
 export { preBlurStd } from './blur-quantize';
-export type { GlassMapOptions } from './displacement';
+export type { GlassMapOptions, MapProfile } from './displacement';
+
+// Merged glass: several elements fused into one smooth-min displacement map
+export { mountGlassGroup } from './glass-group';
+export type { GlassGroup, GlassGroupOptions, GlassGroupParams } from './glass-group';
+export { buildGroupDisplacementMap, renderGroupDisplacementMap } from './group-map';
+export type { GroupShape, GroupMapOptions } from './group-map';
+
+// Scalar spring for driving the cheap per-frame knobs (setDisplScale, drag chases)
+export { createSpring } from './dynamics';
+export type { SpringHandle } from './dynamics';
 
 // Moving SVG lens over live DOM
 export { mountGlassLens } from './glass-lens';

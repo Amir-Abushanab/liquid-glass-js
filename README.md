@@ -114,6 +114,33 @@ label crossfade; sizing, colour, and the scene are yours. Both return
 `dispose()`. `createGlassSurface` is exported too, for the raw resizable /
 fade-able filter.
 
+### Merging glass
+
+`mountGlassGroup` gives several elements ONE displacement map whose rounded
+rects fuse by smooth-min — Apple's droplet merge. The elements are chrome above
+a shared refract pane; bring one within about `blend / 2` px of another and
+their rims flow together through a neck. (The CSS "gooey" trick merges only the
+alpha silhouette; here the refraction fields themselves fuse.)
+
+```ts
+import { mountGlassGroup } from '@liquidglassjs/core';
+
+const group = mountGlassGroup({
+  target: scene, // the live DOM that bends
+  host: wrap,
+  items: [pillA, pillB], // chrome above the scene — measured, never filtered
+  blend: 28,
+});
+// after moving an item (transform, layout, drag):
+group.update(); // rAF-coalesced re-measure + map re-encode
+```
+
+A merge has no cheap-attribute form — the neck's shape changes — so `update()`
+re-encodes the map. It computes only the shapes' bounding box plus a fuse
+apron, so control-sized drags stay in the low milliseconds. Because the items
+sit above the filtered pane rather than inside it, sliding one with a
+transform is safe in Safari (the composited-child rule never triggers).
+
 ## Glass from any shape
 
 `mountGlassText` turns letterforms into glass; `mountGlassShape` does the same
@@ -148,6 +175,25 @@ Both the shape and text (and the moving lens) take two material options:
 depth) and `glint` (a CSS colour to tint the specular highlight). They default
 to off and white respectively, so existing surfaces stay pixel-identical until
 you opt in.
+
+The rounded-rect surfaces (mount, lens, loupe, button, dropdown) also take
+`profile: 'erf' | 'circle'` — the rim's falloff curve — and the lens, loupe and
+group take a live `specularRotation` (light angle in degrees; a map input, so
+quantize it if you tie it to the pointer or device tilt). `'erf'` (default) is the
+soft meniscus this library has always rendered; `'circle'` peaks exactly at the
+rim for the crisp iOS-style compression ring. Same defaults-off rule: `'erf'`
+is byte-identical to before. The React `<GlassLens>` additionally takes
+`press` (a displacement multiplier that springs in while the pointer is held,
+default 1 = off).
+
+`mountGlass` takes one more: `supersample` (default 1 = off). On the live-DOM
+refract path it lays the content out at its natural size, scales it up G×
+into the filtered layer, and scales the filtered result back down — the whole
+chain runs on a G× raster, so displaced small text keeps its subpixel
+antialiasing instead of going soft. Chromium only (elsewhere the filter runs
+in software and G² pixels just quadruple a slow path — the option is silently
+1× there), and it needs the standard `__refract`/`__refract-inner` pair.
+Costs G² raster memory; clamp is 3.
 
 ## The loupe
 
@@ -395,6 +441,42 @@ which covers the optics in depth. A few constants here (the
 `erf ≈ tanh(√π·x)` approximation, the spherical-cap dome profile, the R/G/B
 displacement-map layout, the fresh-filter-id Safari workaround) trace back to
 that write-up.
+
+Some later refinements were borrowed from the wider liquid-glass field, with
+thanks:
+
+- **`profile: 'circle'`** — the quarter-circle bevel whose displacement peaks
+  exactly at the rim (the crisp iOS compression ring) is the curve
+  [Kyant0's AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass)
+  screenshot-verified against iOS 26;
+  [kube.io's ray-traced maps](https://kube.io/blog/liquid-glass-css-svg/) reach
+  the same rim-max shape from Snell's law.
+- **The `press` boost** — a spring driving the `feDisplacementMap` scale while
+  the pointer holds the glass — is
+  [ZeroxyDev's](https://github.com/ZeroxyDev/liquid-glass-js) `refractionBoost`
+  idea. The spring's timestep clamp is a lesson from
+  [clayharmon's webgl-liquid-glass](https://github.com/clayharmon/webgl-liquid-glass):
+  integrate one dropped-to-15fps frame whole and a stiff spring overshoots
+  further than it started, compounding to NaN.
+- **The legibility tiers** follow Apple's own semantics from
+  [WWDC25's _Meet Liquid Glass_](https://developer.apple.com/videos/play/wwdc2025/219/)
+  — reduced transparency goes frostier, increased contrast goes mostly solid
+  with a contrasting border, reduced motion "disables any elastic properties" —
+  keyed off `prefers-contrast` as well because Safari has never shipped
+  `prefers-reduced-transparency`.
+- **The moving light** — driving the specular from the pointer's bearing and
+  from DeviceOrientation is
+  [clayharmon's webgl-liquid-glass](https://github.com/clayharmon/webgl-liquid-glass)
+  idea (the one web glass whose rim light answers the world, as Apple's does);
+  ours arrives as a live `specularRotation` param, quantized because the light
+  is baked into the map.
+- **The segmented highlighted copy** — the pill refracting a bright copy of
+  the track, clipped to itself, so the selected label reads through the glass:
+  Aave's [_Building Glass for the Web_](https://aave.com/design/building-glass-for-the-web)
+  again.
+- **The displacement-map cache** — identical option tuples sharing one PNG is
+  how [Glacé](https://seangeng.com/writing/building-a-liquid-glass-ui-kit)
+  (Sean Geng's glaceui) manages its maps.
 
 ## License
 

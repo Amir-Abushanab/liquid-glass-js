@@ -1,4 +1,4 @@
-import { mountGlassLens, mountGlassLoupe } from '@liquidglassjs/core';
+import { mountGlassLens, mountGlassLoupe, mountGlassGroup } from '@liquidglassjs/core';
 import { reconfigureAllGlassText } from '@liquidglassjs/core';
 import { cubicBezier } from '@liquidglassjs/core';
 import { presetControls, presetDefaults } from '../lib/glass-presets';
@@ -43,6 +43,18 @@ const LOUPE_PARAMS = presetControls('loupe', LOUPE_KEYS);
 const RENDER_KEYS = ['strength', 'chroma', 'blur', 'dome', 'depth', 'edge', 'glow'];
 const RENDER_PARAMS = presetControls('surface', RENDER_KEYS);
 const RIPPLE_PARAMS = presetControls('ripple');
+const MERGE_PARAMS = presetControls('merge');
+// The rim-falloff picker every rounded-rect section shares ('erf' meniscus vs
+// the iOS-style 'circle' ring). A factory, not a const: the renderer mutates
+// `value` on the object, so each section needs its own.
+const profilePicker = (apply) => ({
+  options: [
+    { label: 'Meniscus', value: 'erf' },
+    { label: 'Ring', value: 'circle' },
+  ],
+  value: 'erf',
+  apply,
+});
 const QR_PARAMS = presetControls('qr', [
   'scaleX',
   'scaleY',
@@ -124,13 +136,39 @@ document.querySelectorAll('[data-seg]').forEach((seg) => {
   const pill = seg.querySelector('.seg__glass');
   if (!labels || !opts.length) return;
   const n = opts.length;
+  // Aave's segmented trick ("Building Glass for the Web"): the pill refracts a
+  // highlighted COPY of the label row, clipped to a pill-sized window, so the
+  // selected label reads bright THROUGH the glass while the live track stays
+  // dim. The copy translates by −x inside a window translated by +x, so the
+  // text never visually moves — only the clip does. The copy is inert and
+  // aria-hidden; the live buttons keep every behaviour.
+  seg.querySelector('.seg__win')?.remove(); // a re-captured snapshot may bake one in
+  const win = document.createElement('div');
+  win.className = 'seg__win';
+  const copy = labels.cloneNode(true);
+  copy.classList.add('seg__copy');
+  copy.removeAttribute('id');
+  copy.setAttribute('aria-hidden', 'true');
+  copy.inert = true;
+  win.appendChild(copy);
+  seg.appendChild(win);
+  seg.classList.add('has-copy');
+  // The clone is absolutely positioned, so an inline-grid collapses to content
+  // width — but a seg may stretch its live row (the hero's package-manager one
+  // does), and a content-width copy lands its columns off the live ones. Pin
+  // the copy to the live row's box, and keep it pinned on resize.
+  const sizeCopy = () => {
+    copy.style.width = `${labels.offsetWidth}px`;
+    copy.style.height = `${labels.offsetHeight}px`;
+  };
+  sizeCopy();
   const geom = () => {
     const r = seg.getBoundingClientRect();
     return { pillW: (r.width - 8) / n, pillH: r.height - 8 };
   };
   let g = geom();
   const lens = mountGlassLens({
-    target: labels,
+    target: copy,
     host: seg,
     lensW: g.pillW,
     lensH: g.pillH,
@@ -140,11 +178,13 @@ document.querySelectorAll('[data-seg]').forEach((seg) => {
   let lensX = 0,
     tweenRaf = 0;
   const segEase = cubicBezier(0.34, 1.35, 0.5, 1);
-  // One writer for both: the pill's chrome and the lens under it move on the same
-  // frame, from the same number.
+  // One writer for all four: pill chrome, clip window, counter-translated copy
+  // and the lens move on the same frame, from the same number.
   const place = (x) => {
     lens.setPos(x, 0);
     if (pill) pill.style.transform = `translateX(${x}px)`;
+    win.style.transform = `translateX(${x}px)`;
+    copy.style.transform = `translateX(${-x}px)`;
   };
   const moveLensTo = (targetX) => {
     cancelAnimationFrame(tweenRaf);
@@ -178,6 +218,7 @@ document.querySelectorAll('[data-seg]').forEach((seg) => {
   setActive(parseInt(seg.style.getPropertyValue('--i'), 10) || 0, false);
   new ResizeObserver(() => {
     g = geom();
+    sizeCopy();
     lens.setSize(g.pillW, g.pillH);
     setActive(parseInt(seg.style.getPropertyValue('--i'), 10) || 0, false);
   }).observe(seg);
@@ -190,6 +231,7 @@ if (segLenses.length) {
     params: LENS_PARAMS,
     opts: { ...SEG_OPTS },
     apply: (patch) => segLenses.forEach((l) => l.reconfigure(patch)),
+    picker: profilePicker((v) => segLenses.forEach((l) => l.reconfigure({ profile: v }))),
   });
 }
 const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -640,6 +682,7 @@ if (isld && isldTrack && isldThumb) {
   });
   cfgSections.push({
     id: 'slider',
+    picker: profilePicker((v) => lens.reconfigure({ profile: v })),
     label: 'Slider',
     icon: CFG_ICONS.slider,
     params: presetControls('slider'),
@@ -712,6 +755,7 @@ if (isw && iswTrack && iswThumb) {
   });
   cfgSections.push({
     id: 'switch',
+    picker: profilePicker((v) => lens.reconfigure({ profile: v })),
     label: 'Switch',
     icon: CFG_ICONS.switch,
     params: presetControls('switch'),
@@ -779,33 +823,45 @@ if (isw && iswTrack && iswThumb) {
 const lstage = document.querySelector('[data-lens]');
 const lcard = document.getElementById('lenscard');
 const lensEl = lstage?.querySelector('.lens-stage__lens');
-if (lstage && lcard && lensEl) {
+const blobEl = lstage?.querySelector('.lens-stage__blob');
+if (lstage && lcard && lensEl && blobEl) {
   const LW = 150,
     LH = 150;
-  const LENS_OPTS = presetDefaults('lens');
-  // glint (item 6): a warm specular tint on the draggable lens
-  const lens = mountGlassLens({
+  const MERGE_OPTS = presetDefaults('merge');
+  // The drifting lens and the resting blob share ONE smooth-min map, so
+  // steering the lens into the blob fuses them. mountGlassLens moved only an
+  // <feImage> per frame; a merge has no cheap-attribute form (the neck's
+  // shape changes), so this stage re-encodes the map per move instead —
+  // cluster-limited in group-map, decode-gated against strobing in
+  // glass-morph, and skipped entirely while the stage is off screen.
+  const group = mountGlassGroup({
     target: lcard,
     host: lstage,
-    lensW: LW,
-    lensH: LH,
-    glint: '#ffd9a0',
-    ...LENS_OPTS,
+    items: [lensEl, blobEl],
+    ...MERGE_OPTS,
   });
   cfgSections.push({
     id: 'lens',
     label: 'Lens',
     icon: CFG_ICONS.lens,
-    params: LENS_PARAMS,
-    opts: { ...LENS_OPTS },
-    apply: (patch) => lens.reconfigure(patch),
+    params: MERGE_PARAMS,
+    opts: { ...MERGE_OPTS },
+    apply: (patch) => group.reconfigure(patch),
+    picker: profilePicker((v) => group.reconfigure({ profile: v })),
   });
+  let onScreen = true;
+  new IntersectionObserver((es) => {
+    onScreen = es[0].isIntersecting;
+    if (onScreen) group.update();
+  }).observe(lstage);
   // The lens drifts on its own — DVD-style, bouncing off the stage edges — and
   // snaps to the cursor while the pointer is over the stage, no press needed.
-  let lx = 30,
-    ly = 65,
+  // Start in the lower-left, well away from the resting blob, drifting up —
+  // the merge is something the drift (or you) steers into, not a fait accompli.
+  let lx = 14,
+    ly = 116,
     vx = 0.6,
-    vy = 0.4,
+    vy = -0.4,
     hovering = false,
     mx = lx,
     my = ly,
@@ -815,7 +871,7 @@ if (lstage && lcard && lensEl) {
     maxY = 0;
   const place = () => {
     lensEl.style.transform = `translate(${lx}px, ${ly}px)`;
-    lens.setPos(lx, ly);
+    if (onScreen) group.update();
   };
   const measure = () => {
     const r = lstage.getBoundingClientRect();
@@ -824,12 +880,40 @@ if (lstage && lcard && lensEl) {
   };
   measure();
   addEventListener('resize', measure);
+  // The specular light tracks the pointer's bearing from the card's centre —
+  // circle the card and the glint sweeps around both rims (clayharmon's
+  // webgl-liquid-glass drives its rim light the same way, from pointer on
+  // desktop and DeviceOrientation on mobile). The angle is a MAP input, so it
+  // is quantized to 9° steps and folded into the same rAF-coalesced update
+  // the lens's own movement already schedules — one regen serves both.
+  let lightQ = 45;
+  const setLight = (deg) => {
+    if (reduce) return; // reduced motion pins the light — Apple's own behaviour
+    const q = Math.round(deg / 9) * 9;
+    if (q === lightQ) return;
+    lightQ = q;
+    group.reconfigure({ specularRotation: q });
+  };
   lstage.addEventListener('pointermove', (e) => {
     hovering = true;
     const r = lstage.getBoundingClientRect();
     mx = Math.max(0, Math.min(maxX, e.clientX - r.left - LW / 2));
     my = Math.max(0, Math.min(maxY, e.clientY - r.top - LH / 2));
+    setLight(
+      (Math.atan2(e.clientY - r.top - r.height / 2, e.clientX - r.left - r.width / 2) * 180) /
+        Math.PI,
+    );
   });
+  // Device tilt where it needs no permission prompt (iOS gates it behind a
+  // user-gesture request; a showcase card shouldn't open a permission dialog).
+  if (typeof DeviceOrientationEvent !== 'undefined' && !DeviceOrientationEvent.requestPermission) {
+    addEventListener('deviceorientation', (e) => {
+      if (e.gamma == null || e.beta == null) return;
+      const x = Math.max(-1, Math.min(1, e.gamma / 45));
+      const y = Math.max(-1, Math.min(1, (e.beta - 45) / 45));
+      if (x || y) setLight((Math.atan2(y, x) * 180) / Math.PI);
+    });
+  }
   lstage.addEventListener('pointerleave', () => {
     hovering = false;
   });
@@ -905,6 +989,7 @@ if (loupeDoc) {
   };
   cfgSections.push({
     id: 'loupe',
+    picker: profilePicker((v) => loupe.reconfigure({ profile: v })),
     label: 'Loupe',
     icon: CFG_ICONS.loupe,
     params: LOUPE_PARAMS,
@@ -938,6 +1023,36 @@ if (svgBtn && svgBg) {
     opts: ripple.getOptions(),
     apply: (patch) => ripple.reconfigure(patch),
   });
+}
+// ── DOM-card ticker: sustained motion through the SVG card's bottom rim band,
+// the case the supersample toggle is FOR (static content settles into one
+// raster; moving content resamples fresh every frame, so 1× crawls and 2×
+// doesn't). Script-driven transform (a CSS animation would leave Safari's
+// filter), wrap via two copies, and it only runs on screen — a moving child
+// forces the filter to re-run every frame, which is also the honest way to
+// feel the supersample's G² cost.
+const tickerTrack = document.querySelector('.domcard__ticker-track');
+if (tickerTrack && !reduce) {
+  let tx = 0;
+  let tOn = false;
+  let tLast = 0;
+  new IntersectionObserver((es) => {
+    tOn = es[0].isIntersecting;
+  }).observe(tickerTrack);
+  const tStep = (now) => {
+    requestAnimationFrame(tStep);
+    if (!tOn) {
+      tLast = now;
+      return;
+    }
+    const dt = Math.min(64, now - tLast || 16);
+    tLast = now;
+    tx -= dt * 0.022; // ~22px/s — slow enough to read, fast enough to crawl at 1×
+    const w = tickerTrack.children[0]?.offsetWidth || 0;
+    if (w && -tx >= w) tx += w;
+    tickerTrack.style.transform = `translateX(${tx.toFixed(2)}px)`;
+  };
+  requestAnimationFrame(tStep);
 }
 const rpToggle = document.getElementById('rp-toggle');
 const rpLegend = document.querySelector('.rp-legend');
@@ -1154,6 +1269,7 @@ if (gmBtnEl) {
 
   cfgSections.push({
     id: 'button',
+    picker: profilePicker((v) => btn.reconfigure({ profile: v })),
     label: 'Content morph',
     icon: CFG_ICONS.button,
     params: MORPH_PARAMS,
@@ -1180,6 +1296,7 @@ if (gmDdEl) {
       .forEach((it) => it.addEventListener('click', () => dd.close()));
     cfgSections.push({
       id: 'dropdown',
+      picker: profilePicker((v) => dd.reconfigure({ profile: v })),
       label: 'Dropdown',
       icon: CFG_ICONS.dropdown,
       params: MORPH_PARAMS,
@@ -1795,12 +1912,23 @@ function buildTuner(sections) {
     }
     setTimeout(() => (copyBtn.textContent = 'Copy'), 1200);
   });
-  if (pos) {
-    panel.style.left = `${pos.left}px`;
-    panel.style.top = `${pos.top}px`;
+  // A saved position came from SOME window — the current one may be smaller.
+  // The drag clamps live, but restoring (or resizing) used to place the panel
+  // verbatim, which parked the whole Tuner off screen after a reload in a
+  // narrower window. Clamp whenever the position is applied.
+  const placeAt = (left, top) => {
+    const nx = Math.max(6, Math.min(window.innerWidth - panel.offsetWidth - 6, left));
+    const ny = Math.max(6, Math.min(window.innerHeight - panel.offsetHeight - 6, top));
+    panel.style.left = `${nx}px`;
+    panel.style.top = `${ny}px`;
     panel.style.right = 'auto';
     panel.style.bottom = 'auto';
-  }
+    return { left: nx, top: ny };
+  };
+  if (pos) pos = placeAt(pos.left, pos.top);
+  addEventListener('resize', () => {
+    if (pos) pos = placeAt(pos.left, pos.top);
+  });
   const bar = panel.querySelector('.cfg__bar');
   let drag = false,
     sx = 0,
@@ -1823,17 +1951,7 @@ function buildTuner(sections) {
   });
   bar.addEventListener('pointermove', (e) => {
     if (!drag) return;
-    const nx = Math.max(
-      6,
-      Math.min(window.innerWidth - panel.offsetWidth - 6, ox + e.clientX - sx),
-    );
-    const ny = Math.max(
-      6,
-      Math.min(window.innerHeight - panel.offsetHeight - 6, oy + e.clientY - sy),
-    );
-    panel.style.left = `${nx}px`;
-    panel.style.top = `${ny}px`;
-    pos = { left: nx, top: ny };
+    pos = placeAt(ox + e.clientX - sx, oy + e.clientY - sy);
   });
   bar.addEventListener('pointerup', () => {
     if (drag) {
@@ -1864,6 +1982,18 @@ function buildTuner(sections) {
     icon: CFG_ICONS.paths,
     params: RENDER_PARAMS,
     opts: Object.fromEntries(RENDER_KEYS.map((k) => [k, rd(k, PATH_DEFAULTS[k])])),
+    // Rim falloff for all three cards at once — same segmented row as the
+    // typeface picker. WebGL re-bakes; the Frost card only shows it on Chromium.
+    picker: {
+      options: [
+        { label: 'Meniscus', value: 'erf' },
+        { label: 'Ring', value: 'circle' },
+      ],
+      value: 'erf',
+      apply(v) {
+        for (const el of [els.svg, els.webgl, els.frost]) el?.__glass?.reconfigure({ profile: v });
+      },
+    },
     focus: 0,
     focuses: [
       { id: 'svg', label: 'SVG', el: els.svg, dead: [] },
@@ -1973,6 +2103,6 @@ document.querySelectorAll('.lgf__text[contenteditable]').forEach((el) => {
     }
   });
   el.addEventListener('blur', () => {
-    if (!(el.textContent || '').trim()) el.textContent = 'Refraction'; // don't strand an empty demo
+    if (!(el.textContent || '').trim()) el.textContent = 'Type Here'; // don't strand an empty demo
   });
 });
