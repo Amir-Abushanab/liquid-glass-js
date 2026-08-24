@@ -2514,6 +2514,9 @@ a {
   height: 100%;
   z-index: 1;
   pointer-events: none;
+  /* Live canvas in a rounded stage: Firefox composites it square (see
+     .glcard__src) — clip to the stage's 16px radius geometrically. */
+  clip-path: inset(0 round 16px);
 }
 /* the glass bar: no fill, just a refracting rim — the emojis show through it */
 .emoji-glass {
@@ -2580,6 +2583,9 @@ a {
   height: 100%;
   display: block;
   pointer-events: none;
+  /* The webgl/frost variants are live canvases inside rounded cards; Firefox
+     composites those square (see .glcard__src). Harmless on the DOM variant. */
+  clip-path: inset(0 round var(--g-radius, 20px));
 }
 /* the SVG card text panel is opaque, so lift the emoji layer above it to be seen */
 .pathfx[data-pathfx='svg'] {
