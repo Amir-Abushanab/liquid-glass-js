@@ -1,0 +1,157 @@
+---
+// Test bench for the `behind` path — glass floating over live page content it
+// doesn't own (the navbar case).
+//
+// Open this in THREE browsers and compare the fixed bar:
+//   Firefox  → real refraction of the live page via -moz-element() (the new
+//              path this bench exists to verify — scroll, and the marquee and
+//              the ticking clock stay live THROUGH the bent glass).
+//   Chromium → real refraction via the frost path's backdrop-filter: url().
+//   Safari   → frosted blur (WebKit has no backdrop route; bug 245510).
+//
+// Standalone on purpose, like the loupe bench: nothing else in the stack.
+import '@liquidglassjs/core/css';
+
+const base = import.meta.env.BASE_URL;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>Behind bench · Liquid Glass</title>
+    <link rel="icon" type="image/svg+xml" href={base + 'favicon.svg'} />
+  </head>
+  <body>
+    <div class="bar" id="bar">
+      <div class="ps-glass__content bar__inner">
+        <strong>liquid glass</strong>
+        <span id="engine">detecting…</span>
+      </div>
+    </div>
+
+    <main id="scene">
+      <h1>Scroll me under the bar</h1>
+      <p class="clock" id="clock">00:00:00</p>
+      <div class="marquee"><span id="marq">LIVE CONTENT · NOT A CLONE · NOT A SNAPSHOT ·&nbsp;</span></div>
+      {
+        Array.from({ length: 24 }).map((_, i) => (
+          <section class="row" style={`--h: ${(i * 47) % 360}`}>
+            <i />
+            <p>
+              Row {i + 1}. Everything on this page keeps running while it passes beneath the
+              glass: the clock ticks, the marquee slides, the gradients scroll. If the bar shows
+              them bent <em>and</em> moving, the backdrop is live.
+            </p>
+          </section>
+        ))
+      }
+    </main>
+
+    <script>
+      import { mountGlass } from '@liquidglassjs/core';
+
+      const bar = document.getElementById('bar')!;
+      const scene = document.getElementById('scene')!;
+      mountGlass(bar, { behind: scene, radius: 18, strength: 20, depth: 14, dome: 10 });
+      // Report which path actually mounted (the module sets data-render).
+      const tag = document.getElementById('engine')!;
+      const report = () => {
+        const r = bar.dataset.render || '?';
+        const moz = CSS.supports('background-image', '-moz-element(#a)');
+        tag.textContent =
+          r === 'svg' && moz ? 'live via -moz-element()' : r === 'frost' ? 'frost path' : r;
+      };
+      report();
+      setTimeout(report, 300); // the moz path mounts through a lazy import
+
+      const clock = document.getElementById('clock')!;
+      setInterval(() => {
+        clock.textContent = new Date().toTimeString().slice(0, 8);
+      }, 250);
+      // Script-driven slide (a CSS animation would be fine here — the marquee is
+      // page content, not a child of a filtered element — but one clock for all).
+      const m = document.getElementById('marq')!;
+      let x = 0;
+      const step = () => {
+        x = (x + 1.2) % m.offsetWidth;
+        m.parentElement!.style.transform = `translateX(${-x}px)`;
+        requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    </script>
+
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #0b0913;
+        color: #ece9f6;
+        font: 16px/1.6 system-ui, sans-serif;
+      }
+      .bar {
+        position: fixed;
+        top: 16px;
+        left: 50%;
+        translate: -50% 0;
+        z-index: 10;
+        width: min(560px, calc(100vw - 32px));
+        height: 58px;
+        border-radius: 18px;
+      }
+      .bar__inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 100%;
+        padding: 0 1.2rem;
+      }
+      .bar__inner span {
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+        opacity: 0.75;
+      }
+      main {
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 110px 20px 40vh;
+      }
+      .clock {
+        font-family: ui-monospace, monospace;
+        font-size: 2rem;
+        margin: 0.2rem 0 1rem;
+      }
+      .marquee {
+        white-space: nowrap;
+        overflow: visible;
+        font-family: ui-monospace, monospace;
+        letter-spacing: 0.14em;
+        opacity: 0.7;
+        margin-bottom: 2rem;
+      }
+      .marquee span {
+        display: inline-block;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 72px 1fr;
+        gap: 1rem;
+        align-items: center;
+        margin: 1.4rem 0;
+      }
+      .row i {
+        height: 72px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, hsl(var(--h) 80% 60%), hsl(calc(var(--h) + 60) 80% 45%));
+      }
+      .row p {
+        margin: 0;
+        font-size: 0.92rem;
+        opacity: 0.85;
+      }
+    </style>
+  </body>
+</html>

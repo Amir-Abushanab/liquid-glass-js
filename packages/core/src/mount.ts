@@ -68,6 +68,13 @@ export interface GlassOptions {
   backdrop?: string; // CSS background → SVG-clone path
   source?: HTMLElement | string; // selector or element for a canvas/video/img → WebGL path
   refract?: HTMLElement; // live-DOM element → primary SVG path
+  /**
+   * Live page content behind the glass (a SIBLING scene, not an ancestor) —
+   * the floating-navbar case. Firefox refracts it live via -moz-element()
+   * (lazy-imported); Chromium already refracts the real page on the frost
+   * path; WebKit has no backdrop route (bug 245510) and stays frosted.
+   */
+  behind?: HTMLElement | string;
   mode?: 'auto' | 'svg' | 'webgl' | 'frost';
   class?: string;
 }
@@ -132,6 +139,7 @@ export function readGlassOptions(el: HTMLElement): GlassOptions {
     vibrancy: num(el, 'vibrancy', GLASS_DEFAULTS.vibrancy),
     backdrop: el.dataset.backdrop || '',
     source: el.dataset.source || '',
+    behind: el.dataset.behind || '',
     mode: (el.dataset.mode as GlassOptions['mode']) || 'auto',
   };
 }
@@ -150,6 +158,16 @@ function webgl2OK(): boolean {
     _webgl2OK = false;
   }
   return _webgl2OK;
+}
+
+// A capability probe, not an engine sniff: it tests the exact feature the
+// path needs, and only Gecko has ever supported element-as-image backgrounds.
+function supportsMozElement(): boolean {
+  try {
+    return typeof CSS !== 'undefined' && CSS.supports('background-image', '-moz-element(#a)');
+  } catch {
+    return false;
+  }
 }
 
 // ── Path A: SVG filter on a viewport-locked clone of the CSS backdrop ──
@@ -687,9 +705,41 @@ export function mountGlass(root: HTMLElement, opts: GlassOptions = {}): GlassIns
     return { dispose };
   }
 
+  // Resolve `behind` the same way as `source`.
+  let behindEl: HTMLElement | null = null;
+  if (typeof opts.behind === 'string' && opts.behind) {
+    try {
+      behindEl = document.querySelector<HTMLElement>(opts.behind);
+    } catch {
+      behindEl = null;
+    }
+  } else if (opts.behind instanceof HTMLElement) {
+    behindEl = opts.behind;
+  }
+
   let mode = opts.mode || 'auto';
   const canWebgl = !!sourceEl && webgl2OK();
   if (mode === 'auto') mode = canWebgl ? 'webgl' : p.backdrop ? 'svg' : 'frost';
+
+  // `behind` (auto mode only): Gecko refracts the element LIVE via
+  // -moz-element — lazy-imported like WebGL, so no one else downloads it.
+  // Everywhere else it falls through to frost, which on Chromium already
+  // refracts the real page and on WebKit is the blur that engine leaves us.
+  if ((opts.mode || 'auto') === 'auto' && behindEl && supportsMozElement()) {
+    root.dataset.render = 'svg';
+    void (async () => {
+      try {
+        const { mountMozBackdrop } = await import('./moz-backdrop');
+        if (!isAlive()) return;
+        cleanups.push(mountMozBackdrop(root, surface, p, behindEl));
+      } catch {
+        if (!isAlive()) return;
+        root.dataset.render = 'frost';
+        cleanups.push(mountFrost(root, surface, p));
+      }
+    })();
+    return { dispose };
+  }
 
   if (mode === 'webgl' && sourceEl && webgl2OK()) {
     root.dataset.render = 'webgl';

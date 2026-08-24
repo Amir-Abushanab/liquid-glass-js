@@ -60,6 +60,7 @@ export const LiquidGlass = forwardRef<HTMLDivElement, LiquidGlassProps>(
       backdrop,
       source,
       refract,
+      behind,
       mode,
     } = props;
     const innerRef = useRef<HTMLDivElement>(null);
@@ -84,6 +85,7 @@ export const LiquidGlass = forwardRef<HTMLDivElement, LiquidGlassProps>(
         backdrop,
         source,
         refract,
+        behind,
         mode,
       });
       return () => inst.dispose();
@@ -105,6 +107,7 @@ export const LiquidGlass = forwardRef<HTMLDivElement, LiquidGlassProps>(
       backdrop,
       source,
       refract,
+      behind,
       mode,
     ]);
 

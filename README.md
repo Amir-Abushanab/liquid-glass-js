@@ -48,8 +48,13 @@ renderer (`mode: 'auto'`):
 
 1. **`refract` element present** → SVG filter on the live DOM (the primary path; takes precedence).
 2. **`source` (canvas/video/img) + WebGL2** → WebGL (lazily imported).
-3. **`backdrop` (CSS background)** → SVG filter on a viewport-locked clone.
-4. **otherwise** → frosted `backdrop-filter` (last resort).
+3. **`behind` (live page content, e.g. a navbar's sibling `<main>`)** → on
+   Firefox, the surface's background becomes `-moz-element()` of that element —
+   a **live** image, no clone, no snapshot — refracted by the usual filter
+   (lazily imported, so no one else downloads it). Chromium serves the same
+   case through path 4's `backdrop-filter: url()`; WebKit stays frosted.
+4. **`backdrop` (CSS background)** → SVG filter on a viewport-locked clone.
+5. **otherwise** → frosted `backdrop-filter` (last resort).
 
 <p align="center">
   <a href="https://amir-abushanab.github.io/liquid-glass-js/">
