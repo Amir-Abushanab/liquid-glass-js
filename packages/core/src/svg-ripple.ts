@@ -19,6 +19,8 @@
 import { buildDisplacementMap } from './displacement';
 import { NEUTRAL } from './map-encode';
 import { SPLASH_COLORS, hexToRgb } from './color';
+import { applyGlassFilter, clearGlassFilter, refreshGlassFilter } from './filter-origin';
+import { preBlurStd } from './blur-quantize';
 
 // Live-tunable ripple params (the Glass Tuner mutates these via reconfigure()).
 export interface SvgRippleParams {
@@ -36,7 +38,9 @@ export interface SvgRippleOptions extends Partial<SvgRippleParams> {
 }
 
 export function mountSvgRipple(o: SvgRippleOptions) {
-  const id = 'svgr-' + Math.random().toString(36).slice(2, 8);
+  const base = 'svgr-' + Math.random().toString(36).slice(2, 8);
+  let id = base;
+  let gen = 0;
   // Live params — frame() reads these each tick, so reconfigure() takes effect immediately.
   const cfg: SvgRippleParams = {
     duration: o.duration ?? 1100,
@@ -66,7 +70,8 @@ export function mountSvgRipple(o: SvgRippleOptions) {
     `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
     `<feImage href="${mapUrl}" xlink:href="${mapUrl}" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="rawMap"></feImage>` +
     `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>` +
-    `<feGaussianBlur in="SourceGraphic" stdDeviation="${cfg.blur}" result="blurred"></feGaussianBlur>` +
+    // sub-threshold blur is zeroed in every engine — see preBlurStd
+    `<feGaussianBlur in="SourceGraphic" stdDeviation="${preBlurStd(cfg.blur)}" result="blurred"></feGaussianBlur>` +
     `<feDisplacementMap in="blurred" in2="map" scale="0" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
     `<feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix>` +
     `<feDisplacementMap in="blurred" in2="map" scale="0" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
@@ -80,6 +85,7 @@ export function mountSvgRipple(o: SvgRippleOptions) {
     `</filter></svg>`;
   o.host.appendChild(holder);
 
+  const filterNode = holder.querySelector('filter')!;
   const feImage = holder.querySelector('feImage')!;
   const feBlur = holder.querySelector('feGaussianBlur')!;
   const dm = Array.from(holder.querySelectorAll('feDisplacementMap'));
@@ -118,10 +124,13 @@ export function mountSvgRipple(o: SvgRippleOptions) {
     );
     if (p >= 1) {
       active = false;
-      o.target.style.filter = '';
-      o.target.style.removeProperty('-webkit-filter');
+      clearGlassFilter(o.target);
       return;
     }
+    // Safari caches filter output by id: without a rename the ripple paints the
+    // frame the id was minted at and never advances, which reads as no ripple at
+    // all. Renaming re-runs the chain; the map is untouched, so nothing rebuilds.
+    id = refreshGlassFilter(o.target, filterNode, `${base}-${++gen}`);
     raf = requestAnimationFrame(frame);
   };
 
@@ -136,8 +145,7 @@ export function mountSvgRipple(o: SvgRippleOptions) {
       col = hexToRgb(SPLASH_COLORS[colorIndex]);
       colorIndex = (colorIndex + 1) % SPLASH_COLORS.length;
       t0 = performance.now();
-      o.target.style.filter = `url(#${id})`;
-      o.target.style.setProperty('-webkit-filter', `url(#${id})`);
+      applyGlassFilter(o.target, id);
       if (!active) {
         active = true;
         raf = requestAnimationFrame(frame);
@@ -145,7 +153,7 @@ export function mountSvgRipple(o: SvgRippleOptions) {
     },
     reconfigure(patch: Partial<SvgRippleParams>) {
       Object.assign(cfg, patch);
-      if ('blur' in patch) feBlur.setAttribute('stdDeviation', String(cfg.blur)); // filter attr, update live
+      if ('blur' in patch) feBlur.setAttribute('stdDeviation', String(preBlurStd(cfg.blur))); // filter attr, update live
     },
     getOptions(): SvgRippleParams {
       return { ...cfg };
@@ -153,8 +161,7 @@ export function mountSvgRipple(o: SvgRippleOptions) {
     dispose() {
       cancelAnimationFrame(raf);
       holder.remove();
-      o.target.style.filter = '';
-      o.target.style.removeProperty('-webkit-filter');
+      clearGlassFilter(o.target);
     },
   };
 }

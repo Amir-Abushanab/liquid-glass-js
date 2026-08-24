@@ -24,6 +24,44 @@ import '@liquidglassjs/core/css';
 const GlassDropdownMenu = BaseMenu.Root;
 const GlassDropdownMenuTrigger = BaseMenu.Trigger;
 
+/**
+ * The glass rim has to trace the same curve as the panel it fills. `rounded-2xl` is a
+ * theme token — 18px under the default shadcn `--radius`, something else in the next
+ * app — so a hardcoded number on the glass silently stops matching and you get two
+ * rounded rectangles a couple of px apart at every corner. Read the real one instead.
+ *
+ * Returns null until the popup has actually been measured, and the caller holds the
+ * glass off until then. Rendering it on a guessed radius costs a whole extra glass
+ * mount per open: the guess builds a displacement map, the measurement lands one
+ * commit later, and <LiquidGlass> has no live reconfigure, so the corrected radius
+ * throws that map away and builds another. The wait is invisible — the measurement
+ * resolves in a layout effect (pre-paint), while the glass only ever mounts in a
+ * passive effect (post-paint).
+ */
+function usePanelRadius(el: HTMLElement | null, fallback = 16) {
+  const [radius, setRadius] = React.useState<number | null>(null);
+  React.useLayoutEffect(() => {
+    if (!el) return;
+    const read = () => {
+      const r = parseFloat(getComputedStyle(el).borderTopLeftRadius) || fallback;
+      setRadius((prev) => (prev === r ? prev : r));
+    };
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [el, fallback]);
+  return radius;
+}
+
+/**
+ * Theming: with nothing to refract a menu frosts, and the frosted fill reads
+ * `--glass-frost-bg` (from @liquidglassjs/core/css), which defaults to 55% of
+ * `--glass-paper`. Map `--glass-paper` to your own paper colour so it follows your
+ * theme, and thin `--glass-frost-bg` if the wash is hiding the refraction underneath:
+ *   `.dark { --glass-paper: #0a0a0a; }`
+ *   `[role='menu'] { --glass-frost-bg: rgb(255 255 255 / 34%); }`
+ */
 function GlassDropdownMenuContent({
   className,
   children,
@@ -34,6 +72,8 @@ function GlassDropdownMenuContent({
   depth = 8,
   edge = 0.9,
   glow = 0.3,
+  refract,
+  backdrop,
   ...props
 }: React.ComponentProps<typeof BaseMenu.Popup> & {
   sideOffset?: number;
@@ -43,11 +83,34 @@ function GlassDropdownMenuContent({
   depth?: number;
   edge?: number;
   glow?: number;
+  /**
+   * Element to refract. Given one, the glass takes the SVG path and bends that
+   * content in every browser; without one there is nothing behind this to filter and
+   * it falls back to a frosted blur, which is the sensible default for a surface that
+   * floats over arbitrary app content.
+   */
+  refract?: HTMLElement | null;
+  /**
+   * A CSS background (an *image* — gradient or url, not a bare colour) to refract
+   * instead. A menu is portalled to the end of the body and floats over whatever
+   * happens to be under it, so there is usually no single element to hand `refract`.
+   * Note this path paints an opaque panel: the glass refracts the background you give
+   * it rather than the page, so nothing behind the menu shows through. Left unset, the
+   * menu frosts instead — see the note on the popup below.
+   */
+  backdrop?: string;
 }) {
+  // A callback ref, not useRef: the popup mounts in a later phase than this
+  // component, so a layout effect keyed on a stable ref object reads null once and
+  // never runs again. This re-runs the moment the node actually attaches.
+  const [popupEl, setPopupEl] = React.useState<HTMLDivElement | null>(null);
+  const radius = usePanelRadius(popupEl);
+
   return (
     <BaseMenu.Portal>
       <BaseMenu.Positioner sideOffset={sideOffset} className="z-50 outline-none">
         <BaseMenu.Popup
+          ref={setPopupEl}
           className={cn(
             'relative min-w-44 origin-[var(--transform-origin)] overflow-hidden rounded-2xl p-1.5 shadow-2xl outline-none',
             'transition-[transform,opacity] duration-150 ease-out',
@@ -57,18 +120,25 @@ function GlassDropdownMenuContent({
           )}
           {...props}
         >
-          {/* frosted glass panel — refracts the page behind the menu on Chromium */}
-          <LiquidGlass
-            mode="frost"
-            radius={16}
-            strength={strength}
-            chroma={chroma}
-            dome={dome}
-            depth={depth}
-            edge={edge}
-            glow={glow}
-            className="pointer-events-none absolute inset-0"
-          />
+          {/* Glass panel. With a `refract` target or a `backdrop` it takes the SVG path
+              and bends real content in every browser; with neither it falls back to a
+              frosted blur, which only refracts on Chromium. It waits for the popup's
+              measured radius (see usePanelRadius) so it mounts once, on the real
+              corner, instead of once on a guess and again on the truth. */}
+          {radius !== null && (
+            <LiquidGlass
+              refract={refract ?? undefined}
+              backdrop={backdrop}
+              radius={radius}
+              strength={strength}
+              chroma={chroma}
+              dome={dome}
+              depth={depth}
+              edge={edge}
+              glow={glow}
+              className="pointer-events-none absolute inset-0"
+            />
+          )}
           <div className="relative z-10">{children}</div>
         </BaseMenu.Popup>
       </BaseMenu.Positioner>

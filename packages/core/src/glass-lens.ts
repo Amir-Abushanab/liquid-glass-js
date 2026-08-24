@@ -10,10 +10,17 @@
 //     cheap (the article: "only the filter's region shifts... the map stays the same").
 //   • setSize() regenerates the map AND gives the filter a fresh id — Safari caches
 //     filter output by id and would otherwise serve the stale map.
+//
+// Everything here positions in userSpaceOnUse, which Safari resolves against the
+// page origin unless the filtered element owns a coordinate system — see
+// filter-origin.ts. applyGlassFilter pins it; without that the lens refracts
+// wherever the target happens to sit in the document instead of under the pointer.
 
 import { buildDisplacementMap } from './displacement';
 import { specMaskValues, darkMaskValues } from './map-encode';
 import { parseCssColor } from './color';
+import { applyGlassFilter, clearGlassFilter, refreshGlassFilter } from './filter-origin';
+import { preBlurStd } from './blur-quantize';
 
 export interface GlassLensOptions {
   target: HTMLElement; // live DOM to refract (receives filter:url())
@@ -85,6 +92,9 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
   let holder: HTMLElement | null = null;
   let feImage: SVGFEImageElement | null = null;
   let specNode: SVGFEColorMatrixElement | null = null;
+  let filterNode: SVGFilterElement | null = null;
+  let dispNodes: SVGFEDisplacementMapElement[] = [];
+  let blurNode: SVGFEGaussianBlurElement | null = null;
 
   const rebuild = () => {
     const id = `${base}-${++n}`; // fresh id on every map change (Safari cache bust)
@@ -113,7 +123,9 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
       `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
       `<feImage href="${map}" xlink:href="${map}" x="${lx}" y="${ly}" width="${lensW}" height="${lensH}" preserveAspectRatio="none" result="rawMap"></feImage>` +
       `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>` +
-      `<feGaussianBlur in="SourceGraphic" stdDeviation="${cur.blur}" result="blurred"></feGaussianBlur>` +
+      // A sub-threshold pre-blur is zeroed: it is invisible in engines that blur
+      // correctly and costs Safari a quarter of the source's colour. See preBlurStd.
+      `<feGaussianBlur in="SourceGraphic" stdDeviation="${preBlurStd(cur.blur)}" result="blurred"></feGaussianBlur>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
       `<feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s2}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
@@ -130,17 +142,33 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
       `</filter></svg>`;
     o.host.appendChild(div);
     curId = id;
-    if (active) {
-      o.target.style.filter = `url(#${id})`;
-      o.target.style.setProperty('-webkit-filter', `url(#${id})`);
-    } else {
-      o.target.style.filter = '';
-      o.target.style.removeProperty('-webkit-filter');
-    }
+    if (active) applyGlassFilter(o.target, id);
+    else clearGlassFilter(o.target);
     if (holder) holder.remove();
     holder = div;
     feImage = div.querySelector('feImage');
     specNode = div.querySelector<SVGFEColorMatrixElement>('[result="specMask"]');
+    filterNode = div.querySelector('filter');
+    dispNodes = Array.from(div.querySelectorAll('feDisplacementMap'));
+    blurNode = div.querySelector('feGaussianBlur');
+  };
+
+  // Which params the MAP is built from. Everything else — strength, chroma, blur —
+  // only ever lands on a filter attribute, so it can be driven per frame without
+  // re-encoding a PNG. Same split mountGlassText has had all along, which is why
+  // animating `strength` there is smooth and doing it here used to rebuild the map
+  // sixty times a second.
+  const MAP_KEYS = ['radius', 'depth', 'dome', 'edge', 'glow', 'shade'] as const;
+
+  const applyAttrs = () => {
+    const s = cur.strength;
+    dispNodes[0]?.setAttribute('scale', String(s * (1 + 0.2 * cur.chroma)));
+    dispNodes[1]?.setAttribute('scale', String(s * (1 + 0.1 * cur.chroma)));
+    dispNodes[2]?.setAttribute('scale', String(s));
+    blurNode?.setAttribute('stdDeviation', String(preBlurStd(cur.blur)));
+    // Safari paints the output it cached when the id was minted, so the writes above
+    // are invisible there until the filter is re-pointed. See refreshGlassFilter.
+    if (active && filterNode) curId = refreshGlassFilter(o.target, filterNode, `${base}-${++n}`);
   };
 
   rebuild();
@@ -149,6 +177,12 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
     setPos(x, y) {
       x = Math.round(x); // integer px — same anti-moiré reason as the size snap above
       y = Math.round(y);
+      // A drift that moves less than a pixel per frame rounds to the same spot for
+      // several frames running. Bail before touching anything: the attribute writes
+      // would be no-ops, but the Safari rename below is not — re-pointing the filter
+      // costs a re-rasterization, and doing it on frames that cannot have changed is
+      // pure artefact for nothing.
+      if (x === lx && y === ly) return;
       lx = x;
       ly = y;
       // just reposition the map — no regenerate (cheap, holds frame rate on drag)
@@ -159,6 +193,11 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
       // the lens box instead of the whole filter region.
       specNode?.setAttribute('x', String(x - 1));
       specNode?.setAttribute('y', String(y - 1));
+      // Safari caches filter output by id, so those attribute writes alone leave it
+      // painting the cached lens at the position the id was minted at — the stuck
+      // layer the moving lens appears to leave behind. Rename to force a re-run; the
+      // map is untouched, so this costs no map rebuild.
+      if (active && filterNode) curId = refreshGlassFilter(o.target, filterNode, `${base}-${++n}`);
     },
     setSize(w, h) {
       w = Math.round(w);
@@ -170,25 +209,20 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
     },
     reconfigure(patch) {
       Object.assign(cur, patch);
-      rebuild();
+      if (MAP_KEYS.some((k) => patch[k] != null)) rebuild();
+      else applyAttrs();
     },
     getOptions() {
       return { ...cur };
     },
     setActive(on) {
       active = on;
-      if (on) {
-        o.target.style.filter = `url(#${curId})`;
-        o.target.style.setProperty('-webkit-filter', `url(#${curId})`);
-      } else {
-        o.target.style.filter = '';
-        o.target.style.removeProperty('-webkit-filter');
-      }
+      if (on) applyGlassFilter(o.target, curId);
+      else clearGlassFilter(o.target);
     },
     dispose() {
       holder?.remove();
-      o.target.style.filter = '';
-      o.target.style.removeProperty('-webkit-filter');
+      clearGlassFilter(o.target);
     },
   };
 }

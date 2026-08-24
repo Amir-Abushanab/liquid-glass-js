@@ -190,12 +190,38 @@
   background-size: 200% auto;
   animation: ps-rainbow 7s linear infinite;
 }
+.ps-footer__contact {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1.4rem;
+}
 .ps-footer__contact a {
   color: var(--muted);
   transition: color 150ms ease;
 }
 .ps-footer__contact a:hover {
   color: var(--ink);
+}
+/* Principle Stash sets its own wordmark in a serif with the mascot standing in for the
+   capital P, so the link is set the same way here rather than restyled to match this
+   footer — it's someone else's name. The mark carries a black outline over a cream
+   fill, which is why it needs no theme handling. */
+.ps-stash {
+  font-family: ui-serif, Georgia, 'Times New Roman', serif;
+  font-weight: 520;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+/* Inline and baseline-aligned rather than flex-centred, which is how their own nav sets
+   it: the mark sits on the baseline like a dropped capital and runs straight into
+   "rinciple". Centring it in a flex row floats it off the line instead. */
+.ps-mascot {
+  display: inline-block;
+  height: 1.3em;
+  width: auto;
+  margin-right: 0.05em;
+  vertical-align: baseline;
 }
 .ps-footer__copy {
   width: 100%;
@@ -411,6 +437,14 @@ a {
 .lgf__text {
   display: inline-block;
   white-space: nowrap;
+  /* Pad the box out to the ink, then take it straight back off the margin.
+     `background-clip: text` paints the gradient only inside the background
+     positioning area — the padding box — so any glyph that reaches past it is never
+     filled and reads as cut off square. A script `q` at this size hangs 22px below
+     the line box, which is exactly what it looked like. The negative margin keeps the
+     line layout where it was, so this costs nothing but room to paint in. */
+  padding: 0.25em 0.25em 0.45em;
+  margin: -0.25em -0.25em -0.45em;
   font-family: var(--font-mono, ui-monospace, monospace);
   background: linear-gradient(
     115deg,
@@ -450,7 +484,25 @@ a {
 }
 .sc__title {
   font-size: clamp(2.2rem, 5.5vw, 3.6rem);
+  /* The wordmark is script, and a script descender reaches far below the line box —
+     at the default 1.04 the `q` ran 26px INTO the line beneath it, which is what made
+     it look truncated. */
+  line-height: 1.5;
   margin: 1.2rem 0 1rem;
+}
+/* Only the wordmark is script — the headings around it read better in the sans. It has
+   to be named separately from the heading it sits in: .lgf__text declares its own
+   font-family, and a child's own declaration beats an inherited value however specific
+   the parent's selector is. */
+.sc__title .lgf__text {
+  font-family: 'Snell Roundhand', 'Apple Chancery', 'Segoe Script', 'Brush Script MT', cursive;
+  /* Regular, not the heading's 600. Snell Roundhand ships no bold, so a heavier weight
+     is synthesised by smearing the outline — which flattens the `q`'s tapered descender
+     into a blunt horizontal stub and reads as if something cut it off. */
+  font-weight: 400;
+  /* Leave a quarter of the bottom padding uncancelled, so some of the paint area is
+     also real space under the descender rather than pure overlap. */
+  margin-bottom: -0.2em;
 }
 .sc__sub {
   color: var(--muted);
@@ -665,8 +717,14 @@ a {
   bottom: 4px;
   left: 4px;
   width: calc((100% - 8px) / var(--n));
+  /* --i is the resting position, and all the no-JS build ever needs. With JS the
+     transform is written per frame from the same tween that moves the lens, and there
+     is deliberately no CSS transition on it: a running transform transition gives this
+     element its own compositing layer in Safari, and a promoted layer sliding over a
+     filtered sibling leaves the strip it vacated unrepainted — the line of leftover
+     glass at the pill's last position. Driving it from script promotes nothing, and it
+     keeps the chrome and the refraction on one clock instead of two. */
   transform: translateX(calc(var(--i) * 100%));
-  transition: transform 300ms cubic-bezier(0.34, 1.35, 0.5, 1);
   pointer-events: none;
   border-radius: 999px;
   box-shadow:
@@ -800,10 +858,17 @@ a {
   justify-content: center;
   gap: 0.4rem;
   color: #fff;
-  background:
-    repeating-linear-gradient(0deg, rgb(255 255 255 / 6%) 0 1px, transparent 1px 15px),
-    repeating-linear-gradient(90deg, rgb(255 255 255 / 6%) 0 1px, transparent 1px 15px),
+  /* linear-gradient + background-size, not repeating-linear-gradient: Firefox
+     dilutes a 1px hard stop inside a repeating gradient so the hairlines wash out
+     (see .lcard__grid). */
+  background-image:
+    linear-gradient(0deg, rgb(255 255 255 / 6%) 0 1px, transparent 1px 15px),
+    linear-gradient(90deg, rgb(255 255 255 / 6%) 0 1px, transparent 1px 15px),
     linear-gradient(135deg, #2c2658, #182247 60%, #331f4d);
+  background-size:
+    15px 15px,
+    15px 15px,
+    cover;
 }
 .domcard__dom strong {
   font-size: 0.98rem;
@@ -942,9 +1007,13 @@ a {
 .sld__grid {
   position: absolute;
   inset: 0;
-  background:
-    repeating-linear-gradient(0deg, rgb(255 255 255 / 22%) 0 1px, transparent 1px 12px),
-    repeating-linear-gradient(90deg, rgb(255 255 255 / 22%) 0 1px, transparent 1px 12px);
+  /* linear-gradient + background-size, not repeating-linear-gradient: Firefox
+     dilutes a 1px hard stop inside a repeating gradient so the hairlines wash out
+     (see .lcard__grid). */
+  background-image:
+    linear-gradient(0deg, rgb(255 255 255 / 22%) 0 1px, transparent 1px 12px),
+    linear-gradient(90deg, rgb(255 255 255 / 22%) 0 1px, transparent 1px 12px);
+  background-size: 12px 12px;
 }
 .sld__thumb {
   position: absolute;
@@ -1030,9 +1099,13 @@ a {
 .isld__grid {
   position: absolute;
   inset: 0;
-  background:
-    repeating-linear-gradient(0deg, rgb(255 255 255 / 22%) 0 1px, transparent 1px 12px),
-    repeating-linear-gradient(90deg, rgb(255 255 255 / 22%) 0 1px, transparent 1px 12px);
+  /* linear-gradient + background-size, not repeating-linear-gradient: Firefox
+     dilutes a 1px hard stop inside a repeating gradient so the hairlines wash out
+     (see .lcard__grid). */
+  background-image:
+    linear-gradient(0deg, rgb(255 255 255 / 22%) 0 1px, transparent 1px 12px),
+    linear-gradient(90deg, rgb(255 255 255 / 22%) 0 1px, transparent 1px 12px);
+  background-size: 12px 12px;
 }
 .isld__thumb {
   position: absolute;
@@ -1153,12 +1226,21 @@ a {
   inset: 0;
   z-index: 0;
   border-radius: inherit;
-  background:
+  /* linear-gradient + background-size, not repeating-linear-gradient: Firefox
+     dilutes a 1px hard stop inside a repeating gradient so the hairlines wash out
+     (see .lcard__grid). */
+  background-image:
     linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 62%),
     radial-gradient(120% 80% at 50% 12%, rgba(125, 110, 190, 0.26), rgba(125, 110, 190, 0) 70%),
-    repeating-linear-gradient(0deg, rgba(195, 205, 255, 0.07) 0 1px, transparent 1px 13px),
-    repeating-linear-gradient(90deg, rgba(195, 205, 255, 0.07) 0 1px, transparent 1px 13px),
+    linear-gradient(0deg, rgba(195, 205, 255, 0.07) 0 1px, transparent 1px 13px),
+    linear-gradient(90deg, rgba(195, 205, 255, 0.07) 0 1px, transparent 1px 13px),
     linear-gradient(180deg, #17131f, #0a0813);
+  background-size:
+    cover,
+    cover,
+    13px 13px,
+    13px 13px,
+    cover;
 }
 .wbtn__label {
   position: absolute;
@@ -1191,17 +1273,23 @@ a {
 .lcard__grid {
   position: absolute;
   inset: 0;
-  background:
-    repeating-linear-gradient(
+  /* Tiled linear-gradients, NOT repeating-linear-gradient. Firefox dilutes a 1px
+     hard stop inside a repeating gradient — measured on this card, the line lands
+     at 241-245 against a 246 background instead of the 212 it should be, so the
+     grid all but disappears, while Chromium renders it exactly. A single gradient
+     tiled by background-size rasterizes the hairline identically in both. */
+  background-image:
+    linear-gradient(
       0deg,
       color-mix(in srgb, var(--paper) 14%, transparent) 0 1px,
       transparent 1px 24px
     ),
-    repeating-linear-gradient(
+    linear-gradient(
       90deg,
       color-mix(in srgb, var(--paper) 14%, transparent) 0 1px,
       transparent 1px 24px
     );
+  background-size: 24px 24px;
 }
 .lcard__tag {
   position: absolute;
@@ -1283,6 +1371,57 @@ a {
     inset 0 -3px 6px rgb(0 0 0 / 20%),
     0 12px 30px -12px rgb(0 0 0 / 45%);
 }
+/* ── Magnifying loupe: a page of fine print, small enough that magnifying it is
+   obviously the point. The doc paints its own background so the capsule has
+   something opaque to fill with (see mountGlassLoupe's `backdrop`). ── */
+.loupe-stage {
+  width: min(560px, 100%);
+}
+.loupe-doc {
+  padding: 1.5rem 1.6rem 1.3rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  columns: 2;
+  column-gap: 1.5rem;
+  font-size: 9.5px;
+  line-height: 1.6;
+  text-align: justify;
+  hyphens: auto;
+  color: color-mix(in srgb, var(--ink) 72%, transparent);
+}
+@media (max-width: 560px) {
+  .loupe-doc {
+    columns: 1;
+  }
+}
+.loupe-doc__tag {
+  display: block;
+  margin-bottom: 0.7em;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 8.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--ink) 45%, transparent);
+}
+.loupe-doc p {
+  margin: 0 0 0.8em;
+}
+.loupe-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.7rem 0 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.loupe-hint svg {
+  flex: none;
+  /* The cursor glyph reads as a pointer sitting still, so nudge it up to sit on
+     the text's optical centre rather than its baseline. */
+  margin-top: -1px;
+}
 .cfg {
   position: fixed;
   right: 16px;
@@ -1349,10 +1488,14 @@ a {
   letter-spacing: 0.09em;
   color: var(--muted, #9a94a8);
 }
+/* Wrap, don't march off the edge. One row of equal columns was fine at eight
+   sections; at thirteen the tabs are narrower than their own 16px icon and the last
+   few (Glass QR among them) sit outside the panel with no way to reach them. auto-fill
+   fits as many as the width allows and flows the rest onto another row, so adding a
+   section can't push one off again. */
 .cfg__tabs {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
+  grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
   gap: 4px;
 }
 .cfg__tab {
@@ -1418,6 +1561,35 @@ a {
 }
 .cfg__copy {
   margin-left: auto;
+}
+/* Animate toggle: sits with the section's controls, not the buttons, because it acts
+   on the section rather than on the panel. */
+.cfg__anim {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 2px 0 1px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--muted, #9a94a8);
+  font-size: 12px;
+}
+.cfg__anim input {
+  accent-color: #8a7bff;
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  cursor: pointer;
+}
+.cfg__anim:hover {
+  color: var(--ink, #fff);
+}
+.cfg__anim.is-off {
+  opacity: 0.4;
+  cursor: default;
+}
+.cfg__anim.is-off input {
+  cursor: default;
 }
 .cfg__btn {
   all: unset;
@@ -1908,11 +2080,19 @@ a {
   padding: 2rem;
   border-radius: 16px;
   overflow: hidden;
-  background:
+  /* linear-gradient + background-size, not repeating-linear-gradient: Firefox
+     dilutes a 1px hard stop inside a repeating gradient so the hairlines wash out
+     (see .lcard__grid). */
+  background-image:
     radial-gradient(120% 90% at 50% 6%, rgba(138, 123, 255, 0.18), transparent 60%),
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 22px),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 22px),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 22px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 22px),
     linear-gradient(160deg, #14121f, #0a0813);
+  background-size:
+    cover,
+    22px 22px,
+    22px 22px,
+    cover;
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%);
 }
 .gshape-row {
@@ -1926,6 +2106,29 @@ a {
   display: block;
   width: 150px;
   height: 150px;
+}
+/* The orb is a <div> of emoji spans rather than a canvas, for the same reason as
+   .pathfx--dom above: a canvas redrawn every frame is composited out of the glass
+   in Safari, so the lens had nothing to refract. As a bonus it drops the canvas
+   gradient that used to grey out colour emoji in WebKit — the body is now a plain
+   CSS radial-gradient, which never poisoned anything. */
+.gshape-orb {
+  position: relative;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 44%,
+    rgb(255 255 255 / 18%) 0,
+    rgb(170 195 255 / 8%) 62%,
+    rgb(170 195 255 / 0%) 96%
+  );
+}
+.gshape-orb__e {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  line-height: 1;
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', serif;
 }
 /* The bob lives on a wrapper span (.gshape-bob), NOT on the filtered mark.
    Transform-animating an element that carries filter:url() makes the browser
@@ -2012,17 +2215,279 @@ a {
   }
 }
 
+/* ── Hero call to action: copy-for-agent + install command ── */
+/* Stacked rather than wrapped on purpose: the button tweens its own width when it
+   morphs to "Copied", and on one row that drags the install line 150px sideways
+   mid-animation. Its own row means the morph can't touch anything but itself. */
+.hero-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.9rem;
+  margin: 1.4rem 0 1.1rem;
+}
+.pm {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 5px 6px 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong, rgb(255 255 255 / 14%));
+  background: color-mix(in srgb, var(--ink, #fff) 5%, transparent);
+}
+/* Four tabs and a command don't fit a phone on one line, and the row is wide enough to
+   give the whole document a horizontal scrollbar if it tries. Stack the command under
+   the tabs instead, and let it scroll inside its own box rather than pushing the page. */
+@media (max-width: 430px) {
+  .pm {
+    display: flex;
+    flex-wrap: wrap;
+    max-width: 100%;
+    border-radius: 20px;
+  }
+  /* Emphatically not stretched to the row: the lens is sized from the control's own
+     box, while .seg__labels is an inline-grid that stays at content width. Stretch the
+     frame and the glass pill is suddenly wider than the segment it is meant to mark. */
+  .pm__seg {
+    flex: 0 0 auto;
+  }
+  .pm__line {
+    flex: 1 1 100%;
+    min-width: 0;
+    padding: 4px 0 2px 6px;
+    border-left: 0;
+  }
+  .pm__cmd {
+    min-width: 0;
+    overflow-x: auto;
+  }
+}
+/* The demo section's segmented control, shrunk to hero-chrome size. Its own frame is
+   made transparent rather than removed: the mount derives the pill's box from the
+   element's border-box minus a fixed 4px inset, so dropping the 1px border would put
+   the glass a pixel out of its slot. */
+.pm__seg {
+  border-color: transparent;
+  background: transparent;
+}
+.pm__seg .seg__opt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 5px 11px;
+  font: 600 0.76rem/1 var(--font-mono, ui-monospace, monospace);
+}
+.pm__seg .seg__opt svg {
+  width: 13px;
+  height: 13px;
+  display: block;
+}
+.pm__seg .seg__opt:hover {
+  color: var(--ink, #fff);
+}
+.pm__line {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-left: 0.55rem;
+  border-left: 1px solid var(--line, rgb(255 255 255 / 10%));
+}
+.pm__cmd {
+  font: 0.78rem/1 var(--font-mono, ui-monospace, monospace);
+  color: var(--ink, #fff);
+  white-space: nowrap;
+}
+.pm__prompt {
+  color: var(--muted, #9a94a8);
+  user-select: none;
+}
+.pm__copy {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--muted, #9a94a8);
+  transition:
+    color 140ms ease,
+    background-color 140ms ease;
+}
+.pm__copy:hover {
+  color: var(--ink, #fff);
+  background: color-mix(in srgb, var(--ink, #fff) 10%, transparent);
+}
+.pm__copy:focus-visible {
+  outline: 2px solid var(--ink, #fff);
+  outline-offset: 1px;
+}
+.pm__copy svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+.pm__copy .pm__tick,
+.pm__copy.is-copied svg:first-child {
+  display: none;
+}
+.pm__copy.is-copied .pm__tick {
+  display: block;
+  color: #8ef0c8;
+}
+@media (max-width: 640px) {
+  .pm__tab span {
+    display: none;
+  }
+}
+
+/* ── "Copy for your agent" ────────────────────────────────────────────────────
+   The four coding-agent marks splay outward on hover — the same affordance wave3d
+   and favicon-env use, so it reads the same across the projects. What differs is the
+   surface: mountGlassButton turns this into a real refracting pane rather than a flat
+   fill, which is the whole point of the site it sits on. The glyphs and label live in
+   .gm-btn__label, above the pane, so they stay crisp while the scene bends behind. */
+.agent-copy {
+  appearance: none;
+  cursor: pointer;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 22px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--ink, #fff);
+  font: 600 0.85rem/1 var(--font-sans, system-ui);
+  letter-spacing: -0.01em;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 34%),
+    inset 0 0 0 1px rgb(255 255 255 / 14%),
+    0 10px 22px -12px rgb(0 0 0 / 55%);
+  transition: box-shadow 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.agent-copy:hover {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 48%),
+    inset 0 0 0 1px rgb(255 255 255 / 26%),
+    0 12px 26px -12px rgb(0 0 0 / 60%);
+}
+.agent-copy:focus-visible {
+  outline: 2px solid var(--ink, #fff);
+  outline-offset: 3px;
+}
+.agent-copy.is-copied .agent-label {
+  color: #8ef0c8;
+}
+.agent-tick {
+  width: 16px;
+  height: 16px;
+  display: block;
+  color: #8ef0c8;
+}
+/* The marks leave before the width does, so the pane isn't carrying four logos
+   through a shape that no longer has room for them. */
+.agent-copy .gm-btn__bg .agent-icons {
+  transition:
+    opacity 160ms ease,
+    transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.agent-copy.is-copied .gm-btn__bg .agent-icons {
+  opacity: 0;
+  transform: scale(0.7);
+}
+/* The pane carries the marks and is `inset: 0`, so it repeats the button's own padding
+   and gap to land them where they'd sit if they were still in the flow. */
+.agent-copy .gm-btn__bg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 22px;
+  /* The pill's cap curves through the first 20-odd px, and that band is where the
+     displacement is strongest — marks left in it get flung past the rim. An ancestor's
+     rounded clip doesn't catch them either: the escaped output is clipped to the border
+     box, not the corner, so it lands in the square left over outside the cap. Clip here
+     as well, and start the marks past the bend. */
+  border-radius: inherit;
+  overflow: hidden;
+}
+.agent-copy .gm-btn__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+/* holds the marks' place in the flow; the real ones live in the pane */
+.agent-icons--spacer {
+  visibility: hidden;
+}
+.agent-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.92;
+}
+.agent-icons svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  transform-origin: center;
+  transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.agent-icons svg:nth-child(1) {
+  transform: rotate(-6deg);
+}
+.agent-icons svg:nth-child(4) {
+  transform: rotate(6deg);
+}
+/* A fan built from rotation and scale rather than travel. There is very little room to
+   move these: the leading mark is ~20px off a rim that bends hardest right there, the
+   trailing one is ~8px from the label, and the pill only clears the marks by ~20px top
+   and bottom. Anything carried into one of those bands at hover strength gets flung
+   through it and comes back as coloured debris in the corner. Rotation splays them
+   wide for almost no bounding box, so the fan can be dramatic and still fit. */
+.agent-copy:hover .agent-icons svg:nth-child(1) {
+  transform: rotate(-26deg) translateY(2px) scale(1.14);
+}
+.agent-copy:hover .agent-icons svg:nth-child(2) {
+  transform: rotate(-10deg) translateY(-2px) scale(1.2);
+}
+.agent-copy:hover .agent-icons svg:nth-child(3) {
+  transform: rotate(10deg) translateY(-2px) scale(1.2);
+}
+.agent-copy:hover .agent-icons svg:nth-child(4) {
+  transform: rotate(26deg) translateY(2px) scale(1.14);
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-copy,
+  .agent-icons svg,
+  .agent-copy .gm-btn__bg .agent-icons {
+    transition: none;
+  }
+}
+
 /* ── Emoji burst (particle canvas + a fixed glass bar that refracts it) ── */
 .emoji-stage {
   position: relative;
   min-height: 320px;
   border-radius: 16px;
   overflow: hidden;
-  background:
+  /* linear-gradient + background-size, not repeating-linear-gradient: Firefox
+     dilutes a 1px hard stop inside a repeating gradient so the hairlines wash out
+     (see .lcard__grid). */
+  background-image:
     radial-gradient(90% 70% at 50% 118%, rgba(138, 123, 255, 0.22), transparent 62%),
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 22px),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 22px),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 22px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 22px),
     linear-gradient(160deg, #14121f, #0a0813);
+  background-size:
+    cover,
+    22px 22px,
+    22px 22px,
+    cover;
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%);
 }
 .emoji-canvas {
@@ -2102,6 +2567,29 @@ a {
 /* the SVG card text panel is opaque, so lift the emoji layer above it to be seen */
 .pathfx[data-pathfx='svg'] {
   z-index: 1;
+}
+/* The SVG card's emoji layer is real DOM, not a <canvas> — deliberately, and it is
+   the difference between the card working and not working in Safari. WebKit gives an
+   actively-redrawn canvas its own compositing layer, and a composited layer is left
+   OUT of an ancestor's SVG filter (the same rule that dropped the CSS-animated
+   droplet out of the lens), so the emojis slid over the glass dead flat while the
+   text beside them bent correctly. Spans moved by script stay in the filtered
+   subtree — a script-set transform doesn't promote anything. It also suits the card
+   better: this is the "feDisplacementMap on live DOM" path, so its content should be
+   live DOM. WebGL re-samples the canvas as a texture and Frost blurs the canvas
+   itself, so neither of those cards is affected and both keep theirs. */
+.pathfx--dom {
+  overflow: hidden;
+  border-radius: inherit;
+}
+.pathfx__e {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  line-height: 1;
+  white-space: pre;
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', serif;
 }
 /* Frost = CSS blur: the .ps-glass isolation hides a backdrop canvas, so blur the
    emoji layer directly and float it over the card — that IS the frost treatment. */
@@ -2597,6 +3085,20 @@ a {
   padding-top: 1.5rem;
 }
 
+/* The bob is driven from rAF in showcase.js, NOT by a CSS animation, and this
+   deliberately declares no will-change.
+
+   Safari gives an element with a running CSS transform animation its own
+   compositing layer, and a composited layer is left OUT of an ancestor's SVG
+   filter — so the droplet floated above the lens, sharp and unrefracted, while
+   everything else on the card bent correctly. Measured live in Safari, same motion
+   both ways: CSS-animated droplet is not refracted, the identical bob applied from
+   JS each frame is. (Screenshots show both as refracted, which is why this took so
+   long to pin down — Safari's capture path is not its compositing path.)
+
+   Setting transform from script is an ordinary style change and does not promote,
+   so the droplet stays inside the filter. Same rule applies to anything else placed
+   inside a glass element: animate it from script, or it will not refract in Safari. */
 .lcard__drop {
   position: absolute;
   top: 50%;
@@ -2604,22 +3106,6 @@ a {
   width: 140px;
   height: 140px;
   margin-top: -70px;
-  will-change: transform;
-  animation: lcard-hover 4.5s ease-in-out infinite;
-}
-@keyframes lcard-hover {
-  0%,
-  100% {
-    transform: translateY(-9px) rotate(-4deg);
-  }
-  50% {
-    transform: translateY(9px) rotate(4deg);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .lcard__drop {
-    animation: none;
-  }
 }
 
 /* Glass typeface: font switcher + editable text. The displacement map is
@@ -2667,18 +3153,25 @@ a {
   font-weight: 600;
 }
 .lgf-fonts__opt[data-lgf-font='serif'],
-.lgfdemo[data-font='serif'] {
+.lgfdemo[data-font='serif'],
+.lgfdemo[data-font='serif'] .lgf__text {
   font-family: ui-serif, Georgia, 'Times New Roman', serif;
 }
 .lgf-fonts__opt[data-lgf-font='black'],
-.lgfdemo[data-font='black'] {
+.lgfdemo[data-font='black'],
+.lgfdemo[data-font='black'] .lgf__text {
   font-family: var(--font-sans, system-ui);
   font-weight: 900;
 }
 .lgf-fonts__opt[data-lgf-font='script'],
-.lgfdemo[data-font='script'] {
+.lgfdemo[data-font='script'],
+.lgfdemo[data-font='script'] .lgf__text {
   font-family: 'Snell Roundhand', 'Apple Chancery', 'Segoe Script', 'Brush Script MT', cursive;
 }
+/* The rules above have to name .lgf__text as well as .lgfdemo. .lgf__text sets its
+   own font-family, and a child's own declaration beats an inherited value however
+   specific the parent's selector is — so restyling only the wrapper left the glass
+   text in mono and the chips looked like they did nothing. */
 .lgfdemo[data-font='black'] {
   letter-spacing: -0.03em;
 }
@@ -2704,4 +3197,18 @@ a {
   font-family: inherit;
   letter-spacing: inherit;
   font-weight: inherit;
+}
+
+/* The Glass QR needs a WebGL2 context and can't degrade to anything; this stands in
+   for it where the browser has none. */
+.qr-fallback {
+  max-width: 34ch;
+  margin: 0 auto;
+  padding: 1.1rem 1.3rem;
+  border: 1px dashed color-mix(in srgb, var(--ink) 22%, transparent);
+  border-radius: 12px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--muted);
 }

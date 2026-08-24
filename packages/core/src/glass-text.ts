@@ -40,14 +40,14 @@ export interface GlassText {
 }
 
 export const GLASS_TEXT_DEFAULTS: GlassTextParams = {
-  strength: 8,
-  chroma: 0.4,
-  blur: 0.3,
-  bevel: 2.5,
-  dome: 4,
-  edge: 0.9,
-  glow: 0.35,
-  shade: 0,
+  strength: 0.5,
+  chroma: 1,
+  blur: 1.2,
+  bevel: 1.3,
+  dome: 12,
+  edge: 1.5,
+  glow: 1,
+  shade: 1,
 };
 
 const PARAM_KEYS = [
@@ -79,9 +79,68 @@ interface TextMeasured {
   rectW: number;
   rectH: number;
   baseline: number;
+  padLeft: number;
   fontCss: string;
   letterSpacing: string;
   fontSizePx: number;
+}
+
+/**
+ * How much bigger or smaller the browser actually drew this text than its computed
+ * `font-size` says — as a multiplier for the canvas font.
+ *
+ * A canvas 2D context understands `font-style font-weight font-size font-family` and
+ * nothing else. CSS has properties that change the USED glyph size without changing
+ * the reported `font-size`, and `font-size-adjust` is the common one: `from-font` on a
+ * root element (a very ordinary thing to set) normalises x-height across fallback
+ * faces, so switching family silently rescales every glyph. Measured on one 64px
+ * element under `font-size-adjust: from-font`, DOM run width vs canvas run width for
+ * the same font shorthand:
+ *
+ *   mono     370.1 vs 384.0   canvas 3.6% too wide
+ *   serif    374.5 vs 351.1   canvas 6.6% too narrow
+ *   script   406.1 vs 282.0   canvas 44% too narrow
+ *
+ * The error is per-glyph and therefore cumulative, so the map drifts further from the
+ * text the further along the line you look — the glass slides off the end of the word.
+ * The same trap catches synthesised weights and anything else that alters the used
+ * size, so this measures the outcome rather than trying to reimplement the causes:
+ * clone the element (so it keeps every inherited property), strip letter-spacing (an
+ * absolute length, which must not be scaled), and compare its laid-out width to what
+ * the canvas makes of the same font.
+ */
+function fontScale(el: HTMLElement, cs: CSSStyleDeclaration, sizePx: number): number {
+  const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+  if (!text) return 1;
+  let domW = 0;
+  try {
+    const clone = el.cloneNode(true) as HTMLElement;
+    clone.removeAttribute('id');
+    // Padding and border have to go, along with letter-spacing: this is comparing the
+    // width of the GLYPHS against what the canvas makes of them, and a box that carries
+    // any of those measures wider than its text. Padding on the target is not
+    // hypothetical — it is how you stop `background-clip: text` cutting descenders off
+    // — and left in, it inflates the ratio and rasterizes the map oversized, which
+    // reads as the glass sliding off the letters.
+    clone.style.cssText = `${el.getAttribute('style') || ''};position:absolute;left:-99999px;top:0;visibility:hidden;white-space:pre;letter-spacing:0;padding:0;border:0;width:auto;max-width:none`;
+    (el.parentNode ?? document.body).appendChild(clone);
+    domW = clone.getBoundingClientRect().width;
+    clone.remove();
+  } catch {
+    return 1;
+  }
+  const ctx = document.createElement('canvas').getContext('2d');
+  if (!ctx || !(domW > 0)) return 1;
+  const c = ctx as CanvasRenderingContext2D & { letterSpacing?: string };
+  if ('letterSpacing' in (ctx as object)) c.letterSpacing = '0px';
+  ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${sizePx}px ${cs.fontFamily}`;
+  const canW = ctx.measureText(text).width;
+  if (!(canW > 0)) return 1;
+  const k = domW / canW;
+  // A wild ratio means the clone did not lay out the way the original did (display
+  // rules keyed on position, a container query, an ancestor that had to be there).
+  // Rather than rasterize at some absurd size, fall back to trusting the CSS value.
+  return k > 0.25 && k < 4 ? k : 1;
 }
 
 export function mountGlassText(o: GlassTextOptions): GlassText {
@@ -94,14 +153,19 @@ export function mountGlassText(o: GlassTextOptions): GlassText {
 
   // Text-specific measure: rect + baseline + the canvas font shorthand. Returns
   // null when there is nothing to render (this is the old `!m.text` guard).
+  //
   const measure = (): TextMeasured | null => {
     const el = o.target;
     const rect = el.getBoundingClientRect();
     if (!rect.width || !rect.height) return null;
     const cs = getComputedStyle(el);
-    const fontSizePx = parseFloat(cs.fontSize) || 16;
+    const specifiedPx = parseFloat(cs.fontSize) || 16;
+    const letterSpacing = cs.letterSpacing === 'normal' ? '' : cs.letterSpacing;
     // Compose from longhands — the computed `font` shorthand is empty in Firefox.
-    const fontCss = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    // The size in it is the one CANVAS should use, which is not always the one CSS
+    // reports: see fontScale below.
+    const fontSizePx = specifiedPx * fontScale(el, cs, specifiedPx);
+    const fontCss = `${cs.fontStyle} ${cs.fontWeight} ${fontSizePx}px ${cs.fontFamily}`;
     // Exact CSS baseline: an empty inline-block's baseline is its bottom edge,
     // so this reads whatever strut/metric logic the browser actually used.
     const probe = document.createElement('span');
@@ -129,8 +193,9 @@ export function mountGlassText(o: GlassTextOptions): GlassText {
       rectW: rect.width,
       rectH: rect.height,
       baseline,
+      padLeft: parseFloat(cs.paddingLeft) || 0,
       fontCss,
-      letterSpacing: cs.letterSpacing === 'normal' ? '' : cs.letterSpacing,
+      letterSpacing,
       fontSizePx,
     };
   };
@@ -150,6 +215,7 @@ export function mountGlassText(o: GlassTextOptions): GlassText {
         {
           ...mm,
           dpr,
+          padLeft: mm.padLeft,
           bevel: cur.bevel,
           dome: cur.dome,
           edge: cur.edge,

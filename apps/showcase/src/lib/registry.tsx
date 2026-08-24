@@ -14,6 +14,7 @@ import {
   ToggleRight,
   Type,
   Waves,
+  ZoomIn,
 } from 'lucide-react';
 import { GlassSurface } from '@/components/liquid-glass/glass-surface';
 import { GlassCard } from '@/components/liquid-glass/glass-card';
@@ -42,11 +43,25 @@ import {
   GlassDropdownMenuItem,
   GlassDropdownMenuSeparator,
 } from '@/components/liquid-glass/glass-dropdown-menu';
-import { GlassText, GlassShape, GlassLens, GlassButton, GlassRipple } from '@liquidglassjs/react';
+import {
+  GlassText,
+  GlassShape,
+  GlassLens,
+  GlassLoupe,
+  GlassButton,
+  GlassRipple,
+} from '@liquidglassjs/react';
 import { GlassQR } from '@liquidglassjs/qr/react';
 
 /** Where the registry JSON is hosted (served from the showcase's own deploy). */
 export const REGISTRY_URL = 'https://amir-abushanab.github.io/liquid-glass-js';
+// Slider ranges and shipped defaults for every glass component on this site — the
+// same source the vanilla showcase reads, so a retune lands in both.
+import { presetControls } from './glass-presets';
+import { SCENE } from './scene';
+
+// The lens preview sizes its own lens, so `radius` isn't a knob here.
+const LENS_KEYS = ['strength', 'chroma', 'blur', 'dome', 'depth', 'edge', 'glow', 'shade'];
 
 export type Category = 'Components' | 'Effects';
 
@@ -218,16 +233,7 @@ const swatches = [
 const SHAPE_TUNE: TuneConfig = {
   // Every GlassShape param, in interface order (see AlphaGlassParams): the
   // displacement knobs, then the map knobs (bevel/dome/edge/glow/shade).
-  params: [
-    { key: 'strength', min: 0, max: 40, step: 0.5, default: 11 },
-    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.35 },
-    { key: 'blur', min: 0, max: 3, step: 0.05, default: 0.3 },
-    { key: 'bevel', min: 0.5, max: 10, step: 0.1, default: 3.2 },
-    { key: 'dome', min: 0, max: 30, step: 0.5, default: 6 },
-    { key: 'edge', min: 0, max: 2, step: 0.05, default: 1 },
-    { key: 'glow', min: 0, max: 2, step: 0.05, default: 0.4 },
-    { key: 'shade', min: 0, max: 2, step: 0.05, default: 0 },
-  ],
+  params: presetControls('shape'),
   code: (v) => `import { GlassShape } from "@liquidglassjs/react"
 
 export function Example() {
@@ -242,16 +248,7 @@ export function Example() {
 };
 
 const LENS_TUNE: TuneConfig = {
-  params: [
-    { key: 'strength', min: 0, max: 40, step: 0.5, default: 18 },
-    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.14 },
-    { key: 'blur', min: 0, max: 3, step: 0.05, default: 0 },
-    { key: 'dome', min: 0, max: 30, step: 0.5, default: 10 },
-    { key: 'depth', min: 0, max: 30, step: 0.5, default: 6 },
-    { key: 'edge', min: 0, max: 2, step: 0.05, default: 0.9 },
-    { key: 'glow', min: 0, max: 2, step: 0.05, default: 0.32 },
-    { key: 'shade', min: 0, max: 1, step: 0.05, default: 0 },
-  ],
+  params: presetControls('lens', LENS_KEYS),
   code: (v) => `import { GlassLens } from "@liquidglassjs/react"
 
 export function Example() {
@@ -279,17 +276,44 @@ export function Example() {
 }`,
 };
 
+// Every GlassLoupeParam, in interface order: the magnifier's own geometry (how much
+// to enlarge, the capsule's box, where it sits relative to the pointer, how long the
+// hold is) and then the lens refraction it shares with GlassLens. `hold` is here
+// rather than in `controls` because it reconfigures live like the rest — it's read
+// at pointerdown, so a change lands on the next gesture without a remount.
+const LOUPE_TUNE: TuneConfig = {
+  params: presetControls('loupe'),
+  code: (v) => `import { GlassLoupe } from "@liquidglassjs/react"
+
+export function Example() {
+  return (
+    <GlassLoupe
+      zoom={${v.zoom}}
+      longPressMs={${v.longPressMs}}
+      width={${v.width}}
+      height={${v.height}}
+      radius={${v.radius}}
+      offsetY={${v.offsetY}}
+      strength={${v.strength}}
+      chroma={${v.chroma}}
+      blur={${v.blur}}
+      dome={${v.dome}}
+      depth={${v.depth}}
+      edge={${v.edge}}
+      glow={${v.glow}}
+      shade={${v.shade}}
+      glint="#ffd9a0"
+      className="columns-2 gap-6 rounded-xl border p-6 text-[9.5px] leading-relaxed"
+    >
+      {/* any live DOM — press and hold to magnify it */}
+      <p>…</p>
+    </GlassLoupe>
+  )
+}`,
+};
+
 const TEXT_TUNE: TuneConfig = {
-  params: [
-    { key: 'strength', min: 0, max: 20, step: 0.5, default: 8 },
-    { key: 'chroma', min: 0, max: 1, step: 0.02, default: 0.4 },
-    { key: 'blur', min: 0, max: 3, step: 0.05, default: 0.3 },
-    { key: 'bevel', min: 0.5, max: 10, step: 0.1, default: 2.5 },
-    { key: 'dome', min: 0, max: 12, step: 0.5, default: 4 },
-    { key: 'edge', min: 0, max: 1.5, step: 0.05, default: 0.9 },
-    { key: 'glow', min: 0, max: 1, step: 0.05, default: 0.35 },
-    { key: 'shade', min: 0, max: 1, step: 0.05, default: 0 },
-  ],
+  params: presetControls('text'),
   code: (v) => `import { GlassText } from "@liquidglassjs/react"
 
 export function Example() {
@@ -311,20 +335,11 @@ export function Example() {
 }`,
 };
 
+// No `needs` here any more. Given a `backdrop`, mountGlass takes the SVG clone path,
+// which refracts in every browser — the frost fallback is only where a surface is given
+// nothing to refract.
 const SURFACE_TUNE: TuneConfig = {
-  needs: 'backdrop-url',
-  params: [
-    { key: 'strength', min: 0, max: 40, step: 0.5, default: 16 },
-    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.4 },
-    { key: 'blur', min: 0, max: 10, step: 0.1, default: 2 },
-    { key: 'dome', min: 0, max: 30, step: 0.5, default: 12 },
-    { key: 'depth', min: 0, max: 30, step: 0.5, default: 10 },
-    { key: 'edge', min: 0, max: 2, step: 0.05, default: 0.9 },
-    { key: 'glow', min: 0, max: 2, step: 0.05, default: 0.3 },
-    { key: 'spec', min: 0, max: 1.5, step: 0.02, default: 0.9 },
-    { key: 'tint', min: 0, max: 40, step: 1, default: 12 },
-    { key: 'vibrancy', min: 0, max: 1, step: 0.02, default: 0.15 },
-  ],
+  params: presetControls('surface'),
   code: (v) => `import { GlassSurface } from "@/components/liquid-glass/glass-surface"
 
 export function Example() {
@@ -340,6 +355,9 @@ export function Example() {
       spec={${v.spec}}
       tint={${v.tint}}
       vibrancy={${v.vibrancy}}
+      // Hand it the page's own background and it refracts that, in every browser.
+      // Leave it out and there is nothing to refract, so it falls back to a frost.
+      backdrop="radial-gradient(70% 80% at 30% 20%, #12d3ff, transparent 60%), #0b0913"
       className="max-w-xs p-6"
     >
       <h2 className="text-lg font-semibold text-white">Glass surface</h2>
@@ -350,7 +368,6 @@ export function Example() {
 };
 
 const CARD_TUNE: TuneConfig = {
-  needs: 'backdrop-url',
   params: SURFACE_TUNE.params,
   code: (v) => `import { GlassCard } from "@/components/liquid-glass/glass-card"
 
@@ -367,6 +384,9 @@ export function Example() {
       spec={${v.spec}}
       tint={${v.tint}}
       vibrancy={${v.vibrancy}}
+      // Hand it the page's own background and it refracts that, in every browser.
+      // Leave it out and there is nothing to refract, so it falls back to a frost.
+      backdrop="radial-gradient(70% 80% at 30% 20%, #12d3ff, transparent 60%), #0b0913"
       className="max-w-xs"
     >
       <h2 className="text-lg font-semibold text-white">Glass card</h2>
@@ -378,19 +398,7 @@ export function Example() {
 
 const BUTTON_TUNE: TuneConfig = {
   // Surface knobs, then geometry + morph-animation (radius/duration/pulse re-mount).
-  params: [
-    { key: 'strength', min: 0, max: 40, step: 0.5, default: 18 },
-    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.42 },
-    { key: 'blur', min: 0, max: 3, step: 0.05, default: 0.4 },
-    { key: 'dome', min: 0, max: 30, step: 0.5, default: 13 },
-    { key: 'depth', min: 0, max: 30, step: 0.5, default: 10 },
-    { key: 'edge', min: 0, max: 2, step: 0.05, default: 0.9 },
-    { key: 'glow', min: 0, max: 2, step: 0.05, default: 0.3 },
-    { key: 'spec', min: 0, max: 1.5, step: 0.02, default: 0.7 },
-    { key: 'radius', min: 0, max: 40, step: 1, default: 16 },
-    { key: 'duration', label: 'morph ms', min: 100, max: 1000, step: 20, default: 460 },
-    { key: 'pulse', min: 0, max: 1, step: 0.05, default: 0.5 },
-  ],
+  params: presetControls('button'),
   code: (v) => `import { GlassButton } from "@liquidglassjs/react"
 
 export function Example() {
@@ -416,14 +424,7 @@ export function Example() {
 };
 
 const RIPPLE_TUNE: TuneConfig = {
-  params: [
-    { key: 'strength', min: 0, max: 60, step: 1, default: 24 },
-    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.4 },
-    { key: 'spec', min: 0, max: 1.5, step: 0.02, default: 0.7 },
-    { key: 'blur', min: 0, max: 3, step: 0.05, default: 0.4 },
-    { key: 'maxFrac', label: 'reach', min: 0.2, max: 1.5, step: 0.02, default: 0.85 },
-    { key: 'duration', label: 'ms', min: 200, max: 3000, step: 50, default: 1100 },
-  ],
+  params: presetControls('ripple'),
   code: (v) => `import { GlassRipple } from "@liquidglassjs/react"
 
 export function Example() {
@@ -587,21 +588,7 @@ const QR_TUNE: TuneConfig = {
   ],
   // Shape first (dots → squares, and how sharp the card is), then the refraction
   // knobs, then the click-bloom animation timings.
-  params: [
-    { key: 'moduleRadius', label: 'dot radius', min: 0, max: 1, step: 0.05, default: 1 },
-    { key: 'moduleScale', label: 'dot size', min: 0.3, max: 1, step: 0.02, default: 0.7 },
-    { key: 'eyeRadius', label: 'eye radius', min: 0, max: 1, step: 0.05, default: 0.55 },
-    { key: 'frameRadius', label: 'frame radius', min: 0, max: 56, step: 1, default: 56 },
-    { key: 'scaleX', min: 0, max: 0.25, step: 0.005, default: 0.08 },
-    { key: 'scaleY', min: 0, max: 0.25, step: 0.005, default: 0.08 },
-    { key: 'chromaAmount', label: 'chroma', min: 0, max: 3, step: 0.05, default: 1 },
-    { key: 'eyeRefractionScale', label: 'eye refract', min: 0, max: 1, step: 0.02, default: 0.16 },
-    { key: 'lensDepth', label: 'depth', min: 0, max: 80, step: 1, default: 30 },
-    { key: 'lensDuration', label: 'bloom ms', min: 1000, max: 12000, step: 250, default: 6000 },
-    { key: 'colorSplash', label: 'splash', min: 50, max: 1000, step: 10, default: 300 },
-    { key: 'ringStart', label: 'ring start', min: 0, max: 1, step: 0.05, default: 0.15 },
-    { key: 'ringEnd', label: 'ring end', min: 0, max: 1, step: 0.05, default: 0.9 },
-  ],
+  params: presetControls('qr'),
   code: (v, o = {}) => {
     const logoSrc = qrLogoSource(o.logo);
     const reserve = qrReserveCenter(o);
@@ -714,14 +701,7 @@ export function Example() {
 };
 
 const SLIDER_TUNE: TuneConfig = {
-  params: [
-    { key: 'strength', min: 0, max: 40, step: 0.5, default: 11 },
-    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.32 },
-    { key: 'dome', min: 0, max: 30, step: 0.5, default: 12 },
-    { key: 'depth', min: 0, max: 30, step: 0.5, default: 8 },
-    { key: 'edge', min: 0, max: 2, step: 0.05, default: 0.9 },
-    { key: 'glow', min: 0, max: 2, step: 0.05, default: 0.3 },
-  ],
+  params: presetControls('slider'),
   code: (v) => `import { GlassSlider } from "@/components/liquid-glass/glass-slider"
 
 export function Example() {
@@ -733,14 +713,7 @@ export function Example() {
 };
 
 const SWITCH_TUNE: TuneConfig = {
-  params: [
-    { key: 'strength', min: 0, max: 40, step: 0.5, default: 14 },
-    { key: 'chroma', min: 0, max: 1.5, step: 0.02, default: 0.4 },
-    { key: 'dome', min: 0, max: 30, step: 0.5, default: 8 },
-    { key: 'depth', min: 0, max: 30, step: 0.5, default: 5 },
-    { key: 'edge', min: 0, max: 2, step: 0.05, default: 0.9 },
-    { key: 'glow', min: 0, max: 2, step: 0.05, default: 0.32 },
-  ],
+  params: presetControls('switch'),
   code: (v) => `import { GlassSwitch } from "@/components/liquid-glass/glass-switch"
 
 export function Example() {
@@ -774,6 +747,7 @@ export const registry: RegistryItem[] = [
         spec={v.spec}
         tint={v.tint}
         vibrancy={v.vibrancy}
+        backdrop={SCENE}
         className="max-w-xs p-6"
       >
         <h2 className="text-lg font-semibold text-white">Glass surface</h2>
@@ -801,6 +775,7 @@ export const registry: RegistryItem[] = [
         spec={v.spec}
         tint={v.tint}
         vibrancy={v.vibrancy}
+        backdrop={SCENE}
         className="max-w-xs"
       >
         <h2 className="text-lg font-semibold text-white">Glass card</h2>
@@ -938,7 +913,7 @@ export const registry: RegistryItem[] = [
     category: 'Components',
     icon: Menu,
     description:
-      'A dropdown menu: Base UI Menu (anchored positioning, roving focus, typeahead) with a frosted glass popup.',
+      'A dropdown menu: Base UI Menu (anchored positioning, roving focus, typeahead) with a refracting glass popup.',
     tune: DROPDOWN_TUNE,
     code: DROPDOWN_TUNE.code(tuneDefaults(DROPDOWN_TUNE)),
     Demo: ({ values: v = tuneDefaults(DROPDOWN_TUNE) }) => (
@@ -1070,6 +1045,58 @@ export const registry: RegistryItem[] = [
           </div>
         </div>
       </GlassLens>
+    ),
+  },
+  {
+    slug: 'glass-loupe',
+    title: 'Glass Loupe',
+    category: 'Effects',
+    icon: ZoomIn,
+    npm: '@liquidglassjs/react',
+    description:
+      'The iOS text magnifier: press and hold, and a glass capsule floats above the pointer showing the line beneath it, enlarged. Drag straight away and you get an ordinary selection instead.',
+    tune: LOUPE_TUNE,
+    code: LOUPE_TUNE.code(tuneDefaults(LOUPE_TUNE)),
+    Demo: ({ values: v = tuneDefaults(LOUPE_TUNE) }) => (
+      <GlassLoupe
+        zoom={v.zoom}
+        longPressMs={v.longPressMs}
+        width={v.width}
+        height={v.height}
+        radius={v.radius}
+        offsetY={v.offsetY}
+        strength={v.strength}
+        chroma={v.chroma}
+        blur={v.blur}
+        dome={v.dome}
+        depth={v.depth}
+        edge={v.edge}
+        glow={v.glow}
+        shade={v.shade}
+        glint="#ffd9a0"
+        // Two columns of genuinely small type: the case a magnifier is *for*, and
+        // the one that proves the clone reflows exactly like the original.
+        className="w-full max-w-[560px] columns-2 gap-6 rounded-xl bg-zinc-950 p-6 text-justify text-[9.5px] leading-relaxed text-white/70 ring-1 ring-white/10 max-sm:columns-1"
+      >
+        <span className="mb-3 block font-mono text-[8.5px] tracking-[0.14em] text-white/40 uppercase">
+          §14 · Refraction
+        </span>
+        <p className="mb-3">
+          Each pixel of the element beneath is displaced by the red and green channels of a
+          generated bitmap, red carrying the horizontal shift and green the vertical, so that the
+          rendered output bends as though seen through a dome of glass.
+        </p>
+        <p className="mb-3">
+          The map is neutral grey everywhere outside the lens, which encodes zero displacement, and
+          the content there passes through untouched and remains selectable, scrollable and
+          clickable in the ordinary way.
+        </p>
+        <p>
+          Magnification is not obtainable by displacement alone. It requires a second rendering of
+          the source at a larger scale, and where that rendering is retained as document content
+          rather than as a raster, the letterforms are rasterized at their final size.
+        </p>
+      </GlassLoupe>
     ),
   },
   {

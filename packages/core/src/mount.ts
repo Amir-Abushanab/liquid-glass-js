@@ -17,8 +17,31 @@
 import { buildDisplacementMap } from './displacement';
 import { specMaskValues } from './map-encode';
 import type { GlassGL as GlassGLType } from './webgl';
+import { applyGlassFilter, clearGlassFilter } from './filter-origin';
+import { preBlurStd } from './blur-quantize';
 
 const MARGIN = 28; // bleed so the displacement doesn't sample past the lens rim
+
+/**
+ * The element's own layout box in CSS px, ignoring any transform on it or an ancestor.
+ *
+ * `getBoundingClientRect()` reports the *transformed* box. Glass mounted inside a panel
+ * that animates in from `scale(.95)` — which is every dialog, menu and popover — then
+ * measures itself at 95% and bakes a displacement map that size. The transform settles
+ * at 100% without ever changing the layout box, so no ResizeObserver fires and the map
+ * is never rebuilt: the rim stays traced a few px inside the panel it belongs to, and
+ * the whole surface reads as two rounded rectangles that don't quite line up.
+ *
+ * offsetWidth/Height are the layout box and are immune to that. They don't exist for
+ * inline or SVG hosts, so fall back to the rect there.
+ */
+function layoutBox(el: HTMLElement): { width: number; height: number } {
+  const w = el.offsetWidth;
+  const h = el.offsetHeight;
+  if (w && h) return { width: w, height: h };
+  const r = el.getBoundingClientRect();
+  return { width: Math.round(r.width), height: Math.round(r.height) };
+}
 const SPEC_LO = 0.25;
 const SPEC_HI = 0.7;
 
@@ -133,7 +156,7 @@ function mountSvg(el: HTMLElement, surface: HTMLElement, p: P): () => void {
     `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
     `<feImage class="ps-glass__map" preserveAspectRatio="none" result="rawMap"></feImage>` +
     `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>` +
-    `<feGaussianBlur in="SourceGraphic" stdDeviation="${p.blur}" result="blurred"></feGaussianBlur>` +
+    `<feGaussianBlur in="SourceGraphic" stdDeviation="${preBlurStd(p.blur)}" result="blurred"></feGaussianBlur>` +
     `<feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
     `<feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix>` +
     `<feDisplacementMap in="blurred" in2="map" scale="${s2}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
@@ -149,9 +172,7 @@ function mountSvg(el: HTMLElement, surface: HTMLElement, p: P): () => void {
   const map = holder.querySelector('feImage')!;
   let last = '';
   const render = () => {
-    const r = el.getBoundingClientRect();
-    const width = Math.round(r.width);
-    const height = Math.round(r.height);
+    const { width, height } = layoutBox(el);
     if (!width || !height) return;
     const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
     const key = `${width}x${height}x${radius}`;
@@ -189,7 +210,13 @@ function mountWebgl(
   cleanups: Array<() => void>,
 ): void {
   const canvas = document.createElement('canvas');
-  canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block';
+  // `border-radius: inherit` matters, and isn't redundant with the wrapper's
+  // overflow:hidden. A WebGL canvas is its own compositing layer, and Firefox does
+  // not clip a composited layer to an ancestor's ROUNDED corners — it clips to the
+  // box, so the canvas keeps square corners that overhang the glass rim. Carrying
+  // the radius on the canvas makes it clip itself, in every engine.
+  canvas.style.cssText =
+    'position:absolute;inset:0;width:100%;height:100%;display:block;border-radius:inherit';
   surface.appendChild(canvas);
   cleanups.push(() => canvas.remove());
   void (async () => {
@@ -343,9 +370,7 @@ function mountFrost(el: HTMLElement, surface: HTMLElement, p: P): () => void {
   let last = '';
   let n = 0;
   const render = () => {
-    const r = el.getBoundingClientRect();
-    const width = Math.round(r.width);
-    const height = Math.round(r.height);
+    const { width, height } = layoutBox(el);
     if (!width || !height) return;
     const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
     const key = `${width}x${height}x${radius}`;
@@ -368,7 +393,7 @@ function mountFrost(el: HTMLElement, surface: HTMLElement, p: P): () => void {
       `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
       `<feImage href="${map}" xlink:href="${map}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="none" result="rawMap"></feImage>` +
       `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>` +
-      `<feGaussianBlur in="SourceGraphic" stdDeviation="${frostBlur}" result="blurred"></feGaussianBlur>` +
+      `<feGaussianBlur in="SourceGraphic" stdDeviation="${preBlurStd(frostBlur)}" result="blurred"></feGaussianBlur>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
       `<feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s2}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
@@ -410,9 +435,7 @@ function mountDomRefract(el: HTMLElement, refract: HTMLElement, p: P): () => voi
   let last = '';
   let n = 0;
   const render = () => {
-    const r = el.getBoundingClientRect();
-    const width = Math.round(r.width);
-    const height = Math.round(r.height);
+    const { width, height } = layoutBox(el);
     if (!width || !height) return;
     const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
     const key = `${width}x${height}x${radius}`;
@@ -438,7 +461,7 @@ function mountDomRefract(el: HTMLElement, refract: HTMLElement, p: P): () => voi
       `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
       `<feImage href="${map}" xlink:href="${map}" preserveAspectRatio="none" result="rawMap"></feImage>` +
       `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>` +
-      `<feGaussianBlur in="SourceGraphic" stdDeviation="${p.blur}" result="blurred"></feGaussianBlur>` +
+      `<feGaussianBlur in="SourceGraphic" stdDeviation="${preBlurStd(p.blur)}" result="blurred"></feGaussianBlur>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
       `<feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s2}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
@@ -451,8 +474,7 @@ function mountDomRefract(el: HTMLElement, refract: HTMLElement, p: P): () => voi
       `<feComposite in="specMask" in2="lensResult" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite>` +
       `</filter></svg>`;
     el.appendChild(svg);
-    refract.style.filter = `url(#${id})`;
-    refract.style.setProperty('-webkit-filter', `url(#${id})`);
+    applyGlassFilter(refract, id);
     if (holder) holder.remove();
     holder = svg;
   };
@@ -462,8 +484,7 @@ function mountDomRefract(el: HTMLElement, refract: HTMLElement, p: P): () => voi
   return () => {
     ro.disconnect();
     if (holder) holder.remove();
-    refract.style.filter = '';
-    refract.style.removeProperty('-webkit-filter');
+    clearGlassFilter(refract);
   };
 }
 
@@ -493,8 +514,26 @@ function ensureLayers(root: HTMLElement): HTMLElement {
  * `.ps-glass__content` element. Import `@liquidglassjs/core/css` for styling.
  */
 export function mountGlass(root: HTMLElement, opts: GlassOptions = {}): GlassInstance {
-  const o = { ...GLASS_DEFAULTS, ...opts };
+  // Drop keys handed in as undefined before they can shadow a default. Every binding
+  // forwards the whole option list, so a prop the caller simply left out arrives as an
+  // explicit `tint: undefined` — and a plain spread lets that win, which is how the
+  // glass root ended up carrying `--g-tint: undefined`, why the frosted fallback
+  // computed `blur(NaNpx)` and painted no blur at all outside Chromium, and why `spec`
+  // and `vibrancy` silently went missing. Same guard the shape/text/loupe renderers
+  // already apply to their own options.
+  const explicit: GlassOptions = {};
+  for (const k of Object.keys(opts) as (keyof GlassOptions)[]) {
+    if (opts[k] != null) (explicit as Record<string, unknown>)[k] = opts[k];
+  }
+  const o = { ...GLASS_DEFAULTS, ...explicit };
   root.classList.add('ps-glass');
+  // The surface, tint and rim are absolutely positioned against this element, so it has
+  // to be a containing block — but ANY non-static position is one, and the consumer may
+  // well have chosen `absolute` already. Only fill in a position when there isn't one:
+  // asserting `relative` from the stylesheet silently collapsed a consumer's
+  // `absolute inset-0` glass to zero height, and a renderer with a zero box builds no
+  // filter at all.
+  if (getComputedStyle(root).position === 'static') root.style.position = 'relative';
   if (opts.class) for (const c of opts.class.split(/\s+/).filter(Boolean)) root.classList.add(c);
   root.dataset.glass = '';
   if (!root.dataset.uid) root.dataset.uid = 'ps-glass-' + Math.random().toString(36).slice(2, 9);

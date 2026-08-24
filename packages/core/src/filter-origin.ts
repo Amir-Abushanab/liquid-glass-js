@@ -1,0 +1,193 @@
+// Applying an SVG filter to an HTML element, with WebKit's coordinate origin
+// pinned. Every renderer here goes through this — a filter that positions
+// anything in `userSpaceOnUse` is silently wrong in Safari without it.
+//
+// THE BUG
+//
+// WebKit resolves userSpaceOnUse coordinates on a filter applied to an HTML
+// element — BOTH the filter region and any primitive subregion — against the page
+// origin instead of the element's own origin, unless the element establishes a
+// coordinate system of its own. Measured on a 200x200 element at page (50,50),
+// with a filter region at x=0 y=0 and an feImage subregion at x=60 y=60:
+//
+//                    subregion lands   region lands
+//     webkit             60,60            0,0        <- element origin ignored
+//     firefox           110,110          50,50
+//     chromium          110,110          50,50
+//
+// So the map went wherever the element happened to sit in the document: further
+// down the page, further off. That is the single cause behind the lens appearing
+// to split into a stuck layer and a moving one, glass text and glass marks
+// rendering as blank space (their chain ends in `operator="in"` against
+// SourceAlpha, so a map that landed elsewhere clips the result to nothing), glass
+// images cutting off, and controls losing their backdrop while pressed.
+//
+// THE FIX
+//
+// Any transform-family property on the element normalises the origin, in every
+// engine:
+//
+//     none            webkit  60,60 / 0,0
+//     transform       webkit 110,110 / 50,50   correct
+//     translate       webkit 110,110 / 50,50   correct
+//     scale           webkit 110,110 / 50,50   correct
+//     rotate          webkit 110,110 / 50,50   correct
+//     perspective     webkit  60,60 / 0,0      (not a transform — no help)
+//
+// A real non-identity transform works too, and all three engines then agree on
+// the scaled result, so this composes with a page that transforms the element.
+//
+// We use the `rotate` longhand rather than `transform` so we never clobber a
+// `transform` the page owns, and only when the element has no transform-family
+// property at all — if it has one, its origin is already correct and we leave it
+// alone. The identity costs nothing in side effects: an element with a `filter`
+// is already a stacking context and already a containing block for positioned
+// descendants, so an identity transform changes neither.
+
+// WebKit, and not Chromium (which also ships AppleWebKit in its UA). Three separate
+// workarounds below gate on this. Same shape as supportsBackdropUrl()'s engine test
+// in mount.ts, and for the same reason: none of these have a feature test — observing
+// them needs a rasterized readback of a DOM element — so the engine is the only signal.
+let _isWebKit: boolean | null = null;
+function isWebKit(): boolean {
+  if (_isWebKit !== null) return _isWebKit;
+  try {
+    const ua = navigator.userAgent;
+    _isWebKit = /AppleWebKit/.test(ua) && !/Chrome|Chromium|Edg\//.test(ua);
+  } catch {
+    _isWebKit = false;
+  }
+  return _isWebKit;
+}
+
+const TRANSFORM_PROPS = ['transform', 'translate', 'scale', 'rotate'] as const;
+const PINNED = 'lgFilterOrigin';
+
+// Does the page already give this element its own coordinate system?
+function hasOwnOrigin(el: HTMLElement): boolean {
+  const cs = getComputedStyle(el) as unknown as Record<string, string | undefined>;
+  return TRANSFORM_PROPS.some((p) => {
+    const v = cs[p];
+    return !!v && v !== 'none';
+  });
+}
+
+// A transform makes an element the containing block for its OWN
+// `background-attachment: fixed`, which detaches a fixed backdrop from the viewport
+// and squeezes it into the element box — measured in all three engines. The glass
+// panes that clone the page backdrop are exactly that shape, so those cannot be
+// pinned; they take the coordinate offset below instead.
+function hasFixedBackground(el: HTMLElement): boolean {
+  return getComputedStyle(el).backgroundAttachment.includes('fixed');
+}
+
+/** Would `applyGlassFilter` pin this element's origin with a transform? */
+function willPin(el: HTMLElement): boolean {
+  return isWebKit() && !hasOwnOrigin(el) && !hasFixedBackground(el);
+}
+
+/**
+ * Offset to ADD to every `userSpaceOnUse` position in a filter targeting `el`.
+ *
+ * Zero in the normal case. It is non-zero only where WebKit needs its origin fixed
+ * and the transform pin is unavailable — an element carrying a fixed-attachment
+ * backdrop, which a transform would break. There the coordinates are compensated
+ * arithmetically instead: WebKit resolves them against the DOCUMENT origin, so
+ * adding the element's document position lands them back on the element.
+ *
+ * Document, not viewport — measured. An element at document y=400 with a subregion
+ * at y=0 paints at viewport 0 when unscrolled and vanishes once scrolled, i.e. the
+ * map sits at document 0 and scrolls with the page. So this does not have to track
+ * scrolling; it only changes when layout moves the element, which is already when
+ * every renderer here rebuilds.
+ */
+export function glassOriginOffset(el: HTMLElement): { x: number; y: number } {
+  if (!isWebKit() || willPin(el) || hasOwnOrigin(el)) return { x: 0, y: 0 };
+  const r = el.getBoundingClientRect();
+  return {
+    x: r.left + (window.scrollX || 0),
+    y: r.top + (window.scrollY || 0),
+  };
+}
+
+/**
+ * Apply `filter: url(#id)` to `el`, pinning WebKit's filter origin to the element.
+ *
+ * The pin is WebKit-only, and skipped even there for an element with a
+ * fixed-attachment background — see hasFixedBackground. Engines that resolve the
+ * origin correctly on their own never pay for it.
+ */
+export function applyGlassFilter(el: HTMLElement, id: string): void {
+  if (willPin(el) && !el.dataset[PINNED]) {
+    el.style.rotate = '0deg';
+    el.dataset[PINNED] = '1';
+  }
+  el.style.filter = `url(#${id})`;
+  el.style.setProperty('-webkit-filter', `url(#${id})`);
+}
+
+/**
+ * Re-point `el` at `filter` under a fresh id, forcing Safari to re-evaluate it.
+ * Returns the id now in effect — assign it back to whatever the caller tracks.
+ *
+ * Safari caches filter output by id (the reason every map rebuild in this codebase
+ * already mints a new one). Mutating a primitive's attributes under an unchanged id
+ * therefore leaves the element painted with the *cached* result: the per-frame paths
+ * — lens setPos, ripple frame, morph setBox — freeze at whatever the filter produced
+ * when its id was created. That is the stuck second layer the lens leaves behind, the
+ * ripple that never animates, and the switch that won't follow a drag.
+ *
+ * Renaming only re-points; the map (the feImage href) is untouched, so no displacement
+ * map is rebuilt and no PNG is re-encoded. It is still not free — renaming every frame
+ * measurably worsens the frame-time tail (firefox p90 8.9ms -> 58.8ms, chromium 9.2ms
+ * -> 16.6ms, medians unchanged) — and Chromium and Gecko re-run the filter on an
+ * attribute change anyway, so they skip it and keep the cheap path.
+ */
+export function refreshGlassFilter(el: HTMLElement, filter: SVGFilterElement, id: string): string {
+  if (!isWebKit()) return filter.id;
+  filter.setAttribute('id', id);
+  el.style.filter = `url(#${id})`;
+  el.style.setProperty('-webkit-filter', `url(#${id})`);
+  return id;
+}
+
+/**
+ * Multiplier to apply to every `primitiveUnits="userSpaceOnUse"` value in a filter
+ * targeting `el`. 1 for everything except the case below.
+ *
+ * When the filtered element is an inline <svg> carrying a viewBox whose units are
+ * not CSS px, WebKit resolves primitive values in the SVG's OWN user units while
+ * Chromium and Gecko use CSS px — and it does this to the whole primitive
+ * coordinate space, positions and lengths alike. On a 64-unit viewBox drawn at
+ * 200px (3.125x), measured:
+ *
+ *   feImage subregion x=20 y=20 100x100   webkit 112,112 (clipped 138)  others 70,70 100x100
+ *   feOffset dx=20 (a pure length)        webkit shifts 63px            others shift 20px
+ *
+ * So a glass mark got its map drawn 3x oversized and offset — the artwork lost its
+ * rim and showed a dark misplaced crescent — and its displacement and blur were
+ * scaled up to match. The filter REGION is unaffected: filterUnits resolves in CSS
+ * px in every engine, including WebKit, on the same element.
+ *
+ * Multiplying primitive values by viewBoxWidth/cssWidth cancels it exactly. The
+ * ratio is 1 for HTML targets, for an <svg> with no viewBox, and for a viewBox whose
+ * units already are CSS px, so the same code path serves every case.
+ */
+export function primitiveScale(el: Element): number {
+  if (!isWebKit()) return 1; // only WebKit rescales
+  if (typeof SVGSVGElement === 'undefined' || !(el instanceof SVGSVGElement)) return 1;
+  const vb = el.viewBox?.baseVal;
+  const r = el.getBoundingClientRect();
+  if (!vb || !vb.width || !vb.height || !r.width || !r.height) return 1;
+  return vb.width / r.width;
+}
+
+/** Remove the filter and any origin pin we added. */
+export function clearGlassFilter(el: HTMLElement): void {
+  el.style.filter = '';
+  el.style.removeProperty('-webkit-filter');
+  if (el.dataset[PINNED]) {
+    el.style.removeProperty('rotate');
+    delete el.dataset[PINNED];
+  }
+}

@@ -32,6 +32,28 @@ Attributes map to core options (`radius`, `depth`, `dome`, `strength`, `edge`,
 **light DOM**, because the SVG path has to filter the element's real children
 and a shadow root would hide them.
 
+## `<glass-loupe>`
+
+The iOS "hold on a word" magnifier, on its own entry point so it only ships
+where it's used.
+
+```js
+import '@liquidglassjs/element/loupe';
+```
+
+```html
+<glass-loupe zoom="1.6" trigger="longpress">
+  <article><!-- text to magnify --></article>
+</glass-loupe>
+```
+
+Attributes: `zoom`, `width`, `height`, `offset-y`, `radius`, `strength`,
+`chroma`, `blur`, `dome`, `depth`, `edge`, `glow`, `shade`, `trigger`
+(`longpress` | `press` | `hover` | `none`), `long-press-ms`, `move-tolerance`,
+`backdrop` (a CSS colour, or `none`), `glint`, and the opt-outs `no-snap`,
+`no-clamp`, `allow-native`. With `trigger="none"` drive it through the element's
+own `show(x, y)` / `move(x, y)` / `hide()` / `refresh()` methods.
+
 ## Links
 
 - **Showcase**: <https://amir-abushanab.github.io/liquid-glass-js/>

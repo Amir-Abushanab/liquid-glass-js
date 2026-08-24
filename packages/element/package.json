@@ -27,16 +27,23 @@
   "type": "module",
   "sideEffects": [
     "./src/index.ts",
-    "./dist/index.js"
+    "./src/loupe.ts",
+    "./dist/index.js",
+    "./dist/loupe.js"
   ],
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./loupe": "./src/loupe.ts"
   },
   "publishConfig": {
     "exports": {
       ".": {
         "types": "./dist/index.d.ts",
         "import": "./dist/index.js"
+      },
+      "./loupe": {
+        "types": "./dist/loupe.d.ts",
+        "import": "./dist/loupe.js"
       }
     },
     "access": "public"

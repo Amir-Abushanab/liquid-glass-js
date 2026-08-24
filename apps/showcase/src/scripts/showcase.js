@@ -1,48 +1,59 @@
-import { mountGlassLens } from '@liquidglassjs/core';
-import { reconfigureAllGlassText, GLASS_TEXT_DEFAULTS } from '@liquidglassjs/core';
+import { mountGlassLens, mountGlassLoupe } from '@liquidglassjs/core';
+import { reconfigureAllGlassText } from '@liquidglassjs/core';
 import { cubicBezier } from '@liquidglassjs/core';
+import { presetControls, presetDefaults } from '../lib/glass-presets';
+
+// The typeface section's one non-numeric control. Declared up here because the
+// section object is built long before the switcher it drives; `apply` is only ever
+// called from a click, by which point setLgfFont exists.
+const lgfFontPicker = {
+  label: 'font',
+  value: 'mono',
+  options: [
+    { value: 'mono', label: 'Mono' },
+    { value: 'serif', label: 'Serif' },
+    { value: 'black', label: 'Black' },
+    { value: 'script', label: 'Script' },
+  ],
+  apply: (v) => setLgfFont(v),
+};
+
 const cfgSections = [];
-const LENS_PARAMS = [
-  { k: 'strength', min: 0, max: 40, step: 0.5 },
-  { k: 'chroma', min: 0, max: 1.5, step: 0.02 },
-  { k: 'blur', min: 0, max: 4, step: 0.05 },
-  { k: 'dome', min: 0, max: 30, step: 0.5 },
-  { k: 'depth', min: 0, max: 30, step: 0.5 },
-  { k: 'radius', min: 0, max: 80, step: 1 },
-  { k: 'edge', min: 0, max: 2, step: 0.05 },
-  { k: 'glow', min: 0, max: 2, step: 0.05 },
-  { k: 'shade', min: 0, max: 1, step: 0.05 },
+// Slider ranges and shipped defaults for every glass component on this site. The
+// registry pages read the same module, so a retune lands in both instead of having to
+// be applied twice — which is how the glass mark's chroma and the loupe's strength
+// ended up different in the two places.
+//
+// A `*_KEYS` list below is this page choosing which knobs to expose, not what a knob
+// is worth. Values live in glass-presets.ts.
+const LENS_PARAMS = presetControls('lens');
+const LOUPE_KEYS = [
+  'zoom',
+  'longPressMs',
+  'width',
+  'height',
+  'radius',
+  'offsetY',
+  'strength',
+  'chroma',
+  'dome',
 ];
-// Render-paths tuner: the params `mountGlass` (the unified surface) accepts. Each of the
-// three cards honors a different subset — see the per-focus `dead` sets below.
-const RENDER_PARAMS = [
-  { k: 'strength', min: 0, max: 40, step: 0.5 },
-  { k: 'chroma', min: 0, max: 1.5, step: 0.02 },
-  { k: 'blur', min: 0, max: 4, step: 0.05 },
-  { k: 'dome', min: 0, max: 30, step: 0.5 },
-  { k: 'depth', min: 0, max: 30, step: 0.5 },
-  { k: 'edge', min: 0, max: 2, step: 0.05 },
-  { k: 'glow', min: 0, max: 2, step: 0.05 },
-];
-const RIPPLE_PARAMS = [
-  { k: 'strength', min: 0, max: 60, step: 1 },
-  { k: 'chroma', min: 0, max: 1.5, step: 0.02 },
-  { k: 'spec', min: 0, max: 1.5, step: 0.02 },
-  { k: 'blur', min: 0, max: 3, step: 0.05 },
-  { k: 'maxFrac', min: 0.2, max: 1.5, step: 0.02 },
-  { k: 'duration', min: 300, max: 2500, step: 50 },
-];
-const QR_PARAMS = [
-  { k: 'scaleX', min: 0, max: 0.25, step: 5e-3 },
-  { k: 'scaleY', min: 0, max: 0.25, step: 5e-3 },
-  { k: 'chromaAmount', label: 'chroma', min: 0, max: 3, step: 0.05 },
-  { k: 'eyeRefractionScale', label: 'eyeScale', min: 0, max: 0.5, step: 0.01 },
-  { k: 'lensDepth', label: 'depth', min: 0, max: 80, step: 1 },
-  { k: 'lensDuration', label: 'duration', min: 1e3, max: 12e3, step: 250 },
-  { k: 'colorSplash', label: 'splash', min: 100, max: 1e3, step: 10 },
-  { k: 'ringStart', label: 'ringIn', min: 0, max: 1, step: 0.02 },
-  { k: 'ringEnd', label: 'ringOut', min: 0, max: 1, step: 0.02 },
-];
+const LOUPE_PARAMS = presetControls('loupe', LOUPE_KEYS);
+// The three cards share one set of sliders; spec/tint/vibrancy aren't tunable here.
+const RENDER_KEYS = ['strength', 'chroma', 'blur', 'dome', 'depth', 'edge', 'glow'];
+const RENDER_PARAMS = presetControls('surface', RENDER_KEYS);
+const RIPPLE_PARAMS = presetControls('ripple');
+const QR_PARAMS = presetControls('qr', [
+  'scaleX',
+  'scaleY',
+  'chromaAmount',
+  'eyeRefractionScale',
+  'lensDepth',
+  'lensDuration',
+  'colorSplash',
+  'ringStart',
+  'ringEnd',
+]);
 const CFG_ICONS = {
   segmented:
     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="4.5" width="13" height="7" rx="3.3"/><line x1="8" y1="4.7" x2="8" y2="11.3"/></svg>',
@@ -51,6 +62,9 @@ const CFG_ICONS = {
   switch:
     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="5" width="13" height="6" rx="3"/><circle cx="11" cy="8" r="2" fill="currentColor" stroke="none"/></svg>',
   lens: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="6.8" cy="6.8" r="4.3"/><line x1="10.2" y1="10.2" x2="14" y2="14"/></svg>',
+  // Same glass as the lens, but it magnifies — hence the plus.
+  loupe:
+    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="6.8" cy="6.8" r="4.3"/><line x1="10.2" y1="10.2" x2="14" y2="14"/><line x1="6.8" y1="4.9" x2="6.8" y2="8.7"/><line x1="4.9" y1="6.8" x2="8.7" y2="6.8"/></svg>',
   ripple:
     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="4" opacity="0.85"/><circle cx="8" cy="8" r="6.3" opacity="0.4"/></svg>',
   qr: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.5" y="1.5" width="4.5" height="4.5" rx="1"/><rect x="10" y="1.5" width="4.5" height="4.5" rx="1"/><rect x="1.5" y="10" width="4.5" height="4.5" rx="1"/><rect x="10.5" y="10.5" width="3" height="3" fill="currentColor" stroke="none"/></svg>',
@@ -66,31 +80,29 @@ const CFG_ICONS = {
   paths:
     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.5" y="3" width="8" height="5.5" rx="1.4"/><rect x="4" y="5.2" width="8" height="5.5" rx="1.4" opacity="0.6"/><rect x="6.5" y="7.4" width="8" height="5.5" rx="1.4" opacity="0.35"/></svg>',
 };
-const FONT_PARAMS = [
-  { k: 'strength', min: 0, max: 20, step: 0.5 },
-  // refraction reach, px
-  { k: 'chroma', min: 0, max: 1, step: 0.02 },
-  // per-channel split
-  { k: 'blur', min: 0, max: 2, step: 0.05 },
-  // fill pre-blur (frost)
-  { k: 'bevel', min: 0.5, max: 10, step: 0.1 },
-  // rim width (glyph-coverage blur)
-  { k: 'dome', min: 0, max: 12, step: 0.5 },
-  // interior meniscus swell
-  { k: 'edge', min: 0, max: 1.5, step: 0.05 },
-  // rim glint
-  { k: 'glow', min: 0, max: 1, step: 0.05 },
-  // soft wide sheen
-  { k: 'shade', min: 0, max: 1, step: 0.05 },
-  // dark occlusion rim
-];
+const FONT_PARAMS = presetControls('text');
+// Marks are arbitrary artwork rather than letterforms, so they get the wider ranges.
+const SHAPE_PARAMS = presetControls('shape');
 if (document.querySelector('.lgf')) {
   cfgSections.push({
     id: 'font',
     label: 'Glass typeface',
+    picker: lgfFontPicker,
+    // The stage text deepens its refraction under the pointer (see
+    // liquid-glass-font.js). A data attribute rather than a shared module because the
+    // two run as separate entry scripts, and an attribute is inspectable besides.
+    hover: {
+      label: 'increase strength on hover',
+      get: () => document.documentElement.dataset.lgfHover !== 'off',
+      set: (on) => {
+        if (on) delete document.documentElement.dataset.lgfHover;
+        else document.documentElement.dataset.lgfHover = 'off';
+        document.dispatchEvent(new CustomEvent('lgf-hover-change', { detail: on }));
+      },
+    },
     icon: CFG_ICONS.font,
     params: FONT_PARAMS,
-    opts: { ...GLASS_TEXT_DEFAULTS },
+    opts: presetDefaults('text'),
     apply: (patch) => reconfigureAllGlassText(patch),
   });
 }
@@ -109,6 +121,7 @@ const segLenses = [];
 document.querySelectorAll('[data-seg]').forEach((seg) => {
   const labels = seg.querySelector('.seg__labels');
   const opts = Array.from(seg.querySelectorAll('.seg__opt'));
+  const pill = seg.querySelector('.seg__glass');
   if (!labels || !opts.length) return;
   const n = opts.length;
   const geom = () => {
@@ -127,6 +140,12 @@ document.querySelectorAll('[data-seg]').forEach((seg) => {
   let lensX = 0,
     tweenRaf = 0;
   const segEase = cubicBezier(0.34, 1.35, 0.5, 1);
+  // One writer for both: the pill's chrome and the lens under it move on the same
+  // frame, from the same number.
+  const place = (x) => {
+    lens.setPos(x, 0);
+    if (pill) pill.style.transform = `translateX(${x}px)`;
+  };
   const moveLensTo = (targetX) => {
     cancelAnimationFrame(tweenRaf);
     const from = lensX,
@@ -135,11 +154,11 @@ document.querySelectorAll('[data-seg]').forEach((seg) => {
     const step = (now) => {
       const k = Math.min(1, (now - t0) / dur);
       lensX = from + (targetX - from) * segEase(k);
-      lens.setPos(lensX, 0);
+      place(lensX);
       if (k < 1) tweenRaf = requestAnimationFrame(step);
       else {
         lensX = targetX;
-        lens.setPos(lensX, 0);
+        place(lensX);
       }
     };
     tweenRaf = requestAnimationFrame(step);
@@ -152,7 +171,7 @@ document.querySelectorAll('[data-seg]').forEach((seg) => {
     if (animate) moveLensTo(targetX);
     else {
       lensX = targetX;
-      lens.setPos(lensX, 0);
+      place(lensX);
     }
   };
   opts.forEach((o, i) => o.addEventListener('click', () => setActive(i)));
@@ -200,7 +219,9 @@ const pathGlSrc = document.getElementById('pathglsrc');
 const pathGlCtx = pathGlSrc?.getContext('2d');
 if (pathGlSrc && pathGlCtx) {
   const gdpr = Math.min(window.devicePixelRatio || 1, 2);
-  const pfx = ['svg', 'frost']
+  // Only the Frost card takes a canvas blit. The SVG card renders the SAME particles
+  // as DOM spans instead — see domFx below and .pathfx--dom in the stylesheet.
+  const pfx = ['frost']
     .map((k) => document.querySelector(`[data-pathfx="${k}"]`))
     .filter(Boolean)
     .map((c) => ({ c, x: c.getContext('2d') }));
@@ -399,6 +420,60 @@ if (pathGlSrc && pathGlCtx) {
     return c;
   };
   const parts = [];
+
+  // The SVG card renders that same field as DOM spans instead of a canvas blit.
+  // WebKit gives an actively-redrawn <canvas> its own compositing layer, and a
+  // composited layer is left OUT of an ancestor's SVG filter — the same rule that
+  // dropped the CSS-animated droplet out of the lens — so in Safari the emojis rode
+  // over this card's glass dead flat while the text beside them bent correctly.
+  // Spans positioned from script stay in the filtered subtree, because a script-set
+  // transform promotes nothing. They read from the SAME `parts` array, so it is still
+  // one stream treated three ways; each card simply renders it the way its own path
+  // would. WebGL re-samples its canvas as a texture and Frost blurs its canvas
+  // directly, so neither of those is affected and both keep theirs.
+  const domLayer = document.querySelector('.pathfx--dom');
+  const domFree = [];
+  let dw = 0,
+    dh = 0;
+  if (domLayer) {
+    new ResizeObserver(() => {
+      const r = domLayer.getBoundingClientRect();
+      dw = r.width;
+      dh = r.height;
+    }).observe(domLayer);
+  }
+  const release = (p) => {
+    if (!p.el) return;
+    p.el.style.display = 'none';
+    domFree.push(p.el);
+    p.el = null;
+  };
+  const drawDom = () => {
+    if (!domLayer || !dw) return;
+    const sx = dw / LW,
+      sy = dh / LH;
+    for (const p of parts) {
+      if (!p.el) {
+        const el = domFree.pop() || document.createElement('span');
+        if (!el.parentNode) {
+          el.className = 'pathfx__e';
+          domLayer.appendChild(el);
+        }
+        el.textContent = p.e;
+        el.style.display = '';
+        p.el = el;
+      }
+      const t = p.life / p.maxLife,
+        pop = Math.min(1, p.life / 6);
+      p.el.style.opacity = t < 0.12 ? t / 0.12 : t > 0.6 ? Math.max(0, (1 - t) / 0.4) : 1;
+      p.el.style.fontSize = `${p.size * pop}px`;
+      // the same transform the canvas builds by hand: place, spin, mirror, then centre
+      p.el.style.transform =
+        `translate(${p.x * sx}px,${p.y * sy}px) rotate(${p.rot}rad)` +
+        `${p.flip ? ' scaleX(-1)' : ''} translate(-50%,-50%)`;
+    }
+  };
+
   const drawParticles = (dt) => {
     octx.setTransform(1, 0, 0, 1, 0, 0);
     octx.clearRect(0, 0, off.width, off.height);
@@ -406,6 +481,7 @@ if (pathGlSrc && pathGlCtx) {
       const p = parts[i];
       p.life += dt;
       if (p.life >= p.maxLife) {
+        release(p);
         parts.splice(i, 1);
         continue;
       }
@@ -467,6 +543,7 @@ if (pathGlSrc && pathGlCtx) {
     const active = parts.length > 0;
     if (active) {
       drawParticles(dt);
+      drawDom();
       pathGlCtx.drawImage(off, 0, 0, pathGlSrc.width, pathGlSrc.height);
       for (const { c, x } of pfx) {
         x.setTransform(1, 0, 0, 1, 0, 0);
@@ -555,16 +632,19 @@ if (isld && isldTrack && isldThumb) {
     host: isld,
     lensW: LW,
     lensH: LH,
-    radius: 18,
-    depth: 8,
-    dome: 12,
-    edge: 0.9,
-    glow: 0.3,
-    strength: 9,
-    chroma: 0.28,
+    radius: 18, // the thumb's own corner, not a tunable
+    ...presetDefaults('slider'),
     blur: 0,
     active: false,
     // gentle — value stays readable
+  });
+  cfgSections.push({
+    id: 'slider',
+    label: 'Slider',
+    icon: CFG_ICONS.slider,
+    params: presetControls('slider'),
+    opts: presetDefaults('slider'),
+    apply: (patch) => lens.reconfigure(patch),
   });
   const place = () => {
     const r = isld.getBoundingClientRect();
@@ -624,16 +704,19 @@ if (isw && iswTrack && iswThumb) {
     host: isw,
     lensW: LW,
     lensH: LH,
-    radius: 14,
-    depth: 5,
-    dome: 8,
-    edge: 0.9,
-    glow: 0.32,
-    strength: 15,
-    chroma: 0.5,
+    radius: 14, // the thumb's own corner, not a tunable
+    ...presetDefaults('switch'),
     blur: 0,
     active: false,
     // stronger — it's just a moving highlight
+  });
+  cfgSections.push({
+    id: 'switch',
+    label: 'Switch',
+    icon: CFG_ICONS.switch,
+    params: presetControls('switch'),
+    opts: presetDefaults('switch'),
+    apply: (patch) => lens.reconfigure(patch),
   });
   const apply = () => {
     isw.style.setProperty('--p', String(p));
@@ -699,17 +782,7 @@ const lensEl = lstage?.querySelector('.lens-stage__lens');
 if (lstage && lcard && lensEl) {
   const LW = 150,
     LH = 150;
-  const LENS_OPTS = {
-    radius: 60,
-    depth: 6,
-    dome: 10,
-    edge: 0.9,
-    glow: 0.32,
-    strength: 18,
-    chroma: 0.14,
-    blur: 0,
-    shade: 0,
-  };
+  const LENS_OPTS = presetDefaults('lens');
   // glint (item 6): a warm specular tint on the draggable lens
   const lens = mountGlassLens({
     target: lcard,
@@ -760,7 +833,18 @@ if (lstage && lcard && lensEl) {
   lstage.addEventListener('pointerleave', () => {
     hovering = false;
   });
-  const tick = () => {
+  // The droplet's bob is driven here rather than by a CSS animation. Safari gives an
+  // element with a running CSS transform animation its own compositing layer, and a
+  // composited layer is excluded from an ancestor's SVG filter — so the droplet rode
+  // above the lens unrefracted while the rest of the card bent correctly. Setting the
+  // transform from script does not promote it, so it stays inside the filter.
+  // Verified live in Safari: same motion, CSS-animated is not refracted, this is.
+  const drop = lstage.querySelector('.lcard__drop');
+  const tick = (now) => {
+    if (drop && !reduce) {
+      const p = Math.sin(((now || 0) / 4500) * Math.PI * 2);
+      drop.style.transform = `translateY(${(p * 9).toFixed(2)}px) rotate(${(p * 4).toFixed(2)}deg)`;
+    }
     if (hovering) {
       // stick to the cursor with a touch of lag — a magnetic "grab"
       lx += (mx - lx) * 0.15;
@@ -795,6 +879,44 @@ if (lstage && lcard && lensEl) {
   place();
   tick();
 }
+// ── Magnifying loupe: the same lens, over a scaled clone of the fine print ──
+const loupeDoc = document.getElementById('loupedoc');
+if (loupeDoc) {
+  const LOUPE_OPTS = presetDefaults('loupe', LOUPE_KEYS);
+  const loupe = mountGlassLoupe({
+    source: loupeDoc,
+    // A hold, not a press: a drag that sets off immediately cancels it, which is
+    // what leaves ordinary text selection intact. Tune the wait in the Glass Tuner.
+    trigger: 'longpress',
+    glint: '#ffd9a0', // the warm specular the draggable lens above uses
+    ...LOUPE_OPTS,
+  });
+  // A tuner slider is useless if you can't see what it did, and the loupe is only
+  // visible mid-gesture. So tuning opens it over the middle of the doc and lets it
+  // fall away again once the sliders go quiet — unless a real press already has it.
+  let peek = 0;
+  const previewTune = () => {
+    clearTimeout(peek);
+    if (!loupe.isOpen()) {
+      const r = loupeDoc.getBoundingClientRect();
+      loupe.show(r.left + r.width / 2, r.top + r.height / 2);
+    }
+    peek = setTimeout(() => loupe.hide(), 1600);
+  };
+  cfgSections.push({
+    id: 'loupe',
+    label: 'Loupe',
+    icon: CFG_ICONS.loupe,
+    params: LOUPE_PARAMS,
+    opts: { ...LOUPE_OPTS },
+    apply: (patch) => {
+      loupe.reconfigure(patch);
+      // The hold duration is the one param with nothing to look at — previewing it
+      // would just flash the capsule at you while you drag a timing slider.
+      if (Object.keys(patch).some((k) => k !== 'longPressMs')) previewTune();
+    },
+  });
+}
 import { mountSvgRipple } from '@liquidglassjs/core';
 const svgBtn = document.querySelector('[data-wbtn-svg]');
 const svgBg = svgBtn?.querySelector('.wbtn__svgbg');
@@ -802,11 +924,7 @@ if (svgBtn && svgBg) {
   const ripple = mountSvgRipple({
     target: svgBg,
     host: svgBtn,
-    maxFrac: 0.85,
-    strength: 24,
-    chroma: 0.4,
-    spec: 0.7,
-    blur: 0.4,
+    ...presetDefaults('ripple'),
   });
   svgBtn.addEventListener('pointerdown', (e) => {
     const r = svgBtn.getBoundingClientRect();
@@ -882,8 +1000,31 @@ if (rpToggle) {
   else window.addEventListener('load', start, { once: true });
 }
 import { mountGlassQR } from '@liquidglassjs/qr';
+// Every other renderer on this page degrades — the SVG filter works everywhere, and
+// frost is itself the fallback. The QR can't: it *is* a WebGL2 shader, so it throws
+// when there's no context to get. This script initialises every demo at module
+// scope, one after another, so an escaping exception here doesn't just cost us the
+// QR — it silently kills the render-path toggle, the morph and ripple demos, the
+// performance section and the Glass Tuner, all of which are set up below. Probe
+// first, and keep the mount in a catch for what a probe can't foresee (a context
+// that's granted and then lost, a shader that fails to link).
+const webgl2OK = () => {
+  try {
+    const gl = document.createElement('canvas').getContext('webgl2');
+    // Hand the context straight back — probing shouldn't hold one of the browser's
+    // small number of live contexts open for the life of the page.
+    gl?.getExtension('WEBGL_lose_context')?.loseContext();
+    return !!gl;
+  } catch {
+    return false;
+  }
+};
 const qrMount = document.getElementById('glassqr');
-if (qrMount) {
+if (qrMount && !webgl2OK()) {
+  qrMount.innerHTML =
+    '<p class="qr-fallback">The Glass QR is a WebGL2 shader, and this browser has no WebGL2 ' +
+    'context to give it. Every other demo on this page runs on the SVG filter path and works here.</p>';
+} else if (qrMount) {
   let qr = null;
   const mountQR = () => {
     qr = mountGlassQR(qrMount, {
@@ -898,45 +1039,45 @@ if (qrMount) {
       mountQR();
     });
   };
-  mountQR();
-  cfgSections.push({
-    id: 'qr',
-    label: 'Glass QR',
-    icon: CFG_ICONS.qr,
-    params: QR_PARAMS,
-    opts: {
-      scaleX: 0.08,
-      scaleY: 0.08,
-      chromaAmount: 1,
-      eyeRefractionScale: 0.16,
-      lensDepth: 30,
-      lensDuration: 6e3,
-      colorSplash: 300,
-      ringStart: 0.15,
-      ringEnd: 0.9,
-    },
-    apply: (patch) => qr?.reconfigure(patch),
-  });
+  try {
+    mountQR();
+  } catch (err) {
+    // Belt and braces: the probe said yes, so this is a shader/context failure the
+    // probe couldn't see. Lose the QR, keep the page.
+    console.warn('[showcase] Glass QR failed to mount; skipping it.', err);
+    qr = null;
+    qrMount.innerHTML = '<p class="qr-fallback">The Glass QR could not start on this browser.</p>';
+  }
+  // Only offer the QR's tuner section if there's an instance for it to drive.
+  if (qr)
+    cfgSections.push({
+      id: 'qr',
+      label: 'Glass QR',
+      icon: CFG_ICONS.qr,
+      params: QR_PARAMS,
+      opts: {
+        scaleX: 0.08,
+        scaleY: 0.08,
+        chromaAmount: 1,
+        eyeRefractionScale: 0.16,
+        lensDepth: 30,
+        lensDuration: 6e3,
+        colorSplash: 300,
+        ringStart: 0.15,
+        ringEnd: 0.9,
+      },
+      apply: (patch) => qr?.reconfigure(patch),
+    });
 }
 import { mountGlassButton, mountGlassDropdown, GLASS_SURFACE_DEFAULTS } from '@liquidglassjs/core';
-const MORPH_PARAMS = [
-  { k: 'strength', min: 0, max: 40, step: 0.5 },
-  { k: 'chroma', min: 0, max: 1.5, step: 0.02 },
-  { k: 'blur', min: 0, max: 3, step: 0.05 },
-  { k: 'dome', min: 0, max: 24, step: 0.5 },
-  { k: 'depth', min: 0, max: 24, step: 0.5 },
-  { k: 'edge', min: 0, max: 2, step: 0.05 },
-  { k: 'glow', min: 0, max: 2, step: 0.05 },
-  { k: 'spec', min: 0, max: 1.5, step: 0.02 },
-];
+// The morph surface takes `radius` from CSS, so that control stays off this panel.
+const MORPH_KEYS = ['strength', 'chroma', 'blur', 'dome', 'depth', 'edge', 'glow', 'spec'];
+const MORPH_PARAMS = presetControls('button', MORPH_KEYS);
 const gmBtnEl = document.querySelector('[data-gm-btn]');
 if (gmBtnEl) {
   const btn = mountGlassButton(gmBtnEl, {
     ...GLASS_SURFACE_DEFAULTS,
-    strength: 18,
-    dome: 13,
-    chroma: 0.42,
-    pulse: 0.55,
+    ...presetDefaults('button', [...MORPH_KEYS, 'duration', 'pulse']),
   });
   // A label node: an inline-flex row of an optional icon/spinner + text, with
   // optional font family/size/weight overrides so the morph varies type + size.
@@ -1047,7 +1188,7 @@ if (gmDdEl) {
     });
   }
 }
-import { mountGlassShape, GLASS_SHAPE_DEFAULTS } from '@liquidglassjs/core';
+import { mountGlassShape } from '@liquidglassjs/core';
 const gshapeStage = document.querySelector('.gshape-stage');
 if (gshapeStage) {
   // Decouple the bob animation from the filtered marks: wrap each mark in a
@@ -1108,14 +1249,7 @@ if (gshapeStage) {
       ctx.restore();
     }
   };
-  const shapeOpts = {
-    ...GLASS_SHAPE_DEFAULTS,
-    strength: 11,
-    bevel: 3.2,
-    dome: 5,
-    edge: 1,
-    glow: 0.4,
-  };
+  const shapeOpts = presetDefaults('shape');
   const shapes = [];
   // inline SVG marks (droplet + sparkle): the SVG itself is the source
   gshapeStage.querySelectorAll('[data-gshape]').forEach((el) => {
@@ -1135,55 +1269,55 @@ if (gshapeStage) {
       }),
     );
   }
-  // the emoji orb: a fixed circular glass LENS over a live canvas whose emojis
-  // orbit + wobble amongst themselves. The lens map stays static, so only the
-  // canvas redraws each frame and the filter just re-refracts it — no per-frame
-  // map regeneration. Gated offscreen and disabled for reduced motion.
-  const orbCanvas = gshapeStage.querySelector('[data-gshape-orb]');
-  if (orbCanvas) {
-    const octx = prep(orbCanvas).ctx;
+  // the emoji orb: a fixed circular glass LENS over live DOM emoji that orbit +
+  // wobble amongst themselves. The lens map stays static, so only the spans move
+  // each frame and the filter just re-refracts them — no per-frame map regeneration.
+  // Gated offscreen and disabled for reduced motion.
+  //
+  // Those spans used to be a <canvas> redrawn every frame, and that is precisely why
+  // the orb never refracted in Safari: WebKit composites an actively-redrawn canvas
+  // onto its own layer, and a composited layer is left OUT of an ancestor's SVG
+  // filter, so the lens had nothing to bend. Moving a span from script promotes
+  // nothing, so DOM emoji stay inside the filter. It also retires the canvas gradient
+  // that used to grey out colour emoji in WebKit — the body is a CSS radial-gradient
+  // now, which never poisoned anything — and the glyphs are sharp at any DPR.
+  const orbEl = gshapeStage.querySelector('[data-gshape-orb]');
+  let orbLensRef = null;
+  if (orbEl) {
     const orbEmojis = [
-      { e: '🌊', a0: 0.0, rad: 7, s: 50 },
-      { e: '🎉', a0: 0.4, rad: 38, s: 38 },
-      { e: '💎', a0: 1.9, rad: 40, s: 36 },
-      { e: '🔥', a0: 3.1, rad: 36, s: 40 },
-      { e: '✨', a0: 4.4, rad: 42, s: 34 },
-      { e: '💧', a0: 5.4, rad: 33, s: 30 },
-      { e: '🫧', a0: 2.6, rad: 44, s: 30 },
-      { e: '🌈', a0: 1.1, rad: 28, s: 32 },
+      { a0: 0.0, rad: 7, s: 50 },
+      { a0: 0.4, rad: 38, s: 38 },
+      { a0: 1.9, rad: 40, s: 36 },
+      { a0: 3.1, rad: 36, s: 40 },
+      { a0: 4.4, rad: 42, s: 34 },
+      { a0: 5.4, rad: 33, s: 30 },
+      { a0: 2.6, rad: 44, s: 30 },
+      { a0: 1.1, rad: 28, s: 32 },
     ];
+    const orbSpans = [...orbEl.querySelectorAll('.gshape-orb__e')];
+    orbSpans.forEach((el, i) => {
+      if (orbEmojis[i]) el.style.fontSize = `${orbEmojis[i].s}px`;
+    });
     const drawOrb = (t) => {
-      octx.clearRect(0, 0, 150, 150);
-      const body = octx.createRadialGradient(75, 66, 8, 75, 80, 74);
-      body.addColorStop(0, 'rgba(255,255,255,0.18)');
-      body.addColorStop(0.65, 'rgba(170,195,255,0.08)');
-      body.addColorStop(1, 'rgba(170,195,255,0)');
-      octx.fillStyle = body;
-      octx.beginPath();
-      octx.arc(75, 75, 72, 0, Math.PI * 2);
-      octx.fill();
-      for (const o of orbEmojis) {
+      orbSpans.forEach((el, i) => {
+        const o = orbEmojis[i];
+        if (!o) return;
         const ang = o.a0 + t * 0.00016;
         const r = o.rad + Math.sin(t * 0.0011 + o.a0 * 2) * 5;
-        octx.font = `${o.s}px "Apple Color Emoji","Segoe UI Emoji",sans-serif`;
-        octx.fillText(o.e, 75 + Math.cos(ang) * r, 75 + Math.sin(ang) * r);
-      }
+        el.style.transform = `translate(${75 + Math.cos(ang) * r}px,${75 + Math.sin(ang) * r}px) translate(-50%,-50%)`;
+      });
     };
     drawOrb(0);
-    mountGlassLens({
-      target: orbCanvas,
+    // Keep the instance: the orb is a lens like any other, so it belongs in the
+    // Tuner alongside the rest rather than being the one glass on the page nobody
+    // can adjust.
+    const orbOpts = presetDefaults('orb');
+    orbLensRef = mountGlassLens({
+      target: orbEl,
       host: gshapeStage,
       lensW: 150,
       lensH: 150,
-      radius: 75,
-      dome: 16,
-      depth: 10,
-      strength: 15,
-      chroma: 0.3,
-      edge: 0.9,
-      glow: 0.35,
-      blur: 0.4,
-      shade: 0,
+      ...orbOpts,
     });
     if (!reduce) {
       let orbVisible = true,
@@ -1200,7 +1334,7 @@ if (gshapeStage) {
           if (orbVisible && !orbRaf) orbRaf = requestAnimationFrame(loop);
         },
         { rootMargin: '120px' },
-      ).observe(orbCanvas);
+      ).observe(orbEl);
       orbRaf = requestAnimationFrame(loop); // kick once; self-gates on orbVisible (off-screen → stops)
     }
   }
@@ -1209,9 +1343,20 @@ if (gshapeStage) {
       id: 'shape',
       label: 'Glass mark',
       icon: CFG_ICONS.shape,
-      params: FONT_PARAMS,
+      params: SHAPE_PARAMS,
       opts: shapes[0].getOptions(),
       apply: (patch) => shapes.forEach((s) => s.reconfigure(patch)),
+    });
+  }
+  // The orb is a lens like any other, so it takes the lens params like the rest.
+  if (orbLensRef) {
+    cfgSections.push({
+      id: 'orb',
+      label: 'Emoji orb',
+      icon: CFG_ICONS.emoji,
+      params: presetControls('orb'),
+      opts: orbLensRef.getOptions(),
+      apply: (patch) => orbLensRef.reconfigure(patch),
     });
   }
 }
@@ -1518,7 +1663,7 @@ function buildTuner(sections) {
   const nameEl = panel.querySelector('.cfg__name');
   const rows = panel.querySelector('.cfg__rows');
   const sectionJSON = () =>
-    '{ ' + active.params.map((p) => `${p.k}: ${fmt(active.opts[p.k])}`).join(', ') + ' }';
+    '{ ' + active.params.map((p) => `${p.key}: ${fmt(active.opts[p.key])}`).join(', ') + ' }';
   const tabs = sections.map((s) => {
     const t = document.createElement('button');
     t.className = 'cfg__tab';
@@ -1532,12 +1677,38 @@ function buildTuner(sections) {
     tabsEl.appendChild(t);
     return { s, t };
   });
+  // ── Animate on hover ────────────────────────────────────────────────────────
+  // Not a sweep of the slider: a switch for whether the glass responds to the pointer
+  // at all. The section owns the behaviour and exposes it as `hover`; the panel only
+  // turns it on and off, and a section with nothing to hover doesn't show the row.
   function renderRows() {
     rows.innerHTML = '';
     // Sections with `focuses` (Render paths) get a path selector; params a focused path
     // can't honor gray out — the SVG/WebGL/Frost tradeoff made visible.
     const focus = active.focuses ? active.focuses[active.focus || 0] : null;
     const dead = focus ? focus.dead : [];
+    // A section can also offer a non-numeric choice — the typeface's font, say.
+    // Same segmented row as the focus selector, so it needs no styling of its own.
+    if (active.picker) {
+      const pk = active.picker;
+      const seg = document.createElement('div');
+      seg.className = 'cfg__focus';
+      pk.options.forEach((o) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'cfg__focusbtn';
+        b.textContent = o.label;
+        b.setAttribute('aria-selected', String(o.value === pk.value));
+        b.addEventListener('click', () => {
+          pk.value = o.value;
+          pk.apply(o.value);
+          renderRows();
+          save();
+        });
+        seg.appendChild(b);
+      });
+      rows.appendChild(seg);
+    }
     if (active.focuses) {
       const seg = document.createElement('div');
       seg.className = 'cfg__focus';
@@ -1556,14 +1727,25 @@ function buildTuner(sections) {
       });
       rows.appendChild(seg);
     }
+    if (active.hover) {
+      const hv = active.hover;
+      const lbl = document.createElement('label');
+      lbl.className = 'cfg__anim';
+      lbl.innerHTML = `<input type="checkbox"><span>${hv.label}</span>`;
+      const box = lbl.querySelector('input');
+      box.checked = hv.get();
+      box.addEventListener('change', () => hv.set(box.checked));
+      rows.appendChild(lbl);
+    }
+
     active.params.forEach((p) => {
-      const isDead = dead.includes(p.k);
+      const isDead = dead.includes(p.key);
       const row = document.createElement('label');
       row.className = 'cfg__row' + (isDead ? ' is-dead' : '');
-      row.innerHTML = `<span class="cfg__k" title="${p.k}">${p.label ?? p.k}</span><input type="range" min="${p.min}" max="${p.max}" step="${p.step}"><span class="cfg__v"></span>`;
+      row.innerHTML = `<span class="cfg__k" title="${p.key}">${p.label ?? p.key}</span><input type="range" min="${p.min}" max="${p.max}" step="${p.step}"><span class="cfg__v"></span>`;
       const input = row.querySelector('input');
       const val = row.querySelector('.cfg__v');
-      const v = active.opts[p.k];
+      const v = active.opts[p.key];
       input.value = String(Math.min(Math.max(v, p.min), p.max));
       val.textContent = fmt(v);
       if (isDead) {
@@ -1571,8 +1753,8 @@ function buildTuner(sections) {
       } else {
         input.addEventListener('input', () => {
           const nv = parseFloat(input.value);
-          active.opts[p.k] = nv;
-          active.apply({ [p.k]: nv });
+          active.opts[p.key] = nv;
+          active.apply({ [p.key]: nv });
           val.textContent = fmt(nv);
           save();
         });
@@ -1671,6 +1853,7 @@ function buildTuner(sections) {
   const els = { svg: pick('auto'), webgl: pick('webgl'), frost: pick('frost') };
   if (!els.svg && !els.webgl && !els.frost) return;
   const base = els.svg || els.webgl || els.frost;
+  const PATH_DEFAULTS = presetDefaults('surface', RENDER_KEYS);
   const rd = (k, d) => {
     const v = parseFloat(base.dataset[k]);
     return Number.isNaN(v) ? d : v;
@@ -1680,15 +1863,7 @@ function buildTuner(sections) {
     label: 'Render paths',
     icon: CFG_ICONS.paths,
     params: RENDER_PARAMS,
-    opts: {
-      strength: rd('strength', 16),
-      chroma: rd('chroma', 0.3),
-      blur: rd('blur', 2),
-      dome: rd('dome', 14),
-      depth: rd('depth', 20),
-      edge: rd('edge', 0.8),
-      glow: rd('glow', 0.2),
-    },
+    opts: Object.fromEntries(RENDER_KEYS.map((k) => [k, rd(k, PATH_DEFAULTS[k])])),
     focus: 0,
     focuses: [
       { id: 'svg', label: 'SVG', el: els.svg, dead: [] },
@@ -1712,9 +1887,13 @@ function buildTuner(sections) {
 const TUNER_ORDER = [
   'paths',
   'shape',
+  'orb', // lives in the Glass anything stage, so it follows the marks
   'lens',
+  'loupe',
   'font',
   'segmented',
+  'slider', // Glass on interaction
+  'switch',
   'ripple',
   'button',
   'dropdown',
@@ -1725,22 +1904,58 @@ cfgSections.sort((a, b) => {
     ib = TUNER_ORDER.indexOf(b.id);
   return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
 });
-buildTuner(cfgSections); // ── Glass typeface: font switcher + editable stage text ──
+// ── Glass typeface: font switcher + editable stage text ──
 // The engine rasterizes the element's computed font, so flipping font-family is
 // the whole trick: the glyph-width change trips mountGlassText's ResizeObserver,
 // which re-measures (re-reading the computed font) and rebuilds the map.
 const lgfDemo = document.querySelector('.lgfdemo');
 const lgfFontBtns = document.querySelectorAll('.lgf-fonts__opt');
-lgfFontBtns.forEach((btn) => {
-  btn.addEventListener('click', () => {
-    if (lgfDemo) {
-      const f = btn.dataset.lgfFont;
-      if (f === 'mono') delete lgfDemo.dataset.font;
-      else lgfDemo.dataset.font = f;
-    }
-    lgfFontBtns.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
-  });
-});
+
+// Fit the line to the stage. .lgfstage clips (overflow:hidden) and .lgf__text never
+// wraps — the map draws ONE fillText baseline, so wrapping would desync the raster
+// from the DOM — which means a wider face or a longer string just ran off the edge
+// and got cut. Serif and Script are both meaningfully wider than Mono at the same
+// size, so switching face was enough to lose the end of the word. Scale the size
+// down until it fits, leaving room for the glass to bleed past the glyphs.
+const LGF_BLEED = 20; // the filter reaches ~14px beyond the text box; round up
+function fitLgfText() {
+  const text = lgfDemo?.querySelector('.lgf__text');
+  const stage = lgfDemo?.closest('.lgfstage');
+  if (!text || !stage) return;
+  lgfDemo.style.fontSize = ''; // back to the clamp, then measure honestly
+  const cs = getComputedStyle(stage);
+  const avail =
+    stage.clientWidth -
+    parseFloat(cs.paddingLeft || '0') -
+    parseFloat(cs.paddingRight || '0') -
+    2 * LGF_BLEED;
+  const w = text.getBoundingClientRect().width;
+  if (!(w > 0) || !(avail > 0) || w <= avail) return;
+  const base = parseFloat(getComputedStyle(lgfDemo).fontSize) || 16;
+  lgfDemo.style.fontSize = `${Math.max(16, Math.floor(base * (avail / w)))}px`;
+}
+
+function setLgfFont(f) {
+  if (lgfDemo) {
+    if (f === 'mono') delete lgfDemo.dataset.font;
+    else lgfDemo.dataset.font = f;
+  }
+  lgfFontBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lgfFont === f)));
+  if (lgfFontPicker) lgfFontPicker.value = f;
+  fitLgfText();
+}
+lgfFontBtns.forEach((btn) => btn.addEventListener('click', () => setLgfFont(btn.dataset.lgfFont)));
+if (lgfDemo) {
+  // the text is editable, so a long enough string overflows for the same reason
+  lgfDemo.addEventListener('input', fitLgfText);
+  window.addEventListener('resize', fitLgfText);
+  fitLgfText();
+  // the first measure can land before the webfont does, and a fallback face is a
+  // different width — remeasure once the real one is in
+  void document.fonts?.ready.then(fitLgfText);
+}
+
+buildTuner(cfgSections);
 // Keep the editable glass text a single plain-text line: the map draws one
 // baseline (fillText), so Enter/rich paste would desync canvas raster from DOM.
 // contenteditable="plaintext-only" covers modern engines; the input normalize

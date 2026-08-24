@@ -19,13 +19,8 @@ import { CommandBlock, installCommand, shadcnAddCommand } from './package-manage
 import { Tuner } from './tuner';
 
 /** The busy backdrop each preview sits on, so the glass has something to refract. */
-export const SCENE =
-  'repeating-linear-gradient(0deg, rgb(255 255 255 / 12%) 0 1px, transparent 1px 26px),' +
-  'repeating-linear-gradient(90deg, rgb(255 255 255 / 12%) 0 1px, transparent 1px 26px),' +
-  'radial-gradient(60% 80% at 15% 20%, #ff4f9d, transparent 60%),' +
-  'radial-gradient(70% 80% at 85% 25%, #12d3ff, transparent 60%),' +
-  'radial-gradient(70% 80% at 60% 100%, #ffc93f, transparent 60%),' +
-  'linear-gradient(135deg, #7b3cff, #1f9dff 50%, #22e39b)';
+export { SCENE } from '@/lib/scene';
+import { SCENE } from '@/lib/scene';
 
 function CopyIcon({ done }: { done: boolean }) {
   return done ? (
@@ -233,6 +228,38 @@ function readTuneOptions(tune: TuneConfig): TuneOptions {
   return out;
 }
 
+/**
+ * Error boundary around a single preview. React unmounts the entire tree from the
+ * nearest boundary upward when a render or effect throws, and with no boundary at
+ * all that tree is the whole hydrated island — so one demo failing on an
+ * underpowered browser blanks the docs page. Class component because that is still
+ * the only way to catch a descendant's error in React.
+ */
+class DemoBoundary extends React.Component<
+  { title: string; children: React.ReactNode },
+  { error: Error | null }
+> {
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error) {
+    console.warn('[registry] preview failed to render', error);
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div className="mx-auto max-w-sm rounded-lg border border-white/15 bg-black/40 p-4 text-center text-sm text-white/70">
+        <p className="font-medium text-white/90">{this.props.title} can’t run here</p>
+        <p className="mt-1 text-xs">{this.state.error.message}</p>
+      </div>
+    );
+  }
+}
+
 export function ComponentPreview({ item }: { item: RegistryItem }) {
   const [tab, setTab] = React.useState<'preview' | 'code'>('preview');
   const tune = item.tune;
@@ -301,7 +328,14 @@ export function ComponentPreview({ item }: { item: RegistryItem }) {
       {tab === 'preview' ? (
         <>
           <PreviewBackdrop>
-            <Demo values={demoValues} options={demoOptions} />
+            {/* A demo that throws must cost us the demo, not the page. The Glass QR
+                is the one that can: it's a WebGL2 shader and has no context to fall
+                back to, so on a browser without WebGL2 it throws on mount — and an
+                unguarded throw here unmounts this whole island, taking the sidebar,
+                the tuner and the install command with it. */}
+            <DemoBoundary title={item.title}>
+              <Demo values={demoValues} options={demoOptions} />
+            </DemoBoundary>
           </PreviewBackdrop>
           {tune && (
             <Tuner

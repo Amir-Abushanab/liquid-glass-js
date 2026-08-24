@@ -18,6 +18,13 @@
 
 import { buildDisplacementMap } from './displacement';
 import { NEUTRAL } from './map-encode';
+import {
+  applyGlassFilter,
+  clearGlassFilter,
+  refreshGlassFilter,
+  glassOriginOffset,
+} from './filter-origin';
+import { preBlurStd } from './blur-quantize';
 
 // The live-tunable refraction params (everything except the box geometry).
 export interface GlassSurfaceParams {
@@ -84,13 +91,18 @@ function filterHTML(
   s2: number,
   s3: number,
   specAlpha: number,
+  // Usually 0,0. Non-zero only where WebKit needs its filter origin corrected and
+  // the transform pin would break a fixed-attachment backdrop — which is exactly
+  // this renderer's panes. See glassOriginOffset.
+  ox = 0,
+  oy = 0,
 ): string {
   return (
     `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB">` +
     `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
-    `<feImage href="${mapUrl}" xlink:href="${mapUrl}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="none" result="rawMap"></feImage>` +
+    `<feImage href="${mapUrl}" xlink:href="${mapUrl}" x="${ox}" y="${oy}" width="${w}" height="${h}" preserveAspectRatio="none" result="rawMap"></feImage>` +
     `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>` +
-    `<feGaussianBlur in="SourceGraphic" stdDeviation="${blur}" result="blurred"></feGaussianBlur>` +
+    `<feGaussianBlur in="SourceGraphic" stdDeviation="${preBlurStd(blur)}" result="blurred"></feGaussianBlur>` +
     `<feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
     `<feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix>` +
     `<feDisplacementMap in="blurred" in2="map" scale="${s2}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
@@ -125,6 +137,10 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
   let n = 0;
   let active = o.active ?? true;
   let curId = '';
+  let filterNode: SVGFilterElement | null = null;
+  let blurNode: SVGFEGaussianBlurElement | null = null;
+  let lastW = -1;
+  let lastH = -1;
   let holder: HTMLElement | null = null;
   let feImage: SVGFEImageElement | null = null;
   let dm: SVGFEDisplacementMapElement[] = [];
@@ -132,6 +148,18 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
   let ready: Promise<void> = Promise.resolve();
 
   // Push the current `frac` into the three displacement scales + the spec alpha.
+  // Safari caches filter output by id, so the per-frame paths below (which only
+  // mutate attributes) would keep painting the frame the id was minted at — the
+  // switch that won't follow a drag. Rename to force a re-run; the map is untouched.
+  const bump = () => {
+    if (!active || !filterNode) return;
+    curId = refreshGlassFilter(o.target, filterNode, `${base}-${++n}`);
+  };
+
+  // The map is built from depth/dome/edge/glow and the box; strength, chroma, spec
+  // and blur are filter attributes, so a change to those never needs a new PNG.
+  const MAP_KEYS = ['depth', 'dome', 'edge', 'glow'] as const;
+
   const applyScales = () => {
     const s = cur.strength * frac;
     dm[0]?.setAttribute('scale', String(s * (1 + 0.2 * cur.chroma)));
@@ -139,6 +167,8 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
     dm[2]?.setAttribute('scale', String(s));
     const a = cur.spec * frac;
     spec?.setAttribute('values', `0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 ${a} 0 ${-NEUTRAL * a}`);
+    blurNode?.setAttribute('stdDeviation', String(preBlurStd(cur.blur)));
+    bump();
   };
 
   const rebuild = () => {
@@ -162,6 +192,7 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
     const s = cur.strength * frac;
     const div = document.createElement('div');
     div.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
+    const origin = glassOriginOffset(o.target);
     div.innerHTML = filterHTML(
       id,
       mapW,
@@ -172,15 +203,18 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
       s * (1 + 0.1 * cur.chroma),
       s,
       cur.spec * frac,
+      origin.x,
+      origin.y,
     );
     o.host.appendChild(div);
     curId = id;
     feImage = div.querySelector('feImage');
+    filterNode = div.querySelector('filter');
+    blurNode = div.querySelector('feGaussianBlur');
     dm = Array.from(div.querySelectorAll('feDisplacementMap'));
     spec = div.querySelector<SVGFEColorMatrixElement>('[result="specMask"]');
     if (active) {
-      o.target.style.filter = `url(#${id})`;
-      o.target.style.setProperty('-webkit-filter', `url(#${id})`);
+      applyGlassFilter(o.target, id);
     }
     if (holder) holder.remove();
     holder = div;
@@ -200,8 +234,17 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
       // `feImage` maps the whole map into x/y/width/height, so a differing
       // aspect momentarily distorts the dome — that transient IS the liquid
       // wobble; `regenerate()` on settle restores an exact map.
-      feImage?.setAttribute('width', String(Math.max(1, width)));
-      feImage?.setAttribute('height', String(Math.max(1, height)));
+      const w = Math.max(1, width);
+      const h = Math.max(1, height);
+      // Skip frames the box did not actually change on: bump() re-points the filter
+      // for Safari, which is a re-rasterization, and spending one where nothing moved
+      // buys nothing. Compare at the precision the attribute is written at.
+      if (w === lastW && h === lastH) return;
+      lastW = w;
+      lastH = h;
+      feImage?.setAttribute('width', String(w));
+      feImage?.setAttribute('height', String(h));
+      bump();
     },
     setDisplScale(f) {
       // Ceiling above 1 so callers can briefly over-refract (the button's
@@ -213,24 +256,22 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
     setActive(on) {
       active = on;
       if (on && curId) {
-        o.target.style.filter = `url(#${curId})`;
-        o.target.style.setProperty('-webkit-filter', `url(#${curId})`);
+        applyGlassFilter(o.target, curId);
       } else {
-        o.target.style.filter = '';
-        o.target.style.removeProperty('-webkit-filter');
+        clearGlassFilter(o.target);
       }
     },
     reconfigure(patch) {
       Object.assign(cur, patch);
-      rebuild();
+      if (MAP_KEYS.some((k) => patch[k] != null)) rebuild();
+      else applyScales();
     },
     getOptions() {
       return { ...cur };
     },
     dispose() {
       holder?.remove();
-      o.target.style.filter = '';
-      o.target.style.removeProperty('-webkit-filter');
+      clearGlassFilter(o.target);
     },
   };
 }

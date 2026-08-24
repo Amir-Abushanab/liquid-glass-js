@@ -9,6 +9,14 @@
 import { type GlyphMap, type GlyphMapCache } from './glyph-map';
 import { specMaskValues, darkMaskValues } from './map-encode';
 import { parseCssColor } from './color';
+import {
+  applyGlassFilter,
+  clearGlassFilter,
+  primitiveScale,
+  glassOriginOffset,
+  refreshGlassFilter,
+} from './filter-origin';
+import { preBlurStd } from './blur-quantize';
 
 // The seven refraction params + shade (item 2). Same set for text and shapes.
 export interface AlphaGlassParams {
@@ -61,7 +69,9 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
   let holder: HTMLElement | null = null;
   let dispNodes: SVGFEDisplacementMapElement[] = [];
   let blurNode: SVGFEGaussianBlurElement | null = null;
+  let filterNode: SVGFilterElement | null = null;
   let ro: ResizeObserver | null = null;
+  let io: IntersectionObserver | null = null;
   let m: M | null = null;
   let firstRegen = true;
 
@@ -73,26 +83,81 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
 
   const applyAttrs = () => {
     if (!dispNodes.length) return;
+    const k = primitiveScale(core.target); // see regen(): 1 except viewBox'd svg on WebKit
     const s = scales();
-    dispNodes.forEach((d, i) => d.setAttribute('scale', String(s[i])));
-    blurNode?.setAttribute('stdDeviation', String(cur.blur));
+    dispNodes.forEach((d, i) => d.setAttribute('scale', String(s[i] * k)));
+    blurNode?.setAttribute('stdDeviation', String(preBlurStd(cur.blur * k)));
   };
 
-  const regen = () => {
+  // The map is a data-URL PNG handed to feImage, and an feImage that hasn't decoded
+  // yet contributes nothing: `feComposite in="rawMap" in2="mapBg" operator="over"`
+  // falls through to the neutral flood, every displacement is zero, and the glyphs
+  // paint flat and unrefracted. It stays that way, because this chain is built once
+  // and never re-runs on its own — which is why a section could look wrong on first
+  // sight and come good the moment anything rebuilt it (switching typeface, say).
+  //
+  // So decode before applying. Awaiting means a newer regen can overtake an older one,
+  // hence the generation check.
+  const regen = async () => {
     if (disposed || !m) return;
     const map = core.buildMap(m, cur, cache);
     if (!map.url) return;
     const id = `${core.idPrefix}-${++n}`; // fresh id on every map change (Safari cache bust)
-    const [s1, s2, s3] = scales();
-    const pad = 16;
+    // Every primitiveUnits value below goes through k. It is 1 everywhere except an
+    // inline <svg> target with a non-css-px viewBox on WebKit — see primitiveScale.
+    const k = primitiveScale(core.target);
+    // ...and every userSpaceOnUse POSITION also takes the origin offset. It is 0,0
+    // unless WebKit needs this element's origin corrected and the transform pin is
+    // unavailable — which is the case for a target carrying a fixed-attachment
+    // background, as the glass wordmark does. Without it the region and the map land
+    // at the document origin, the map is empty here, and the closing
+    // `operator="in"` against SourceAlpha clips the result to nothing: blank text.
+    const org = glassOriginOffset(core.target);
+    const ox = (-map.margin + org.x) * k;
+    const oy = (-map.margin + org.y) * k;
+    const [s1, s2, s3] = scales().map((v) => v * k);
     const div = document.createElement('div');
     div.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
+    // The feImage carries an EXPLICIT subregion, and it has to. Left without one it
+    // fills the filter region instead, which makes the map's scale and position
+    // hostage to whatever region the engine computed — and WebKit intersects the
+    // region with the element's own box when the target is an inline <svg>, as
+    // glass marks are. Measured on a 180x180 <svg>, region declared -20,-20 220x220:
+    //
+    //   chromium -> map painted 220x220 at the declared origin   (correct)
+    //   webkit   -> map painted 180x180 at the element origin    (clipped to the box)
+    //
+    // so the map got squeezed into the smaller box and shifted by the margin: the
+    // displacement field stopped lining up with the artwork, which is the glass mark
+    // losing its rim and showing a dark offset crescent. With a subregion the map is
+    // placed on its own terms and the region only clips — and the chain already ends
+    // in `operator="in"` against SourceAlpha, so clipping changes nothing visible.
+    //
+    // The REGION takes k as well as the primitives. WebKit reads every filter
+    // coordinate on an inline <svg> in the svg's own user units, the region
+    // included. That is easy to miss when the viewBox is coarser than css px: the
+    // region merely grows and is clipped back to the element, which looks correct.
+    // It only shows when the viewBox is FINER (128 units drawn at 90px, k>1), where
+    // the region shrinks to 90*0.703 = 63px and shears the right and bottom off any
+    // artwork that reaches its edges — the framework logos, while the droplet and
+    // sparkle float clear of theirs and looked fine.
+    //
+    // Both are also userSpaceOnUse, which Safari resolves against the page origin
+    // unless the target owns a coordinate system (see filter-origin.ts) — that is
+    // why glass text and glass marks rendered as blank space there. applyGlassFilter
+    // below pins it. Inline <svg> targets already own one, so they were never
+    // affected by that half.
+    //
+    // The region must NOT be expressed as objectBoundingBox percentages instead:
+    // that box is the ink bbox, not the border box, and the engines disagree about
+    // it — for one 270x84 text element, webkit/firefox resolve 272x100 and chromium
+    // 270x99 — so a px-exact map extent cannot be written as a percentage.
     div.innerHTML =
-      `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="${-pad}" y="${-pad}" width="${m.rectW + 2 * pad}" height="${m.rectH + 2 * pad}" color-interpolation-filters="sRGB">` +
+      `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="${ox}" y="${oy}" width="${map.cssW * k}" height="${map.cssH * k}" color-interpolation-filters="sRGB">` +
       `<feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood>` +
-      `<feImage href="${map.url}" xlink:href="${map.url}" x="${-map.margin}" y="${-map.margin}" width="${map.cssW}" height="${map.cssH}" preserveAspectRatio="none" result="rawMap"></feImage>` +
+      `<feImage href="${map.url}" xlink:href="${map.url}" x="${ox}" y="${oy}" width="${map.cssW * k}" height="${map.cssH * k}" preserveAspectRatio="none" result="rawMap"></feImage>` +
       `<feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite>` +
-      `<feGaussianBlur in="SourceGraphic" stdDeviation="${cur.blur}" result="blurred"></feGaussianBlur>` +
+      `<feGaussianBlur in="SourceGraphic" stdDeviation="${preBlurStd(cur.blur * k)}" result="blurred"></feGaussianBlur>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
       `<feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s2}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
@@ -110,13 +175,22 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
       // on purpose — inward-biased bevel light, crisp silhouette, no halo bleed.
       `<feComposite in="litDark" in2="SourceAlpha" operator="in"></feComposite>` +
       `</filter></svg>`;
+    const gen = n;
+    try {
+      const img = new Image();
+      img.src = map.url;
+      await img.decode();
+    } catch {
+      /* no decode() here, or an undecodable map: fall through and let it paint */
+    }
+    if (disposed || n !== gen) return; // a newer map landed while we waited
     core.host.appendChild(div);
-    core.target.style.filter = `url(#${id})`;
-    core.target.style.setProperty('-webkit-filter', `url(#${id})`);
+    applyGlassFilter(core.target, id);
     if (holder) holder.remove();
     holder = div;
     dispNodes = Array.from(div.querySelectorAll('feDisplacementMap'));
     blurNode = div.querySelector('feGaussianBlur');
+    filterNode = div.querySelector('filter');
     if (firstRegen) {
       firstRegen = false;
       core.onReady?.(); // the filter has landed — let the consumer un-dim (item 5)
@@ -131,7 +205,7 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
         clearTimeout(tid);
         tid = 0;
       }
-      regen();
+      void regen();
     };
     raf = requestAnimationFrame(flush);
     // rAF freezes entirely on hidden tabs — the timeout keeps a deferred regen
@@ -154,7 +228,7 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
     }
     if (disposed) return;
     m = core.measure();
-    regen();
+    await regen();
     ro = new ResizeObserver(() => {
       if (disposed) return;
       const r = core.target.getBoundingClientRect();
@@ -163,6 +237,22 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
       scheduleRegen();
     });
     ro.observe(core.target);
+
+    // Safari keys filter output by id, and this chain is built once and then left
+    // alone — so an element that mounted below the fold can be painted from whatever
+    // was cached before it was ever on screen, and nothing here would ever ask for it
+    // again. Re-point it when it comes into view: a rename, not a rebuild, so no map
+    // is re-encoded, and refreshGlassFilter is a no-op off WebKit.
+    const repoint = () => {
+      if (disposed || !filterNode) return;
+      refreshGlassFilter(core.target, filterNode, `${core.idPrefix}-${++n}`);
+    };
+    if (typeof IntersectionObserver !== 'undefined') {
+      io = new IntersectionObserver((es) => {
+        if (es.some((e) => e.isIntersecting)) repoint();
+      });
+      io.observe(core.target);
+    }
   };
   void init();
 
@@ -180,9 +270,9 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
       if (raf) cancelAnimationFrame(raf);
       if (tid) clearTimeout(tid);
       ro?.disconnect();
+      io?.disconnect();
       holder?.remove();
-      core.target.style.filter = '';
-      core.target.style.removeProperty('-webkit-filter');
+      clearGlassFilter(core.target);
     },
   };
 }

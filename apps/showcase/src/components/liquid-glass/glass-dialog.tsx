@@ -7,6 +7,36 @@ import { cn } from '@/lib/utils';
 import '@liquidglassjs/core/css';
 
 /**
+ * The glass rim has to trace the same curve as the panel it fills. `rounded-2xl` is a
+ * theme token — 18px under the default shadcn `--radius`, something else in the next
+ * app — so a hardcoded number on the glass silently stops matching and you get two
+ * rounded rectangles a couple of px apart at every corner. Read the real one instead.
+ *
+ * Returns null until the popup has actually been measured, and the caller holds the
+ * glass off until then. Rendering it on a guessed radius costs a whole extra glass
+ * mount per open: the guess builds a displacement map, the measurement lands one
+ * commit later, and <LiquidGlass> has no live reconfigure, so the corrected radius
+ * throws that map away and builds another. The wait is invisible — the measurement
+ * resolves in a layout effect (pre-paint), while the glass only ever mounts in a
+ * passive effect (post-paint).
+ */
+function usePanelRadius(el: HTMLElement | null, fallback = 16) {
+  const [radius, setRadius] = React.useState<number | null>(null);
+  React.useLayoutEffect(() => {
+    if (!el) return;
+    const read = () => {
+      const r = parseFloat(getComputedStyle(el).borderTopLeftRadius) || fallback;
+      setRadius((prev) => (prev === r ? prev : r));
+    };
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [el, fallback]);
+  return radius;
+}
+
+/**
  * Liquid-glass Dialog — Base UI's Dialog (focus trap, scroll lock, dismissal, and
  * all the ARIA) wearing a frosted liquid-glass panel. Behavior is Base UI's; the
  * glass is the skin. You own this file: restyle the panel, backdrop, and animation.
@@ -47,6 +77,7 @@ function GlassDialogContent({
   depth = 8,
   edge = 0.9,
   glow = 0.3,
+  refract,
   ...props
 }: React.ComponentProps<typeof BaseDialog.Popup> & {
   showClose?: boolean;
@@ -56,7 +87,20 @@ function GlassDialogContent({
   depth?: number;
   edge?: number;
   glow?: number;
+  /**
+   * Element to refract. Given one, the glass takes the SVG path and bends that
+   * content in every browser; without one there is nothing behind this to filter and
+   * it falls back to a frosted blur, which is the sensible default for a surface that
+   * floats over arbitrary app content.
+   */
+  refract?: HTMLElement | null;
 }) {
+  // A callback ref, not useRef: the popup mounts in a later phase than this
+  // component, so a layout effect keyed on a stable ref object reads null once and
+  // never runs again. This re-runs the moment the node actually attaches.
+  const [popupEl, setPopupEl] = React.useState<HTMLDivElement | null>(null);
+  const radius = usePanelRadius(popupEl);
+
   return (
     <BaseDialog.Portal>
       {/* a light page frost, fading with the dialog — dims just enough to lift the
@@ -70,6 +114,7 @@ function GlassDialogContent({
       {/* positioning + scroll container */}
       <BaseDialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4">
         <BaseDialog.Popup
+          ref={setPopupEl}
           className={cn(
             // shadow lives on the wrapper — the glass root's overflow:hidden would clip it
             'relative w-full max-w-lg overflow-hidden rounded-2xl shadow-2xl outline-none',
@@ -81,19 +126,23 @@ function GlassDialogContent({
           {...props}
         >
           {/* frosted-glass panel — blurs the page behind the modal; sits BEHIND the
-              content so titles/buttons stay crisp (not refracted). radius matches
-              rounded-2xl (16px). */}
-          <LiquidGlass
-            mode="frost"
-            radius={16}
-            strength={strength}
-            chroma={chroma}
-            dome={dome}
-            depth={depth}
-            edge={edge}
-            glow={glow}
-            className="pointer-events-none absolute inset-0"
-          />
+              content so titles/buttons stay crisp (not refracted). The radius is read
+              off the popup, not assumed, so the rim traces the panel's own corner —
+              and the glass waits for that read (see usePanelRadius) so it mounts once,
+              on the real corner, instead of once on a guess and again on the truth. */}
+          {radius !== null && (
+            <LiquidGlass
+              refract={refract ?? undefined}
+              radius={radius}
+              strength={strength}
+              chroma={chroma}
+              dome={dome}
+              depth={depth}
+              edge={edge}
+              glow={glow}
+              className="pointer-events-none absolute inset-0"
+            />
+          )}
           {/* crisp, interactive content on top */}
           <div className="relative z-10 p-6">
             {children}

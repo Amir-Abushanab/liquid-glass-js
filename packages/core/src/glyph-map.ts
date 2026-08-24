@@ -19,6 +19,13 @@ export interface GlyphMapOptions {
   rectW: number; // target border-box, CSS px
   rectH: number;
   baseline: number; // alphabetic baseline offset from border-box top, CSS px
+  // Where the text starts across, from the border-box left. Everything else here is
+  // measured against the border box, and the glyphs are not: they begin at the content
+  // box. Zero for an unpadded target, and padding a glass heading is the ordinary way
+  // to keep `background-clip: text` from cutting its descenders, so this is not an
+  // edge case — miss it and the whole map is drawn one padding to the left of the
+  // letters it is supposed to be shaped like.
+  padLeft?: number;
   fontCss: string; // canvas font shorthand composed from computed longhands
   letterSpacing: string; // computed letter-spacing px string ('' = normal)
   fontSizePx: number;
@@ -161,7 +168,46 @@ export function buildAlphaDisplacementMap(o: AlphaMapOptions, cache: GlyphMapCac
   const tmp = cache.tmp!;
   const N = w * h;
   for (let i = 0; i < N; i++) hn[i] = src[i * 4 + 3] / 255;
-  const sn = Math.max(0.5, o.bevel * o.dpr);
+
+  // ── how thick is the ink? ─────────────────────────────────────────────────────
+  //
+  // `bevel` is a Gaussian sigma in px, but a stroke's width is not. The same 1.3px
+  // rim that reads as a highlight down a 24px display stem swallows a 3px one whole,
+  // and a stroke with no flat core left is ALL rim: every pixel is a gradient, so the
+  // edge glint and the sheen fire across the whole glyph and it washes out to a
+  // ghost. That is what makes one bevel look wrong at another weight, family or size
+  // — the parameter is absolute and the artwork is not.
+  //
+  // Mean stroke width falls out of the coverage for free. For a stroke-like shape
+  // area ≈ width × length and total variation ≈ perimeter ≈ 2 × length, so
+  // width ≈ 2·area/TV. Exact for an axis-aligned bar, about √2 low on 45° diagonals,
+  // which errs toward a thinner rim — the safe direction.
+  let area = 0;
+  let tv = 0;
+  for (let y = 0; y < h; y++) {
+    const row = y * w;
+    for (let x = 0; x < w; x++) {
+      const a = hn[row + x];
+      area += a;
+      if (x + 1 < w) tv += Math.abs(a - hn[row + x + 1]);
+      if (y + 1 < h) tv += Math.abs(a - hn[row + w + x]);
+    }
+  }
+  const strokePx = tv > 1e-6 ? (2 * area) / tv : 0;
+
+  // Hold the rim to a fraction of that. Blurring a stem of width W by W/3 leaves its
+  // centre at erf(3/(2√2)) ≈ 0.86 — still a distinct interior for the dome to swell
+  // and for the glint to run around — while W/8 is thin enough to still read as an
+  // edge rather than a hairline. Between those two `bevel` is honoured exactly, so
+  // artwork that was already in proportion is untouched; it only bites where the
+  // requested rim was going to eat the stroke or vanish against it.
+  //
+  // The upper bound also can't outrun the raster: the margin was sized for 3·bevel,
+  // and a sigma wider than margin/3 would have its ramp clipped at the edge.
+  const want = Math.max(0.5, o.bevel * o.dpr);
+  const hi = strokePx > 0 ? Math.min(strokePx / 3, (margin * o.dpr) / 3) : want;
+  const lo = Math.min(strokePx / 8, hi);
+  const sn = Math.max(0.5, Math.min(Math.max(want, lo), hi));
   gaussBlur(hn, tmp, w, h, sn);
   hw.set(hn);
   gaussBlur(hw, tmp, w, h, sn * Math.sqrt(8)); // total sigma = 3·sn
@@ -224,9 +270,44 @@ export function buildAlphaDisplacementMap(o: AlphaMapOptions, cache: GlyphMapCac
   return { url: cv.toDataURL(), margin, cssW: w / o.dpr, cssH: h / o.dpr };
 }
 
+let inkScratch: CanvasRenderingContext2D | null = null;
+
+/**
+ * How far the glyphs reach outside the element's own box, per side, in CSS px.
+ *
+ * The map has to cover the ink, and a line box does not: a font's ascent and descent
+ * are its own business and routinely exceed `line-height`. This used to be a flat
+ * 0.2em, which is fine for the mono and sans faces it was measured on and wrong for
+ * anything with reach — a script face at 57.6px wants 22px below the box against a
+ * 19px margin, and the tails of its descenders get cut off square.
+ *
+ * Measured at the size the caller is rasterizing at, which is not necessarily the one
+ * CSS reports — see fontScale in glass-text.
+ */
+function inkOverflow(o: GlyphMapOptions): number {
+  try {
+    if (!inkScratch) inkScratch = document.createElement('canvas').getContext('2d');
+    const ctx = inkScratch;
+    if (!ctx) return 0;
+    const c = ctx as CanvasRenderingContext2D & { letterSpacing?: string };
+    if ('letterSpacing' in (ctx as object)) c.letterSpacing = o.letterSpacing || '0px';
+    ctx.font = o.fontCss;
+    const m = ctx.measureText(o.text);
+    // Older engines don't report the ink box; the em-based guess is the fallback.
+    if (typeof m.actualBoundingBoxAscent !== 'number') return 0;
+    return Math.max(
+      m.actualBoundingBoxAscent - o.baseline, // above the box top
+      m.actualBoundingBoxDescent - (o.rectH - o.baseline), // below the bottom
+      m.actualBoundingBoxLeft - (o.padLeft ?? 0), // left of the text origin
+      m.actualBoundingBoxRight + (o.padLeft ?? 0) - o.rectW, // past the advance
+    );
+  } catch {
+    return 0;
+  }
+}
+
 // Text is one draw closure over the shared core: `fillText` into the pre-scaled
-// ctx at the baseline, with the letter-spacing feature-detect. marginBoost =
-// 0.2·fontSize covers ink overflow (mono ascent+descent ≈ 1.2em vs line-height).
+// ctx at the baseline, with the letter-spacing feature-detect.
 export function buildGlyphDisplacementMap(o: GlyphMapOptions, cache: GlyphMapCache = {}): GlyphMap {
   return buildAlphaDisplacementMap(
     {
@@ -238,12 +319,14 @@ export function buildGlyphDisplacementMap(o: GlyphMapOptions, cache: GlyphMapCac
       edge: o.edge,
       glow: o.glow,
       shade: o.shade,
-      marginBoost: 0.2 * o.fontSizePx,
+      // 0.2em stays as a floor so a face that reports no ink box still gets the old
+      // behaviour; 2px of slack keeps the outer end of the bevel ramp inside too.
+      marginBoost: Math.max(0.2 * o.fontSizePx, inkOverflow(o) + 2),
       draw: (ctx, margin) => {
         ctx.font = o.fontCss;
         ctx.textBaseline = 'alphabetic';
         ctx.fillStyle = '#fff';
-        const bx = margin;
+        const bx = margin + (o.padLeft ?? 0);
         const by = margin + o.baseline;
         // ctx.letterSpacing shipped later than the rest (and TS 5.3's lib.dom lacks
         // it) — feature-detect on a cast expression (not `ctx` directly, or newer

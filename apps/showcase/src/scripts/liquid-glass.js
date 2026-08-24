@@ -1,22 +1,32 @@
-import { buildDisplacementMap } from '@liquidglassjs/core';
+import { buildDisplacementMap, preBlurStd } from '@liquidglassjs/core';
+import { presetDefaults } from '../lib/glass-presets';
 const MARGIN = 28;
+// The three engines disagree completely about what a sub-pixel stdDeviation means —
+// WebKit softens as much at 0.2 as it does at 1.5, Chromium is still hard at 0.75 —
+// so the library zeroes anything below its threshold and these local copies of the
+// chain have to do the same. Without it this page's SVG card renders a visibly
+// blurrier picture in Safari than the WebGL card showing the identical content.
 const SPEC_LO = 0.25;
 const SPEC_HI = 0.7;
 const n = (el, k, d) => {
   const v = Number(el.dataset[k]);
   return Number.isNaN(v) ? d : v;
 };
+// Defaults come from the shared preset, so a card only carries `data-*` for what it
+// deliberately does differently — which for the render-paths trio is the WebGL and
+// Frost cards, whose whole point is that they aren't tuned like the SVG one.
+const D = presetDefaults('surface');
 const params = (el) => ({
   radius: n(el, 'radius', 22),
-  depth: n(el, 'depth', 20),
-  dome: n(el, 'dome', 14),
-  strength: n(el, 'strength', 16),
-  edge: n(el, 'edge', 0.8),
-  glow: n(el, 'glow', 0.2),
-  chroma: n(el, 'chroma', 0.3),
-  blur: n(el, 'blur', 2),
-  spec: n(el, 'spec', 0.9),
-  vibrancy: n(el, 'vibrancy', 0.15),
+  depth: n(el, 'depth', D.depth),
+  dome: n(el, 'dome', D.dome),
+  strength: n(el, 'strength', D.strength),
+  edge: n(el, 'edge', D.edge),
+  glow: n(el, 'glow', D.glow),
+  chroma: n(el, 'chroma', D.chroma),
+  blur: n(el, 'blur', D.blur),
+  spec: n(el, 'spec', D.spec),
+  vibrancy: n(el, 'vibrancy', D.vibrancy),
   backdrop: el.dataset.backdrop || '',
   source: el.dataset.source || '',
 });
@@ -40,7 +50,7 @@ function mountSvg(el, surface, p) {
   surface.style.cssText = `position:absolute;inset:-${MARGIN}px;pointer-events:none;background-color:var(--paper);background-image:${p.backdrop};background-position:center top;background-repeat:no-repeat;background-attachment:fixed;background-size:cover;filter:url(#${uid})`;
   const holder = document.createElement('div');
   holder.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
-  holder.innerHTML = `<svg width="0" height="0" aria-hidden="true"><filter id="${uid}" x="0" y="0" width="1" height="1" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood><feImage class="ps-glass__map" preserveAspectRatio="none" result="rawMap"></feImage><feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite><feGaussianBlur in="SourceGraphic" stdDeviation="${p.blur}" result="blurred"></feGaussianBlur><feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix><feDisplacementMap in="blurred" in2="map" scale="${s2}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispG"></feColorMatrix><feDisplacementMap in="blurred" in2="map" scale="${s3}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="dispB"></feColorMatrix><feComposite in="dispR" in2="dispG" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite><feComposite in2="dispB" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="lensResult"></feComposite><feColorMatrix in="map" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 1 0 -0.5019607843137255" result="specMask"></feColorMatrix><feComposite in="specMask" in2="lensResult" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite></filter></svg>`;
+  holder.innerHTML = `<svg width="0" height="0" aria-hidden="true"><filter id="${uid}" x="0" y="0" width="1" height="1" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood><feImage class="ps-glass__map" preserveAspectRatio="none" result="rawMap"></feImage><feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite><feGaussianBlur in="SourceGraphic" stdDeviation="${preBlurStd(p.blur)}" result="blurred"></feGaussianBlur><feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix><feDisplacementMap in="blurred" in2="map" scale="${s2}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispG"></feColorMatrix><feDisplacementMap in="blurred" in2="map" scale="${s3}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="dispB"></feColorMatrix><feComposite in="dispR" in2="dispG" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite><feComposite in2="dispB" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="lensResult"></feComposite><feColorMatrix in="map" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 1 0 -0.5019607843137255" result="specMask"></feColorMatrix><feComposite in="specMask" in2="lensResult" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite></filter></svg>`;
   el.appendChild(holder);
   const map = holder.querySelector('feImage');
   let last = '';
@@ -71,7 +81,7 @@ function mountSvg(el, surface, p) {
   const blurNode = holder.querySelector('feGaussianBlur');
   const dispNodes = holder.querySelectorAll('feDisplacementMap');
   return () => {
-    blurNode?.setAttribute('stdDeviation', String(p.blur));
+    blurNode?.setAttribute('stdDeviation', String(preBlurStd(p.blur)));
     dispNodes[0]?.setAttribute('scale', String(p.strength * (1 + 0.2 * p.chroma)));
     dispNodes[1]?.setAttribute('scale', String(p.strength * (1 + 0.1 * p.chroma)));
     dispNodes[2]?.setAttribute('scale', String(p.strength));
@@ -81,7 +91,8 @@ function mountSvg(el, surface, p) {
 }
 async function mountWebgl(el, surface, p, src, reg) {
   const canvas = document.createElement('canvas');
-  canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block';
+  canvas.style.cssText =
+    'position:absolute;inset:0;width:100%;height:100%;display:block;border-radius:inherit';
   surface.appendChild(canvas);
   let glass;
   try {
@@ -221,7 +232,7 @@ function mountFrost(el, surface, p) {
     });
     const svg = document.createElement('div');
     svg.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
-    svg.innerHTML = `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" x="0" y="0" width="1" height="1" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood><feImage href="${map}" xlink:href="${map}" preserveAspectRatio="none" result="rawMap"></feImage><feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite><feGaussianBlur in="SourceGraphic" stdDeviation="${frostBlur}" result="blurred"></feGaussianBlur><feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix><feDisplacementMap in="blurred" in2="map" scale="${s2}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispG"></feColorMatrix><feDisplacementMap in="blurred" in2="map" scale="${s3}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="dispB"></feColorMatrix><feComposite in="dispR" in2="dispG" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite><feComposite in2="dispB" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="lensResult"></feComposite><feColorMatrix in="map" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 1 0 -0.5019607843137255" result="specMask"></feColorMatrix><feComposite in="specMask" in2="lensResult" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite></filter></svg>`;
+    svg.innerHTML = `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" x="0" y="0" width="1" height="1" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood><feImage href="${map}" xlink:href="${map}" preserveAspectRatio="none" result="rawMap"></feImage><feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite><feGaussianBlur in="SourceGraphic" stdDeviation="${preBlurStd(frostBlur)}" result="blurred"></feGaussianBlur><feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix><feDisplacementMap in="blurred" in2="map" scale="${s2}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispG"></feColorMatrix><feDisplacementMap in="blurred" in2="map" scale="${s3}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="dispB"></feColorMatrix><feComposite in="dispR" in2="dispG" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite><feComposite in2="dispB" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="lensResult"></feComposite><feColorMatrix in="map" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 1 0 -0.5019607843137255" result="specMask"></feColorMatrix><feComposite in="specMask" in2="lensResult" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite></filter></svg>`;
     el.appendChild(svg);
     surface.style.cssText = frostCss(`url(#${id}) saturate(1.2)`);
     if (holder) holder.remove();
@@ -264,7 +275,7 @@ function mountDomRefract(el, refract, p) {
     });
     const svg = document.createElement('div');
     svg.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
-    svg.innerHTML = `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" x="0" y="0" width="1" height="1" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood><feImage href="${map}" xlink:href="${map}" preserveAspectRatio="none" result="rawMap"></feImage><feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite><feGaussianBlur in="SourceGraphic" stdDeviation="${p.blur}" result="blurred"></feGaussianBlur><feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix><feDisplacementMap in="blurred" in2="map" scale="${s2}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispG"></feColorMatrix><feDisplacementMap in="blurred" in2="map" scale="${s3}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="dispB"></feColorMatrix><feComposite in="dispR" in2="dispG" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite><feComposite in2="dispB" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="lensResult"></feComposite><feColorMatrix in="map" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 1 0 -0.5019607843137255" result="specMask"></feColorMatrix><feComposite in="specMask" in2="lensResult" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite></filter></svg>`;
+    svg.innerHTML = `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" x="0" y="0" width="1" height="1" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-color="rgb(128,128,128)" flood-opacity="1" result="mapBg"></feFlood><feImage href="${map}" xlink:href="${map}" preserveAspectRatio="none" result="rawMap"></feImage><feComposite in="rawMap" in2="mapBg" operator="over" result="map"></feComposite><feGaussianBlur in="SourceGraphic" stdDeviation="${preBlurStd(p.blur)}" result="blurred"></feGaussianBlur><feDisplacementMap in="blurred" in2="map" scale="${s1}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispR"></feColorMatrix><feDisplacementMap in="blurred" in2="map" scale="${s2}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispG"></feColorMatrix><feDisplacementMap in="blurred" in2="map" scale="${s3}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="dispB"></feColorMatrix><feComposite in="dispR" in2="dispG" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite><feComposite in2="dispB" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="lensResult"></feComposite><feColorMatrix in="map" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 1 0 -0.5019607843137255" result="specMask"></feColorMatrix><feComposite in="specMask" in2="lensResult" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite></filter></svg>`;
     el.appendChild(svg);
     refract.style.filter = `url(#${id})`;
     refract.style.setProperty('-webkit-filter', `url(#${id})`);
@@ -349,4 +360,9 @@ document.querySelectorAll('svg[width="0"][height="0"][aria-hidden="true"]').forE
   if (holder && holder.tagName === 'DIV') holder.remove();
   else svg.remove();
 });
+// Same reasoning for the loupe: its root is built at runtime and holds a whole
+// cloned subtree, so a capture taken mid-gesture would bake in a frozen capsule —
+// plus duplicates of every id inside it. This module is imported before
+// showcase.js mounts the live one, so anything here is residue by definition.
+document.querySelectorAll('[data-ps-loupe]').forEach((el) => el.remove());
 document.querySelectorAll('[data-glass]').forEach(mount);

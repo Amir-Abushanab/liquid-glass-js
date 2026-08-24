@@ -14,11 +14,25 @@ export type { GlassOptions, GlassInstance } from './mount';
 
 // Displacement-map generator (SDF rounded-rect dome; R/G/B encoding)
 export { buildDisplacementMap, renderDisplacementMap, computeDomeConstants } from './displacement';
+// Exported for the same reason as the map builder: anyone hand-rolling a displacement
+// chain has to normalise the pre-blur or their sub-pixel `blur` renders three different
+// pictures in three engines. See filter-origin.ts for the measurements.
+export { preBlurStd } from './blur-quantize';
 export type { GlassMapOptions } from './displacement';
 
 // Moving SVG lens over live DOM
 export { mountGlassLens } from './glass-lens';
 export type { GlassLensOptions, GlassLensParams, GlassLens } from './glass-lens';
+
+// iOS-style magnifying loupe (lens over a scaled live-DOM clone)
+export { mountGlassLoupe, GLASS_LOUPE_DEFAULTS } from './glass-loupe';
+export type {
+  GlassLoupeParams,
+  GlassLoupeOptions,
+  GlassLoupeTrigger,
+  GlassLoupeSample,
+  GlassLoupe,
+} from './glass-loupe';
 
 // Ripple-button bloom (animated SVG filter)
 export { mountSvgRipple } from './svg-ripple';
@@ -60,6 +74,8 @@ export type {
 
 // Overshoot easing (used by switch/segmented snaps)
 export { cubicBezier } from './dynamics';
+export { glassTween } from './glass-tween';
+export type { GlassTween, GlassTweenOptions, GlassTweenTarget } from './glass-tween';
 
 // Shared colour utilities (hex/palette helpers; also consumed by @liquidglassjs/qr)
 export { hexToRgb, SPLASH_COLORS, nextColor } from './color';

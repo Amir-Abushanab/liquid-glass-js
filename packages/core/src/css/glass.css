@@ -11,8 +11,15 @@
  * e.g.  .ps-glass { --glass-paper: var(--paper); --glass-ink: var(--ink); }
  */
 
-.ps-glass {
-  position: relative;
+/* :where() so these are DEFAULTS, not decisions — the class lands on the root from JS,
+   alongside whatever the consumer already put there, and nothing here needs to win
+   that argument.
+   `position` is deliberately NOT here. The layers make it unwinnable from a
+   stylesheet: Tailwind puts its utilities in `@layer utilities`, unlayered CSS beats
+   any layer whatever its specificity, and this sheet is unlayered — so `.ps-glass`
+   overrode a consumer's `absolute` even at zero specificity. mountGlass sets it from
+   script instead, and only when the element is still `static`. */
+:where(.ps-glass) {
   border-radius: var(--g-radius);
   overflow: hidden;
   isolation: isolate;
@@ -152,11 +159,58 @@
   position: relative;
   z-index: 2;
 }
+/* ── Magnifying loupe: mountGlassLoupe (.ps-loupe). The JS sets the structural
+   styles inline (fixed placement, capsule size, clipping, bleed ring) because the
+   effect is broken without them; only the *look* travels here — the capsule's
+   shadow and rim, and the iOS-style pop on open. The loupe renders in the top
+   layer via `popover`, so `.is-open` is only the fallback path's hook. ── */
+.ps-loupe {
+  scale: 0.42;
+  opacity: 0;
+  /* Grow out of the point being magnified, below the capsule — as iOS does. */
+  transform-origin: 50% 150%;
+  transition:
+    opacity 0.12s ease,
+    scale 0.18s cubic-bezier(0.22, 1.2, 0.36, 1),
+    overlay 0.18s allow-discrete,
+    display 0.18s allow-discrete;
+}
+.ps-loupe:popover-open,
+.ps-loupe.is-open {
+  scale: 1;
+  opacity: 1;
+}
+/* Entry needs a from-state; without @starting-style the loupe would pop in at
+   full size (a browser can't transition out of `display: none`). */
+@starting-style {
+  .ps-loupe:popover-open {
+    scale: 0.42;
+    opacity: 0;
+  }
+}
+.ps-loupe__box {
+  box-shadow:
+    0 2px 4px -2px rgb(0 0 0 / 25%),
+    0 10px 24px -8px rgb(0 0 0 / 35%);
+}
+.ps-loupe__rim {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--glass-ink, #000) 14%, transparent),
+    inset 0 1px 1px color-mix(in srgb, white 60%, transparent),
+    inset 0 -1px 1px color-mix(in srgb, var(--glass-ink, #000) 14%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .gm-btn__label--in {
     animation: none;
   }
   .gm-btn__label--out.is-gone {
     transition: none;
+  }
+  /* The loupe still appears and still tracks the finger — it just stops zooming
+     out of the page, which is the part that reads as motion. */
+  .ps-loupe {
+    transition: opacity 0.12s ease;
+    scale: 1;
   }
 }
