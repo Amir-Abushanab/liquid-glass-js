@@ -42,10 +42,10 @@ const SHOTS = {
   'render-paths-light': { sel: '.pathstage', seconds: 5, theme: 'light' },
   dropdown: { sel: '.gm-stage', seconds: 5, theme: 'dark', gesture: 'dropdown' },
   // Wider subjects raster slower — a higher per-shot k keeps the pacing honest
-  // (the loop warns when it falls behind). The orb shot moves a lot of pixels
-  // every frame, so it also trades quality and a second for its waistline.
+  // (the loop warns when it falls behind). File size is not a constraint here;
+  // the orb just needs the extra dilation to raster its big region on schedule.
   typeface: { sel: '.lgfstage', seconds: 5, theme: 'dark', gesture: 'stroke', k: 4 },
-  anything: { sel: '.gshape-stage', seconds: 4, theme: 'dark', k: 4, q: 56, scale: 1.5 },
+  anything: { sel: '.gshape-stage', seconds: 5, theme: 'dark', k: 6 },
 };
 
 // ── minimal flat-mode CDP client ──
