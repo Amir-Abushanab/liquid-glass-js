@@ -10,6 +10,8 @@ export default defineConfig({
   entry: {
     index: 'src/index.ts',
     webgl: 'src/webgl.ts',
+    // Gecko-only `behind` path; lazy-imported by index the same way as webgl.
+    'moz-backdrop': 'src/moz-backdrop.ts',
   },
   format: ['esm'],
   target: 'es2020',

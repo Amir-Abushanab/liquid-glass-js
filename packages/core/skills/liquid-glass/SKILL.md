@@ -41,6 +41,7 @@ but never scale.** Magnification has to come from elsewhere (see the loupe).
 | Want                                            | Use                                       | Refracts                            |
 | ----------------------------------------------- | ----------------------------------------- | ----------------------------------- |
 | A glass card / panel / navbar over page content | `mountGlass({ refract })`                 | the live DOM you point it at        |
+| A bar floating over content it doesn't own      | `mountGlass({ behind })`                  | the live page (engine-dependent)    |
 | A lens that moves across a surface              | `mountGlass` → `mountGlassLens`           | whatever it's parked over           |
 | iOS press-and-hold text magnifier               | `mountGlassLoupe`                         | a scaled clone (real magnification) |
 | Letterforms made of glass                       | `mountGlassText`                          | the page behind the glyphs          |
@@ -57,6 +58,13 @@ but never scale.** Magnification has to come from elsewhere (see the loupe).
 - **webgl** — for a `<canvas>` / `<video>` / `<img>` source. Those are volatile, so
   the browser re-filters them _every frame_ even when static; the WebGL path exists
   to avoid that. Lazy-imported, so SVG-only consumers ship none of it.
+- **behind** — `behind: sceneEl` names live page content the glass floats over but
+  doesn't own (a navbar's sibling `<main>` — a SIBLING, never an ancestor). On
+  Firefox the backdrop becomes a LIVE `-moz-element()` image of that element,
+  refracted by the normal chain (lazy-imported behind a capability probe, zero
+  bytes elsewhere); on Chromium the case falls through to frost, which refracts
+  the real page there; on Safari it stays a frosted blur — no backdrop route
+  exists in WebKit at all.
 - **frost** — a blurred backdrop. Refractive on Chromium, plain `blur()` elsewhere
   (see Pitfalls).
 
@@ -339,7 +347,10 @@ Safari and Firefox accept `url(#…)` in the `backdrop-filter` grammar and paint
 nothing for it ([WebKit 245510](https://bugs.webkit.org/show_bug.cgi?id=245510)), so
 `CSS.supports()` cannot gate it. The frost path checks the engine and falls back to
 a plain `blur()`. If you need real refraction everywhere, use the SVG path
-(`refract`) rather than frost.
+(`refract`) rather than frost. For a bar over content it doesn't own, pass
+`behind` — that upgrades Firefox to live refraction via `-moz-element()` and
+leaves only Safari on the blur; there is no route to real backdrop refraction
+in WebKit, so never promise one.
 
 ### MEDIUM — A filter target with no bleed
 
@@ -417,15 +428,22 @@ an emoji-laden source to refract.
 
 ### LOW — A WebGL canvas with square corners (Firefox)
 
-Overflow and `border-radius` on the wrapper aren't enough: a canvas is its own
-compositing layer, and Firefox clips those to the ancestor's box but not to its rounded
-corners, so it overhangs the rim. Put `border-radius: inherit` on the canvas.
+A live canvas is its own compositing layer, and Firefox ships that layer square:
+wrapper overflow, `border-radius` on the canvas, and `clip-path` on the canvas are
+ALL skipped by the compositor (verified windowed on Firefox 154; headless/software
+WebRender renders it correctly, so screenshots from CI will lie). The fix is to
+force rasterization with a visually-no-op opaque mask —
+`mask-image: linear-gradient(#000 0 0)` — after which the clip-path applies. The
+built-in WebGL path does this, Gecko-gated via
+`@supports (background-image: -moz-element(#a))`; do the same for any live canvas
+YOU place inside rounded glass, because a rounded layer above a square one merely
+covers it.
 
 ### LOW — Writing your own displacement chain
 
 The library handles all of this; you only meet it if you hand-roll a filter. Each is
 invisible until it bites, and the full write-ups with measurements are under
-[Building your own filter chain](https://github.com/amir-abushanab/liquid-glass-js#gotchas):
+[Building your own filter chain](https://github.com/amir-abushanab/liquid-glass-js/blob/main/docs/GOTCHAS.md):
 
 - **Safari resolves `userSpaceOnUse` against the page**, not the element — region and
   primitive subregions alike. Any transform on the element fixes it; `perspective`

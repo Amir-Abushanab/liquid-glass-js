@@ -108,7 +108,7 @@ client-side only (never during SSR).
 
 ## Gotchas
 
-The short list. The [full README](https://github.com/amir-abushanab/liquid-glass-js#gotchas)
+The short list. The [full README](https://github.com/amir-abushanab/liquid-glass-js/blob/main/docs/GOTCHAS.md)
 has the measurements behind each, plus the Firefox and testing ones.
 
 - **Safari skips composited layers inside the glass.** A child with a running CSS
@@ -147,7 +147,7 @@ has the measurements behind each, plus the Firefox and testing ones.
   path, so the first bullet looks fine in an image and broken on screen. Playwright's
   WebKit doesn't reproduce it either.
 
-The [full README](https://github.com/amir-abushanab/liquid-glass-js#gotchas) has the
+The [full README](https://github.com/amir-abushanab/liquid-glass-js/blob/main/docs/GOTCHAS.md) has the
 measurements behind each.
 
 ## Links

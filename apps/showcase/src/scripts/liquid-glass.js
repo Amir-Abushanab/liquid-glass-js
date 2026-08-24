@@ -95,7 +95,21 @@ function mountSvg(el, surface, p) {
 async function mountWebgl(el, surface, p, src, reg) {
   const canvas = document.createElement('canvas');
   canvas.style.cssText =
-    'position:absolute;inset:0;width:100%;height:100%;display:block;border-radius:inherit';
+    'position:absolute;inset:0;width:100%;height:100%;display:block;border-radius:inherit;' +
+    // clip-path as well: `border-radius: inherit` alone stopped rounding the
+    // composited canvas layer in current Firefox (black corners overhanging the
+    // rim). A clip-path is a real geometric clip a composited layer cannot
+    // escape, and --g-radius is set on the glass root, so it inherits down.
+    'clip-path:inset(0 round var(--g-radius, 0px))';
+  // Gecko's compositor ships a live canvas square: border-radius AND
+  // clip-path are both skipped on the composited layer (verified windowed,
+  // Firefox 154 — headless software WR renders it correctly, which is why
+  // this took two rounds to pin). A fully-opaque mask is visually a no-op
+  // but forces the element off the compositor fast path, where the
+  // clip-path above finally applies. Gecko-gated: elsewhere it would only
+  // tax direct compositing.
+  if (CSS.supports('background-image', '-moz-element(#a)'))
+    canvas.style.maskImage = 'linear-gradient(#000 0 0)';
   surface.appendChild(canvas);
   let glass;
   try {
@@ -408,4 +422,9 @@ document.querySelectorAll('svg[width="0"][height="0"][aria-hidden="true"]').forE
 // plus duplicates of every id inside it. This module is imported before
 // showcase.js mounts the live one, so anything here is residue by definition.
 document.querySelectorAll('[data-ps-loupe]').forEach((el) => el.remove());
+// And for the WebGL output canvas: a capture taken while a GL card was live
+// bakes a blank square-cornered <canvas> into the surface, which then stacks
+// under the real one on the next mount. Runs before any glass mounts, so any
+// canvas already inside a surface here is residue by definition.
+document.querySelectorAll('.ps-glass__surface > canvas').forEach((el) => el.remove());
 document.querySelectorAll('[data-glass]').forEach(mount);

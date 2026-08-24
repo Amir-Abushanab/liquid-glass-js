@@ -565,11 +565,11 @@ function GlassMergeDemo({ v, o }: { v: Record<string, number>; o: TuneOptions })
       <div ref={scene} className="relative h-[220px] w-full overflow-hidden bg-zinc-950 text-white">
         <div className="absolute inset-0 [background:radial-gradient(90%_130%_at_50%_0%,rgba(123,60,255,0.4),transparent_62%),repeating-linear-gradient(0deg,rgb(255_255_255/6%)_0_1px,transparent_1px_22px),repeating-linear-gradient(90deg,rgb(255_255_255/6%)_0_1px,transparent_1px_22px)]" />
         <span className="absolute top-5 left-6 rounded border border-white/25 px-1.5 py-0.5 text-[10px] font-medium tracking-[0.2em] text-white/80 uppercase">
-          SMOOTH · MIN
+          MOUNTGLASSGROUP
         </span>
-        <h3 className="absolute top-12 left-6 text-lg font-semibold">One map, two droplets</h3>
+        <h3 className="absolute top-12 left-6 text-lg font-semibold">Both pills share one map</h3>
         <p className="absolute top-[76px] left-6 text-[11px] text-white/50">
-          move the pointer — the loose pill chases it
+          steer the loose one into the anchored one
         </p>
         <div className="absolute bottom-5 left-6 flex gap-1.5">
           {swatches.slice(0, 6).map((c, i) => (
@@ -585,14 +585,14 @@ function GlassMergeDemo({ v, o }: { v: Record<string, number>; o: TuneOptions })
         ref={pillA}
         className="pointer-events-none absolute top-1/2 left-8 flex h-14 w-36 -translate-y-1/2 items-center justify-center rounded-full text-sm font-medium text-white/90"
       >
-        Merge
+        anchored
       </div>
       <div
         ref={pillB}
         className="pointer-events-none absolute top-1/2 left-0 flex h-14 w-28 items-center justify-center rounded-full text-sm font-medium text-white/90"
         style={{ transform: 'translate(320px, -50%)' }}
       >
-        me
+        loose
       </div>
     </div>
   );
@@ -1185,7 +1185,7 @@ export const registry: RegistryItem[] = [
     icon: Aperture,
     npm: '@liquidglassjs/react',
     description:
-      'A movable refraction lens over live content; the text, grid, and chips beneath it bend in place.',
+      'A movable refraction lens over live content; the text, grid, and chips beneath it bend in place. For lenses that merge with each other, see Glass Group.',
     tune: LENS_TUNE,
     code: LENS_TUNE.code(tuneDefaults(LENS_TUNE)),
     Demo: ({ values: v = tuneDefaults(LENS_TUNE), options: o = controlDefaults(LENS_TUNE) }) => (
@@ -1285,13 +1285,13 @@ export const registry: RegistryItem[] = [
     ),
   },
   {
-    slug: 'glass-merge',
-    title: 'Glass Merge',
+    slug: 'glass-group',
+    title: 'Glass Group',
     category: 'Effects',
     icon: Droplets,
     npm: '@liquidglassjs/core',
     description:
-      'Two glass pills over one scene share a single smooth-min displacement map — bring them close and they fuse like droplets, the refraction flowing through the neck.',
+      'Two pills in one displacement map. Get them within half the blend distance and the rims join — no seam, because there is only one field to bend. Separate glass surfaces can never do this; the showcase\u2019s Lens stage runs on it.',
     tune: MERGE_TUNE,
     code: MERGE_TUNE.code(tuneDefaults(MERGE_TUNE)),
     Demo: ({ values: v = tuneDefaults(MERGE_TUNE), options: o = controlDefaults(MERGE_TUNE) }) => (
