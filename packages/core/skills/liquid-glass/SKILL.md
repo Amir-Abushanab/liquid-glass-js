@@ -443,7 +443,7 @@ covers it.
 
 The library handles all of this; you only meet it if you hand-roll a filter. Each is
 invisible until it bites, and the full write-ups with measurements are under
-[Building your own filter chain](https://github.com/amir-abushanab/liquid-glass-js#gotchas):
+[Building your own filter chain](https://github.com/amir-abushanab/liquid-glass-js/blob/main/docs/GOTCHAS.md):
 
 - **Safari resolves `userSpaceOnUse` against the page**, not the element — region and
   primitive subregions alike. Any transform on the element fixes it; `perspective`
