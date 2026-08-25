@@ -101,6 +101,20 @@
           "target": "components/liquid-glass/glass-dropdown-menu.tsx"
         }
       ]
+    },
+    {
+      "name": "glass-droplet-menu",
+      "type": "registry:component",
+      "title": "Glass Droplet Menu",
+      "description": "A dropdown menu as one liquid-glass surface: Base UI's Menu where the panel grows out of the trigger pill through a smooth-min neck — the droplet merge.",
+      "dependencies": ["@base-ui/react", "@liquidglassjs/core"],
+      "files": [
+        {
+          "path": "../showcase/src/components/liquid-glass/glass-droplet-menu.tsx",
+          "type": "registry:component",
+          "target": "components/liquid-glass/glass-droplet-menu.tsx"
+        }
+      ]
     }
   ]
 }

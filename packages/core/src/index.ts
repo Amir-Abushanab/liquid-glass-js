@@ -30,7 +30,13 @@ export type { GlassMapOptions, MapProfile } from './displacement';
 export { mountGlassGroup } from './glass-group';
 export type { GlassGroup, GlassGroupOptions, GlassGroupParams } from './glass-group';
 export { buildGroupDisplacementMap, renderGroupDisplacementMap } from './group-map';
-export type { GroupShape, GroupMapOptions } from './group-map';
+export { buildGroupSilhouette, renderGroupSilhouette, traceGroupSilhouette } from './group-map';
+export type {
+  GroupShape,
+  GroupMapOptions,
+  GroupSilhouetteOptions,
+  GroupOutlineOptions,
+} from './group-map';
 
 // Scalar spring for driving the cheap per-frame knobs (setDisplScale, drag chases)
 export { createSpring } from './dynamics';

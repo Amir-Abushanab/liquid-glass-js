@@ -63,11 +63,25 @@ export interface GlassGroupOptions extends Partial<GlassGroupParams> {
    */
   items: HTMLElement[] | (() => GroupShape[]);
   active?: boolean;
+  /**
+   * Normal-field smoothing radius, px (see GroupMapOptions.smoothNormals):
+   * rounds off the refraction crease an exact SDF's medial axis puts at every
+   * corner. Default 0 — the map exactly as this renderer always drew it.
+   */
+  smoothNormals?: number;
 }
 
 export interface GlassGroup {
   /** Re-measure the items and re-encode the map (rAF-coalesced; no-op when nothing moved). */
   update(): void;
+  /**
+   * Like update(), but NOW, in the caller's frame. For a driven morph that also
+   * writes other per-frame styles (a clip-path, content opacity): flushing keeps
+   * the map commit in the same frame as those writes instead of one rAF behind —
+   * the difference between a tear-free morph and a silhouette that leads its
+   * refraction. Still a no-op when nothing moved.
+   */
+  flush(): void;
   reconfigure(patch: Partial<GlassGroupParams>): void;
   /** Cheap per-frame refraction fade/boost — see GlassSurface.setDisplScale. */
   setDisplScale(frac: number): void;
@@ -130,6 +144,7 @@ export function mountGlassGroup(o: GlassGroupOptions): GlassGroup {
     glow: o.glow ?? GLASS_SURFACE_DEFAULTS.glow,
     shade: o.shade ?? 0,
     specularRotation: o.specularRotation ?? 45,
+    smoothNormals: o.smoothNormals ?? 0,
   };
 
   const surface: GlassSurface = createGlassSurface({
@@ -160,6 +175,7 @@ export function mountGlassGroup(o: GlassGroupOptions): GlassGroup {
         glow: mapP.glow,
         shade: mapP.shade,
         specularRotation: mapP.specularRotation,
+        smoothNormals: mapP.smoothNormals,
       }),
   });
 
@@ -183,6 +199,11 @@ export function mountGlassGroup(o: GlassGroupOptions): GlassGroup {
 
   return {
     update,
+    flush() {
+      cancelAnimationFrame(raf);
+      raf = 0;
+      run();
+    },
     reconfigure(patch) {
       const { blend: nextBlend, shade: nextShade, specularRotation: nextRot, ...rest } = patch;
       const blendChanged = typeof nextBlend === 'number' && nextBlend !== blend;

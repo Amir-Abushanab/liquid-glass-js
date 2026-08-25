@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   AppWindow,
   Aperture,
+  Combine,
   Droplets,
   Menu,
   MousePointerClick,
@@ -44,6 +45,13 @@ import {
   GlassDropdownMenuItem,
   GlassDropdownMenuSeparator,
 } from '@/components/liquid-glass/glass-dropdown-menu';
+import {
+  GlassDropletMenu,
+  GlassDropletMenuTrigger,
+  GlassDropletMenuContent,
+  GlassDropletMenuItem,
+  GlassDropletMenuSeparator,
+} from '@/components/liquid-glass/glass-droplet-menu';
 import {
   GlassText,
   GlassShape,
@@ -857,6 +865,48 @@ export function Example() {
 }`,
 };
 
+// The droplet menu runs the merge path (SVG filter on a masked pane — every
+// browser), not the frost path, so no `needs` and the full merge param set.
+const DROPLET_TUNE: TuneConfig = {
+  params: presetControls('merge'),
+  controls: [
+    profileControl,
+    { kind: 'toggle', key: 'attached', label: 'Stay attached at rest', default: false },
+  ],
+  code: (v, o) => `import {
+  GlassDropletMenu, GlassDropletMenuTrigger, GlassDropletMenuContent,
+  GlassDropletMenuItem, GlassDropletMenuSeparator,
+} from "@/components/liquid-glass/glass-droplet-menu"
+
+export function Example() {
+  // One glass surface spans trigger and panel: opening grows the menu out of
+  // the pill through a liquid neck that pinches off as the panel settles.
+  // Hand \`backdrop\` your page's background.
+  return (
+    <GlassDropletMenu
+      backdrop={pageBackground}
+      blend={${v.blend}}${o?.attached ? '\n      attached' : ''}${o?.profile === 'circle' ? '\n      profile="circle"' : ''}
+      strength={${v.strength}}
+      chroma={${v.chroma}}
+      depth={${v.depth}}
+      edge={${v.edge}}
+      glow={${v.glow}}
+      shade={${v.shade}}
+      specularRotation={${v.specularRotation}}
+      blur={${v.blur}}
+    >
+      <GlassDropletMenuTrigger>Actions</GlassDropletMenuTrigger>
+      <GlassDropletMenuContent>
+        <GlassDropletMenuItem>Profile</GlassDropletMenuItem>
+        <GlassDropletMenuItem>Settings</GlassDropletMenuItem>
+        <GlassDropletMenuSeparator />
+        <GlassDropletMenuItem>Sign out</GlassDropletMenuItem>
+      </GlassDropletMenuContent>
+    </GlassDropletMenu>
+  )
+}`,
+};
+
 const SLIDER_TUNE: TuneConfig = {
   params: presetControls('slider'),
   controls: [profileControl],
@@ -1116,6 +1166,49 @@ export const registry: RegistryItem[] = [
           <GlassDropdownMenuItem>Sign out</GlassDropdownMenuItem>
         </GlassDropdownMenuContent>
       </GlassDropdownMenu>
+    ),
+  },
+
+  {
+    slug: 'glass-droplet-menu',
+    title: 'Glass Droplet Menu',
+    category: 'Components',
+    icon: Combine,
+    description:
+      'The dropdown as one liquid surface: the panel grows out of the trigger pill through a smooth-min neck — the droplet merge, on Base UI Menu.',
+    tune: DROPLET_TUNE,
+    code: DROPLET_TUNE.code(tuneDefaults(DROPLET_TUNE)),
+    Demo: ({
+      values: v = tuneDefaults(DROPLET_TUNE),
+      options: o = controlDefaults(DROPLET_TUNE),
+    }) => (
+      // Bottom spacer: the droplet opens downward, and its pane paints the scene
+      // backdrop — landing it past the stage would paint scene over the page chrome.
+      <div className="flex flex-col items-center pb-48">
+        <GlassDropletMenu
+          backdrop={SCENE}
+          blend={v.blend}
+          strength={v.strength}
+          chroma={v.chroma}
+          depth={v.depth}
+          edge={v.edge}
+          glow={v.glow}
+          shade={v.shade}
+          specularRotation={v.specularRotation}
+          blur={v.blur}
+          profile={profileOf(o)}
+          attached={Boolean(o.attached)}
+        >
+          <GlassDropletMenuTrigger>Actions</GlassDropletMenuTrigger>
+          <GlassDropletMenuContent>
+            <GlassDropletMenuItem>Profile</GlassDropletMenuItem>
+            <GlassDropletMenuItem>Settings</GlassDropletMenuItem>
+            <GlassDropletMenuItem>Appearance</GlassDropletMenuItem>
+            <GlassDropletMenuSeparator />
+            <GlassDropletMenuItem>Sign out</GlassDropletMenuItem>
+          </GlassDropletMenuContent>
+        </GlassDropletMenu>
+      </div>
     ),
   },
 
