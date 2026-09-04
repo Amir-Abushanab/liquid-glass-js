@@ -440,13 +440,54 @@ function mountFrost(el: HTMLElement, surface: HTMLElement, p: P): () => void {
   let holder: HTMLElement | null = null;
   let last = '';
   let n = 0;
+
+  // ── Refraction is suspended while the box is in motion ──
+  //
+  // A resize animation drives the ResizeObserver once a frame, and a url()
+  // backdrop-filter has to re-rasterise the whole backdrop through the filter
+  // graph on every one of those frames. Measured growing a navbar 60→391px on
+  // a 4×-throttled Pixel 7: url() holds ~20fps (median frame 25.1ms, worst
+  // 66ms), plain blur() holds 60 (8.3ms) — the SAME number as no
+  // backdrop-filter at all. So the refraction is the entire cost, and it is
+  // the raster, not the map: building the map at half resolution (10× cheaper,
+  // 0.08% different) moved nothing, and nor did cutting rebuilds from 11 to 4.
+  //
+  // The fix is therefore not a cheaper rebuild but no refraction at all while
+  // it cannot be read: fall back to the plain frosted blur — precisely what
+  // WebKit and Gecko are served permanently — and restore the lens the moment
+  // the box settles. Resting appearance is unchanged.
+  const settleMs = 120;
+  const plain = `blur(${Math.max(6, p.blur * 2)}px) saturate(1.3)`;
+  const setFilter = (v: string) => {
+    surface.style.backdropFilter = v;
+    surface.style.setProperty('-webkit-backdrop-filter', v);
+  };
+  let settle: ReturnType<typeof setTimeout> | undefined;
+  let degraded = false;
+
   const render = () => {
     const { width, height } = layoutBox(el);
     if (!width || !height) return;
     const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
     const key = `${width}x${height}x${radius}`;
-    if (key === last) return;
+    // Settled and already showing the lens: nothing to do.
+    if (key === last && !degraded) return;
+    // A resize arriving inside another's settle window means we're mid-animation.
+    const moving = settle !== undefined;
+    clearTimeout(settle);
+    settle = setTimeout(() => {
+      settle = undefined;
+      render(); // re-enters with moving === false, so it rebuilds the lens
+    }, settleMs);
     last = key;
+    if (moving) {
+      if (!degraded) {
+        degraded = true;
+        setFilter(plain);
+      }
+      return;
+    }
+    degraded = false;
     const id = `${base}-frost-${++n}`;
     const map = buildDisplacementMap({
       width,
@@ -478,8 +519,7 @@ function mountFrost(el: HTMLElement, surface: HTMLElement, p: P): () => void {
       `<feComposite in="specMask" in2="lensResult" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite>` +
       `</filter></svg>`;
     el.appendChild(svg);
-    surface.style.backdropFilter = `url(#${id}) saturate(1.2)`;
-    surface.style.setProperty('-webkit-backdrop-filter', `url(#${id}) saturate(1.2)`);
+    setFilter(`url(#${id}) saturate(1.2)`);
     if (holder) holder.remove();
     holder = svg;
   };
@@ -488,6 +528,7 @@ function mountFrost(el: HTMLElement, surface: HTMLElement, p: P): () => void {
   ro.observe(el);
   return () => {
     ro.disconnect();
+    clearTimeout(settle);
     if (holder) holder.remove();
     surface.style.background = '';
     surface.style.backdropFilter = '';
