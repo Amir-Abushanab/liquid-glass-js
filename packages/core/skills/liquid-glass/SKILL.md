@@ -14,7 +14,7 @@ description: >
 metadata:
   type: core
   library: '@liquidglassjs/core'
-  library_version: '0.4.0'
+  library_version: '0.5.0'
 sources:
   - 'Amir-Abushanab/liquid-glass-js:README.md'
   - 'Amir-Abushanab/liquid-glass-js:packages/core/src/mount.ts'
