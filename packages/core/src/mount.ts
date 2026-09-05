@@ -467,7 +467,16 @@ function mountFrost(el: HTMLElement, surface: HTMLElement, p: P): () => void {
 
   const render = () => {
     const { width, height } = layoutBox(el);
-    if (!width || !height) return;
+    // Collapsed or hidden — a disclosure finishing its close, a display:none
+    // ancestor. There is no box to build a lens for, and a settle left armed by
+    // the last non-zero frame would build one nobody can see. Drop it; reopening
+    // arrives as a fresh resize and rebuilds from there. `degraded` is left
+    // alone, since it still describes the filter sitting on the surface.
+    if (!width || !height) {
+      clearTimeout(settle);
+      settle = undefined;
+      return;
+    }
     const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
     const key = `${width}x${height}x${radius}`;
     // Settled and already showing the lens: nothing to do.
@@ -487,7 +496,11 @@ function mountFrost(el: HTMLElement, surface: HTMLElement, p: P): () => void {
       }
       return;
     }
-    degraded = false;
+    // The first frame of a run is indistinguishable from a one-shot resize —
+    // motion only shows on the second event — so it builds a lens the next frame
+    // discards. Waiting a frame to find out would leave the previous size's lens
+    // stretched over the new box for that frame, which is visible; one discarded
+    // build at the head of a run is not.
     const id = `${base}-frost-${++n}`;
     const map = buildDisplacementMap({
       width,
@@ -522,6 +535,10 @@ function mountFrost(el: HTMLElement, surface: HTMLElement, p: P): () => void {
     setFilter(`url(#${id}) saturate(1.2)`);
     if (holder) holder.remove();
     holder = svg;
+    // Cleared last, not first: should the build throw, `degraded` stays true and
+    // the guard above lets the next resize retry, rather than reading the box as
+    // settled and leaving the surface on the plain blur for good.
+    degraded = false;
   };
   render();
   const ro = new ResizeObserver(render);

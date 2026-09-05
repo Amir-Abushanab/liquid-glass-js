@@ -345,12 +345,19 @@ across a change.
 
 Safari and Firefox accept `url(#…)` in the `backdrop-filter` grammar and paint
 nothing for it ([WebKit 245510](https://bugs.webkit.org/show_bug.cgi?id=245510)), so
-`CSS.supports()` cannot gate it. The frost path checks the engine and falls back to
-a plain `blur()`. If you need real refraction everywhere, use the SVG path
-(`refract`) rather than frost. For a bar over content it doesn't own, pass
-`behind` — that upgrades Firefox to live refraction via `-moz-element()` and
-leaves only Safari on the blur; there is no route to real backdrop refraction
-in WebKit, so never promise one.
+`CSS.supports()` cannot gate it. The frost path checks the engine and falls back to a
+plain `blur()`. For a bar over content it doesn't own, pass `behind` — that upgrades
+Firefox to live refraction via `-moz-element()` and leaves only Safari on the blur;
+there is no route to real backdrop refraction in WebKit, so never promise one.
+
+### MEDIUM — Frost showing a plain blur while the box is resizing
+
+Animating a frosted box's size re-rasterises the whole backdrop through the filter
+graph every frame: growing a navbar 60→391px on a 4×-throttled Pixel 7 held ~20fps,
+where a plain blur held 60. So frost suspends its refraction for the resize and
+restores it 120ms after the box settles — mid-animation the surface is the blur above.
+Deliberate and self-correcting, but a screenshot taken mid-animation is measuring the
+fallback. Only frost does this; it alone filters the live backdrop.
 
 ### MEDIUM — A filter target with no bleed
 
