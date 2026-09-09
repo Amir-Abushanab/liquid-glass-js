@@ -103,7 +103,17 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
   let lensH = Math.round(o.lensH);
   let lx = 0;
   let ly = 0;
-  let n = 0;
+  let n = 0; // id counter: every id ever applied is fresh (Safari caches filter output by id)
+  // Rebuild generation, kept APART from the id counter. It used to be `n` itself,
+  // and a pending rebuild checked against it — but setPos and applyAttrs bump `n`
+  // too (their Safari re-point mints an id, and the `++` runs in every engine),
+  // so a per-frame move or scale change landing while the new map was still
+  // decoding made that map look superseded, and it was dropped. lensW/lensH
+  // already held the new size, so the next setSize to that size was a no-op: the
+  // filter stayed at the OLD size for good. A segmented control (setSize once per
+  // switch, setPos + setDisplScale every frame of the slide) showed it as a
+  // stale-width specular rim sitting beside the pill.
+  let mapGen = 0;
   let active = o.active ?? true;
   let disposed = false;
   let displ = 1; // setDisplScale's live multiplier — attribute-only, never in the map
@@ -116,8 +126,7 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
   let blurNode: SVGFEGaussianBlurElement | null = null;
 
   const rebuild = () => {
-    const id = `${base}-${++n}`; // fresh id on every map change (Safari cache bust)
-    const gen = n;
+    const gen = ++mapGen;
     // Supersample: render the dome field at s× device resolution and let the
     // <feImage> (kept at CSS px below) scale it down, so the rim doesn't alias on
     // retina (item 4). The field is scale-invariant, so every length scales by s.
@@ -145,8 +154,10 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
       () => {},
     );
     void ready.then(() => {
-      if (gen !== n || disposed) return;
-      commit(id, map);
+      if (gen !== mapGen || disposed) return;
+      // Fresh id on every map change (Safari cache bust) — minted here, when it
+      // is applied, so it is newer than any the re-point path minted meanwhile.
+      commit(`${base}-${++n}`, map);
     });
   };
 

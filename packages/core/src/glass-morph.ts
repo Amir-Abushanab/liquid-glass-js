@@ -148,7 +148,8 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
   let mapH = Math.max(1, Math.round(o.height));
   let radius = o.radius;
   let frac = 1; // current displacement fraction (0..1)
-  let n = 0;
+  let n = 0; // id counter — see rebuild
+  let mapGen = 0; // rebuild generation — see rebuild
   let active = o.active ?? true;
   let curId = '';
   let filterNode: SVGFilterElement | null = null;
@@ -186,8 +187,10 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
   };
 
   const rebuild = () => {
-    const id = `${base}-${++n}`; // fresh id every rebuild (Safari filter-cache bust)
-    const gen = n;
+    // Own generation counter, not `n`: bump() increments `n` on every per-frame
+    // scale write, and checking a pending rebuild against it dropped the new map
+    // whenever a frame landed during its decode. Same bug as glass-lens.
+    const gen = ++mapGen;
     const mapUrl = o.buildMap
       ? o.buildMap(mapW, mapH)
       : buildDisplacementMap({
@@ -212,7 +215,8 @@ export function createGlassSurface(o: GlassSurfaceOptions): GlassSurface {
     warm.src = mapUrl;
     ready = (typeof warm.decode === 'function' ? warm.decode() : Promise.resolve()).catch(() => {});
     const commit = () => {
-      if (gen !== n || disposed) return; // superseded or disposed while decoding
+      if (gen !== mapGen || disposed) return; // superseded or disposed while decoding
+      const id = `${base}-${++n}`; // fresh id every map change (Safari filter-cache bust)
       // Scales are read at COMMIT time: a setDisplScale that landed during the
       // decode window is baked in rather than lost until the next applyScales.
       const s = cur.strength * frac;
