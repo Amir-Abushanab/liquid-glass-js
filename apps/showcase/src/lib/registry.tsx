@@ -3,6 +3,8 @@ import type { LucideIcon } from 'lucide-react';
 import {
   AppWindow,
   Aperture,
+  CalendarDays,
+  CalendarRange,
   Droplets,
   Menu,
   MousePointerClick,
@@ -12,6 +14,7 @@ import {
   Square,
   SquareStack,
   Star,
+  Sun,
   ToggleRight,
   Type,
   Waves,
@@ -796,13 +799,16 @@ const TABS_TUNE: TuneConfig = {
   GlassTabs, GlassTabsList, GlassTabsTab, GlassTabsPanel,
 } from "@/components/liquid-glass/glass-tabs"
 
+import { CalendarDays, CalendarRange, Sun } from "lucide-react"
+
+// \`color\` tints a tab's icon and washes the pill while that tab is active.
 export function Example() {
   return (
-    <GlassTabs defaultValue="overview">
+    <GlassTabs defaultValue="daily">
       <GlassTabsList strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}}${profileAttrInline(o)}>
-        <GlassTabsTab value="overview">Overview</GlassTabsTab>
-        <GlassTabsTab value="activity">Activity</GlassTabsTab>
-        <GlassTabsTab value="settings">Settings</GlassTabsTab>
+        <GlassTabsTab value="daily" icon={<Sun />} color="#f5b041">Daily</GlassTabsTab>
+        <GlassTabsTab value="weekly" icon={<CalendarDays />} color="#5dade2">Weekly</GlassTabsTab>
+        <GlassTabsTab value="monthly" icon={<CalendarRange />} color="#bb8fce">Monthly</GlassTabsTab>
       </GlassTabsList>
     </GlassTabs>
   )
@@ -993,7 +999,7 @@ export const registry: RegistryItem[] = [
     category: 'Components',
     icon: PanelTop,
     description:
-      'A segmented control: Base UI Tabs with a glass pill that slides under the active label and refracts it.',
+      'A segmented control: Base UI Tabs with a glass pill that slides to the active tab, bending the labels as it goes. Tabs take an icon and an accent colour.',
     tune: TABS_TUNE,
     code: TABS_TUNE.code(tuneDefaults(TABS_TUNE)),
     Demo: ({ values: v = tuneDefaults(TABS_TUNE), options: o = controlDefaults(TABS_TUNE) }) => (
@@ -1007,18 +1013,24 @@ export const registry: RegistryItem[] = [
           glow={v.glow}
           profile={profileOf(o)}
         >
-          <GlassTabsTab value="daily">Daily</GlassTabsTab>
-          <GlassTabsTab value="weekly">Weekly</GlassTabsTab>
-          <GlassTabsTab value="monthly">Monthly</GlassTabsTab>
+          <GlassTabsTab value="daily" icon={<Sun />} color="#f5b041">
+            Daily
+          </GlassTabsTab>
+          <GlassTabsTab value="weekly" icon={<CalendarDays />} color="#5dade2">
+            Weekly
+          </GlassTabsTab>
+          <GlassTabsTab value="monthly" icon={<CalendarRange />} color="#bb8fce">
+            Monthly
+          </GlassTabsTab>
         </GlassTabsList>
         <GlassTabsPanel value="daily" className="text-center text-sm text-white/80">
-          A glass pill marks the active range.
+          The pill slides to the active tab and takes a wash of its colour.
         </GlassTabsPanel>
         <GlassTabsPanel value="weekly" className="text-center text-sm text-white/80">
-          …and refracts the label beneath it.
+          The labels bend only while it travels, so at rest they stay crisp.
         </GlassTabsPanel>
         <GlassTabsPanel value="monthly" className="text-center text-sm text-white/80">
-          Base UI drives roving focus + arrow keys.
+          Base UI drives roving focus and the arrow keys.
         </GlassTabsPanel>
       </GlassTabs>
     ),

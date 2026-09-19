@@ -50,8 +50,8 @@
       "name": "glass-tabs",
       "type": "registry:component",
       "title": "Glass Tabs",
-      "description": "A segmented tabs control: Base UI's Tabs (roving focus, keyboard nav, ARIA) with a glass pill that slides under the active tab.",
-      "dependencies": ["@base-ui/react", "@liquidglassjs/react", "@liquidglassjs/core"],
+      "description": "A segmented tabs control: Base UI's Tabs (roving focus, keyboard nav, ARIA) with a glass pill that slides to the active tab, bending the labels only as it travels. Tabs take an icon and an accent colour.",
+      "dependencies": ["@base-ui/react", "@liquidglassjs/core"],
       "files": [
         {
           "path": "../showcase/src/components/liquid-glass/glass-tabs.tsx",
