@@ -19,6 +19,8 @@ import { specMaskValues } from './map-encode';
 import type { GlassGL as GlassGLType } from './webgl';
 import { applyGlassFilter, clearGlassFilter } from './filter-origin';
 import { preBlurStd } from './blur-quantize';
+import { frostGlint } from './frost-glint';
+import { parseCssRgba } from './color';
 
 const MARGIN = 28; // bleed so the displacement doesn't sample past the lens rim
 
@@ -456,6 +458,35 @@ function mountFrost(el: HTMLElement, surface: HTMLElement, p: P): () => void {
   // it cannot be read: fall back to the plain frosted blur — precisely what
   // WebKit and Gecko are served permanently — and restore the lens the moment
   // the box settles. Resting appearance is unchanged.
+  //
+  // The lens takes its specular rim with it, though, and that light edge is
+  // what reads as the glass's outline: without it a menu opening inside the
+  // surface looked like it lost its border for the length of the animation,
+  // and a generic light ring in its place left the outline brighter at both
+  // ends of the animation than in the middle. So the root carries
+  // `data-glass-motion` while the blur stands in, and the tint layer redraws
+  // the lens's own rim for that window (frost-glint.ts has the optics). Masked
+  // box-shadows repainted per frame cost nothing like the raster.
+  const tint = el.querySelector<HTMLElement>(':scope > .ps-glass__tint');
+  let glintKey = '';
+  const standIn = () => {
+    // The lens's rim sits under the frost wash and the tint, so it shows through
+    // at (1 − wash)(1 − tint); and how soon it clips depends on how pale the
+    // wash's paper is. Read per run, so a theme switch lands on the next one.
+    const [r, g, b, wash] = parseCssRgba(getComputedStyle(surface).backgroundColor);
+    const tinted = tint ? parseCssRgba(getComputedStyle(tint).backgroundColor)[3] : 0;
+    const headroom = 1 / Math.max(0.03, 1 - (0.2126 * r + 0.7152 * g + 0.0722 * b));
+    const key = headroom.toFixed(2);
+    if (key !== glintKey) {
+      glintKey = key;
+      const glint = frostGlint(p, headroom);
+      el.style.setProperty('--g-glint-rim', glint.rim);
+      el.style.setProperty('--g-glint-rim-mask', glint.rimMask);
+      el.style.setProperty('--g-glint-body', glint.body);
+      el.style.setProperty('--g-glint-body-mask', glint.bodyMask);
+    }
+    el.style.setProperty('--g-glint-t', (+((1 - wash) * (1 - tinted)).toFixed(3)).toString());
+  };
   const settleMs = 120;
   const plain = `blur(${Math.max(6, p.blur * 2)}px) saturate(1.3)`;
   const setFilter = (v: string) => {
@@ -465,7 +496,9 @@ function mountFrost(el: HTMLElement, surface: HTMLElement, p: P): () => void {
   let settle: ReturnType<typeof setTimeout> | undefined;
   let degraded = false;
 
-  const render = () => {
+  // `settled` is true where the box is known to be at rest (mount, and the
+  // settle timer) and false from the ResizeObserver, where it may be mid-run.
+  const render = (settled: boolean) => {
     const { width, height } = layoutBox(el);
     // Collapsed or hidden — a disclosure finishing its close, a display:none
     // ancestor. There is no box to build a lens for, and a settle left armed by
@@ -481,26 +514,36 @@ function mountFrost(el: HTMLElement, surface: HTMLElement, p: P): () => void {
     const key = `${width}x${height}x${radius}`;
     // Settled and already showing the lens: nothing to do.
     if (key === last && !degraded) return;
-    // A resize arriving inside another's settle window means we're mid-animation.
-    const moving = settle !== undefined;
-    clearTimeout(settle);
-    settle = setTimeout(() => {
-      settle = undefined;
-      render(); // re-enters with moving === false, so it rebuilds the lens
-    }, settleMs);
-    last = key;
-    if (moving) {
+    // Every resize is treated as the start of a run: the blur (and the stand-in
+    // rim) takes over at once, and the lens is rebuilt only when the size has
+    // held for settleMs. The first frame of a run is indistinguishable from a
+    // one-shot resize — motion only shows on the second event — and building a
+    // lens there, as this used to, cost the first frame of every resize
+    // animation a full map build that the next frame threw away: a dropped
+    // frame at the very start of a menu opening (33ms at 4× CPU throttle on a
+    // Pixel 7). Degrading instead was worse while the blur also lost the
+    // outline; with the stand-in rim, a one-shot resize now shows the blur for
+    // settleMs and nothing else. A surface that has never had a lens (sized 0
+    // at mount, first shown now) builds straight away: there is nothing to
+    // degrade from.
+    if (!settled && last !== '') {
+      clearTimeout(settle);
+      settle = setTimeout(() => {
+        settle = undefined;
+        render(true);
+      }, settleMs);
+      last = key;
       if (!degraded) {
         degraded = true;
+        standIn();
         setFilter(plain);
+        el.dataset.glassMotion = '';
       }
       return;
     }
-    // The first frame of a run is indistinguishable from a one-shot resize —
-    // motion only shows on the second event — so it builds a lens the next frame
-    // discards. Waiting a frame to find out would leave the previous size's lens
-    // stretched over the new box for that frame, which is visible; one discarded
-    // build at the head of a run is not.
+    clearTimeout(settle);
+    settle = undefined;
+    last = key;
     const id = `${base}-frost-${++n}`;
     const map = buildDisplacementMap({
       width,
@@ -539,14 +582,18 @@ function mountFrost(el: HTMLElement, surface: HTMLElement, p: P): () => void {
     // the guard above lets the next resize retry, rather than reading the box as
     // settled and leaving the surface on the plain blur for good.
     degraded = false;
+    delete el.dataset.glassMotion;
   };
-  render();
-  const ro = new ResizeObserver(render);
+  render(true);
+  const ro = new ResizeObserver(() => render(false));
   ro.observe(el);
   return () => {
     ro.disconnect();
     clearTimeout(settle);
     if (holder) holder.remove();
+    delete el.dataset.glassMotion;
+    for (const k of ['rim', 'rim-mask', 'body', 'body-mask', 't'])
+      el.style.removeProperty(`--g-glint-${k}`);
     surface.style.background = '';
     surface.style.backdropFilter = '';
     surface.style.removeProperty('-webkit-backdrop-filter');

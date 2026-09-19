@@ -42,6 +42,37 @@
     inset 0 -1px 1px color-mix(in srgb, var(--glass-ink, #000) 12%, transparent),
     0 14px 38px -14px rgb(0 0 0 / 30%);
 }
+/* Frost, mid-resize: mountFrost suspends the refractive lens while the box is
+   moving (the url() raster is the whole cost of a resize animation) and marks
+   the root `data-glass-motion`. The lens's specular rim goes with it, and that
+   light edge is what reads as the outline, so the tint layer redraws it for
+   those frames from the shadows and masks frost-glint.ts writes to the root.
+   It lives in the tint because the lens's rim sits under the frost wash and the
+   tint; `--g-glint-t` is the light those let through. It switches with the
+   attribute, in the frame the lens drops out and the frame it returns: a fade
+   either way stacks two rims or shows none. And no blend mode. One on any layer
+   in here isolates the stacking context, and the frost loses its backdrop. */
+.ps-glass[data-glass-motion] > .ps-glass__tint::before,
+.ps-glass[data-glass-motion] > .ps-glass__tint::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: var(--g-glint-t, 0);
+}
+.ps-glass[data-glass-motion] > .ps-glass__tint::before {
+  box-shadow: var(--g-glint-rim, none);
+  mask-image: var(--g-glint-rim-mask, none);
+}
+/* The outer pixel belongs to the layer above. 1px of padding plus a content-box
+   mask layer keep this one off it, rounding concentrically with the edge. */
+.ps-glass[data-glass-motion] > .ps-glass__tint::after {
+  padding: 1px;
+  box-shadow: var(--g-glint-body, none);
+  mask-image: var(--g-glint-body-mask, none);
+  mask-clip: border-box, content-box;
+  mask-composite: intersect;
+}
 /* refract layer: the live DOM the filter bends. Outer is inset by the bleed
    margin (filter region + map size); inner sits back at the glass rect so the
    content lands where the lens does. Stays interactive — the glass chrome above

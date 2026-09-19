@@ -355,9 +355,10 @@ there is no route to real backdrop refraction in WebKit, so never promise one.
 Animating a frosted box's size re-rasterises the whole backdrop through the filter
 graph every frame: growing a navbar 60→391px on a 4×-throttled Pixel 7 held ~20fps,
 where a plain blur held 60. So frost suspends its refraction for the resize and
-restores it 120ms after the box settles — mid-animation the surface is the blur above.
-Deliberate and self-correcting, but a screenshot taken mid-animation is measuring the
-fallback. Only frost does this; it alone filters the live backdrop.
+restores it 120ms after the box settles. Meanwhile the root carries `data-glass-motion`
+and the tint's `::before`/`::after` redraw the lens's specular rim. Never set a
+`mix-blend-mode` inside frost: its isolated group becomes the backdrop root and the
+blur goes blank. A mid-animation screenshot measures the fallback. Only frost does this.
 
 ### MEDIUM — A filter target with no bleed
 
