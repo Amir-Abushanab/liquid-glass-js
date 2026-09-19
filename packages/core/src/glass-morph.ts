@@ -26,6 +26,7 @@ import {
   glassOriginOffset,
 } from './filter-origin';
 import { preBlurStd } from './blur-quantize';
+import { layoutBox, screenScale } from './layout';
 
 // The live-tunable refraction params (everything except the box geometry).
 export interface GlassSurfaceParams {
@@ -377,8 +378,10 @@ export function mountGlassButton(el: HTMLElement, opts: GlassButtonOptions = {})
   el.prepend(bg);
   el.appendChild(label);
 
-  const rectOf = () => el.getBoundingClientRect();
-  const r0 = rectOf();
+  // The layout box, not the rect: a button inside a panel that scales in would
+  // otherwise bake its map at the panel's opening scale (layout.ts).
+  const boxOf = () => layoutBox(el);
+  const r0 = boxOf();
   let height = Math.round(r0.height) || 44;
   const radius = () => (opts.radius && opts.radius > 0 ? opts.radius : height / 2);
 
@@ -413,7 +416,7 @@ export function mountGlassButton(el: HTMLElement, opts: GlassButtonOptions = {})
       'position:absolute;left:-9999px;top:0;visibility:hidden;width:auto;white-space:nowrap';
     probe.appendChild(node.cloneNode(true));
     el.appendChild(probe);
-    const w = probe.getBoundingClientRect().width;
+    const w = probe.getBoundingClientRect().width / screenScale(el).x;
     probe.remove();
     // width = content + the button's horizontal padding (label is inset:0 flex-centered)
     const cs = getComputedStyle(el);
@@ -430,7 +433,7 @@ export function mountGlassButton(el: HTMLElement, opts: GlassButtonOptions = {})
     el.querySelectorAll('.gm-btn__label--out').forEach((o) => o.remove());
     const incoming: Node = typeof content === 'string' ? document.createTextNode(content) : content;
 
-    const r = rectOf();
+    const r = boxOf();
     const fromW = Math.round(r.width);
     height = Math.round(r.height) || height;
     const toW = Math.max(measureWidth(incoming), height); // never thinner than a circle
@@ -600,9 +603,9 @@ export function mountGlassDropdown(o: GlassDropdownOptions): GlassDropdown {
   let mh = 0;
 
   const ensureSurface = () => {
-    const r = menu.getBoundingClientRect();
-    mw = Math.round(r.width);
-    mh = Math.round(r.height);
+    const r = layoutBox(menu);
+    mw = r.width;
+    mh = r.height;
     if (!surface) {
       surface = createGlassSurface({
         host: menu,

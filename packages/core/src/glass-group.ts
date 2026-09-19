@@ -11,10 +11,12 @@
 // are chrome ABOVE it — a label, a hairline — and are never filtered
 // themselves. That placement is load-bearing in Safari: a transform sliding an
 // item never trips the composited-child-escapes-the-filter rule, because the
-// moving element isn't in the filtered subtree. Items are measured by
-// getBoundingClientRect against the target's rect, transforms INCLUDED —
-// deliberately unlike mount.ts's layoutBox (which wants the untransformed box
-// of the glass root itself): a pill mid-slide should merge from where it IS.
+// moving element isn't in the filtered subtree. The map is the target's layout
+// box (layout.ts): drawn in the target's own coordinates, it mustn't pick up a
+// transform above the target, such as a menu scaling in. Items are measured by
+// getBoundingClientRect against the target's rect, their own transforms
+// INCLUDED (a pill mid-slide should merge from where it IS), and brought back
+// into target px by the target's on-screen scale.
 //
 // update() re-measures and re-encodes the map. That is the honest cost of a
 // merge: the neck between two approaching shapes changes shape, so no
@@ -31,6 +33,7 @@ import {
   type GlassSurfaceParams,
 } from './glass-morph';
 import { buildGroupDisplacementMap, type GroupShape } from './group-map';
+import { layoutBox, screenScale } from './layout';
 
 /** Live-tunable group params: the surface's (minus dome — a union has no centre), plus the fuse. */
 export interface GlassGroupParams extends Omit<GlassSurfaceParams, 'dome'> {
@@ -87,24 +90,26 @@ export function mountGlassGroup(o: GlassGroupOptions): GlassGroup {
 
   const measure = (): { w: number; h: number; shapes: GroupShape[] } => {
     const tb = o.target.getBoundingClientRect();
+    const box = layoutBox(o.target);
+    const s = screenScale(o.target, tb);
     const next =
       typeof o.items === 'function'
         ? o.items()
         : o.items.map((el) => {
             const r = el.getBoundingClientRect();
+            const w = r.width / s.x;
+            const h = r.height / s.y;
             return {
-              x: r.left - tb.left,
-              y: r.top - tb.top,
-              w: r.width,
-              h: r.height,
-              r:
-                parseFloat(getComputedStyle(el).borderTopLeftRadius) ||
-                Math.min(r.width, r.height) / 2,
+              x: (r.left - tb.left) / s.x,
+              y: (r.top - tb.top) / s.y,
+              w,
+              h,
+              r: parseFloat(getComputedStyle(el).borderTopLeftRadius) || Math.min(w, h) / 2,
             };
           });
     return {
-      w: Math.max(1, Math.round(tb.width)),
-      h: Math.max(1, Math.round(tb.height)),
+      w: Math.max(1, box.width),
+      h: Math.max(1, box.height),
       shapes: next,
     };
   };

@@ -231,9 +231,12 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
     await regen();
     ro = new ResizeObserver(() => {
       if (disposed) return;
-      const r = core.target.getBoundingClientRect();
-      if (m && Math.abs(r.width - m.rectW) < 0.5 && Math.abs(r.height - m.rectH) < 0.5) return;
-      m = core.measure();
+      // The mount's own measure, so the check is in the units the map was built
+      // in (the element's own px, whatever transform it sits under).
+      const next = core.measure();
+      if (m && next && Math.abs(next.rectW - m.rectW) < 0.5 && Math.abs(next.rectH - m.rectH) < 0.5)
+        return;
+      m = next;
       scheduleRegen();
     });
     ro.observe(core.target);

@@ -7,6 +7,7 @@
 
 import { buildAlphaDisplacementMap } from './glyph-map';
 import { mountAlphaGlass, type AlphaGlass, type AlphaGlassParams } from './mount-alpha-glass';
+import { layoutBox } from './layout';
 
 export type GlassShapeParams = AlphaGlassParams;
 
@@ -93,10 +94,11 @@ export function mountGlassShape(o: GlassShapeOptions): GlassShape {
     }
   };
 
+  // The layout box, not the rect: see layout.ts.
   const measure = (): ShapeMeasured | null => {
-    const r = o.target.getBoundingClientRect();
-    if (!r.width || !r.height) return null;
-    return { rectW: r.width, rectH: r.height };
+    const { width, height } = layoutBox(o.target);
+    if (!width || !height) return null;
+    return { rectW: width, rectH: height };
   };
 
   return mountAlphaGlass<ShapeMeasured>({

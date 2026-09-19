@@ -14,6 +14,7 @@
 
 import { buildGlyphDisplacementMap } from './glyph-map';
 import { mountAlphaGlass } from './mount-alpha-glass';
+import { screenScale } from './layout';
 
 export interface GlassTextParams {
   strength: number; // refraction reach, px
@@ -124,7 +125,8 @@ function fontScale(el: HTMLElement, cs: CSSStyleDeclaration, sizePx: number): nu
     // reads as the glass sliding off the letters.
     clone.style.cssText = `${el.getAttribute('style') || ''};position:absolute;left:-99999px;top:0;visibility:hidden;white-space:pre;letter-spacing:0;padding:0;border:0;width:auto;max-width:none`;
     (el.parentNode ?? document.body).appendChild(clone);
-    domW = clone.getBoundingClientRect().width;
+    // In the element's own px: the clone sits under the same transforms (layout.ts).
+    domW = clone.getBoundingClientRect().width / screenScale(el).x;
     clone.remove();
   } catch {
     return 1;
@@ -156,8 +158,13 @@ export function mountGlassText(o: GlassTextOptions): GlassText {
   //
   const measure = (): TextMeasured | null => {
     const el = o.target;
-    const rect = el.getBoundingClientRect();
-    if (!rect.width || !rect.height) return null;
+    const onScreen = el.getBoundingClientRect();
+    if (!onScreen.width || !onScreen.height) return null;
+    // Everything below is read off rects, which carry any transform on the text or
+    // above it; the map is drawn in the text's own px (layout.ts), so bring each
+    // length back by the on-screen scale.
+    const s = screenScale(el, onScreen);
+    const rect = { top: onScreen.top, width: onScreen.width / s.x, height: onScreen.height / s.y };
     const cs = getComputedStyle(el);
     const specifiedPx = parseFloat(cs.fontSize) || 16;
     const letterSpacing = cs.letterSpacing === 'normal' ? '' : cs.letterSpacing;
@@ -171,7 +178,7 @@ export function mountGlassText(o: GlassTextOptions): GlassText {
     const probe = document.createElement('span');
     probe.style.cssText = 'display:inline-block;width:0;height:0;padding:0;border:0;margin:0';
     el.appendChild(probe);
-    let baseline = probe.getBoundingClientRect().bottom - rect.top;
+    let baseline = (probe.getBoundingClientRect().bottom - rect.top) / s.y;
     probe.remove();
     if (!(baseline > 0) || baseline > rect.height + fontSizePx) {
       // fallback: font metrics + half-leading
