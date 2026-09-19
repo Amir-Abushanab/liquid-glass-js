@@ -37,6 +37,7 @@ import {
   GlassTabsList,
   GlassTabsTab,
   GlassTabsPanel,
+  GlassTabsPanels,
 } from '@/components/liquid-glass/glass-tabs';
 import { GlassSwitch } from '@/components/liquid-glass/glass-switch';
 import { GlassSlider } from '@/components/liquid-glass/glass-slider';
@@ -796,12 +797,13 @@ const TABS_TUNE: TuneConfig = {
   params: FROST_PARAMS,
   controls: [profileControl],
   code: (v, o) => `import {
-  GlassTabs, GlassTabsList, GlassTabsTab, GlassTabsPanel,
+  GlassTabs, GlassTabsList, GlassTabsTab, GlassTabsPanels, GlassTabsPanel,
 } from "@/components/liquid-glass/glass-tabs"
 
 import { CalendarDays, CalendarRange, Sun } from "lucide-react"
 
-// \`color\` tints a tab's icon and washes the pill while that tab is active.
+// \`color\` tints a tab's icon. Drag the pill to slide it; it snaps to a tab.
+// GlassTabsPanels sizes the panels to the largest, so switching moves nothing.
 export function Example() {
   return (
     <GlassTabs defaultValue="daily">
@@ -810,6 +812,11 @@ export function Example() {
         <GlassTabsTab value="weekly" icon={<CalendarDays />} color="#5dade2">Weekly</GlassTabsTab>
         <GlassTabsTab value="monthly" icon={<CalendarRange />} color="#bb8fce">Monthly</GlassTabsTab>
       </GlassTabsList>
+      <GlassTabsPanels>
+        <GlassTabsPanel value="daily">…</GlassTabsPanel>
+        <GlassTabsPanel value="weekly">…</GlassTabsPanel>
+        <GlassTabsPanel value="monthly">…</GlassTabsPanel>
+      </GlassTabsPanels>
     </GlassTabs>
   )
 }`,
@@ -999,7 +1006,7 @@ export const registry: RegistryItem[] = [
     category: 'Components',
     icon: PanelTop,
     description:
-      'A segmented control: Base UI Tabs with a glass pill that slides to the active tab, bending the labels as it goes. Tabs take an icon and an accent colour.',
+      'A segmented control: Base UI Tabs with a glass pill that slides to the active tab, bending the labels as it goes. Drag the pill and it snaps to the nearest tab. Tabs take an icon and an accent colour.',
     tune: TABS_TUNE,
     code: TABS_TUNE.code(tuneDefaults(TABS_TUNE)),
     Demo: ({ values: v = tuneDefaults(TABS_TUNE), options: o = controlDefaults(TABS_TUNE) }) => (
@@ -1023,15 +1030,17 @@ export const registry: RegistryItem[] = [
             Monthly
           </GlassTabsTab>
         </GlassTabsList>
-        <GlassTabsPanel value="daily" className="text-center text-sm text-white/80">
-          The pill slides to the active tab and takes a wash of its colour.
-        </GlassTabsPanel>
-        <GlassTabsPanel value="weekly" className="text-center text-sm text-white/80">
-          The labels bend only while it travels, so at rest they stay crisp.
-        </GlassTabsPanel>
-        <GlassTabsPanel value="monthly" className="text-center text-sm text-white/80">
-          Base UI drives roving focus and the arrow keys.
-        </GlassTabsPanel>
+        <GlassTabsPanels className="max-w-[24rem] text-center text-sm text-white/80">
+          <GlassTabsPanel value="daily">
+            Drag the pill and it snaps to the nearest tab.
+          </GlassTabsPanel>
+          <GlassTabsPanel value="weekly">
+            The labels bend only while it moves, so at rest they stay crisp.
+          </GlassTabsPanel>
+          <GlassTabsPanel value="monthly">
+            Base UI drives roving focus and the arrow keys.
+          </GlassTabsPanel>
+        </GlassTabsPanels>
       </GlassTabs>
     ),
   },
