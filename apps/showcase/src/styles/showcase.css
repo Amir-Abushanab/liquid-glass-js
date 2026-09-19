@@ -656,10 +656,6 @@ a {
     animation: none;
   }
 }
-.seg__glass > .ps-glass {
-  width: 100%;
-  height: 100%;
-}
 .glassqr-mount {
   display: flex;
   justify-content: center;
@@ -674,63 +670,6 @@ a {
   flex-wrap: wrap;
   gap: 1.5rem;
   align-items: center;
-}
-.seg {
-  position: relative;
-  display: inline-block;
-  padding: 4px;
-  border-radius: 999px;
-  border: 1px solid var(--line-strong);
-  background: var(--surface);
-  isolation: isolate;
-}
-.seg__labels {
-  display: inline-grid;
-  grid-template-columns: repeat(var(--n), 1fr);
-}
-.seg__opt {
-  min-width: 92px;
-  padding: 11px 22px;
-  border: 0;
-  background: transparent;
-  font: 500 0.875rem/1 var(--font-sans);
-  color: var(--muted);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: color 200ms;
-}
-.seg__opt[aria-selected='true'] {
-  color: var(--ink);
-}
-.seg__opt:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
-  border-radius: 999px;
-}
-.seg--two .seg__opt {
-  min-width: 72px;
-}
-.seg__glass {
-  position: absolute;
-  z-index: 1;
-  top: 4px;
-  bottom: 4px;
-  left: 4px;
-  width: calc((100% - 8px) / var(--n));
-  /* --i is the resting position, and all the no-JS build ever needs. With JS the
-     transform is written per frame from the same tween that moves the lens, and there
-     is deliberately no CSS transition on it: a running transform transition gives this
-     element its own compositing layer in Safari, and a promoted layer sliding over a
-     filtered sibling leaves the strip it vacated unrepainted — the line of leftover
-     glass at the pill's last position. Driving it from script promotes nothing, and it
-     keeps the chrome and the refraction on one clock instead of two. */
-  transform: translateX(calc(var(--i) * 100%));
-  pointer-events: none;
-  border-radius: 999px;
-  box-shadow:
-    inset 0 1px 1px rgb(255 255 255 / 55%),
-    inset 0 0 0 1px rgb(255 255 255 / 20%),
-    0 4px 10px -4px rgb(0 0 0 / 30%);
 }
 .demo--paths {
   align-items: start;
@@ -2262,9 +2201,7 @@ a {
     max-width: 100%;
     border-radius: 20px;
   }
-  /* Emphatically not stretched to the row: the lens is sized from the control's own
-     box, while .seg__labels is an inline-grid that stays at content width. Stretch the
-     frame and the glass pill is suddenly wider than the segment it is meant to mark. */
+  /* The tabs keep their own width; the command takes the next line. */
   .pm__seg {
     flex: 0 0 auto;
   }
@@ -2278,31 +2215,6 @@ a {
     min-width: 0;
     overflow-x: auto;
   }
-}
-/* The demo section's segmented control, shrunk to hero-chrome size. Its own frame is
-   made transparent rather than removed: the mount derives the pill's box from the
-   element's border-box minus a fixed 4px inset, so dropping the 1px border would put
-   the glass a pixel out of its slot. */
-.pm__seg {
-  border-color: transparent;
-  background: transparent;
-}
-.pm__seg .seg__opt {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  min-width: 0;
-  padding: 5px 11px;
-  font: 600 0.76rem/1 var(--font-mono, ui-monospace, monospace);
-}
-.pm__seg .seg__opt svg {
-  width: 13px;
-  height: 13px;
-  display: block;
-}
-.pm__seg .seg__opt:hover {
-  color: var(--ink, #fff);
 }
 .pm__line {
   display: inline-flex;
@@ -2356,7 +2268,7 @@ a {
   color: #8ef0c8;
 }
 @media (max-width: 640px) {
-  .pm__tab span {
+  .pm__name {
     display: none;
   }
 }
@@ -3262,37 +3174,6 @@ a {
 }
 .domcard__ticker-run {
   display: inline-block;
-}
-
-/* ── Aave's segmented trick: a pill-sized window clips a highlighted, inert
-   COPY of the label row; the lens refracts the copy, so the selected label
-   reads bright through the glass while the live track stays dim. The window
-   rides the pill (+x) and the copy counter-translates (−x), so the text never
-   moves — only the clip does. ── */
-.seg__win {
-  position: absolute;
-  z-index: 2;
-  top: 4px;
-  bottom: 4px;
-  left: 4px;
-  width: calc((100% - 8px) / var(--n));
-  overflow: hidden;
-  border-radius: 999px;
-  pointer-events: none;
-}
-.seg__copy {
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-.seg__copy .seg__opt {
-  color: var(--ink);
-}
-/* With the copy carrying the highlight, the live selected label goes back to
-   track colour — but only when JS built the copy, so the no-JS build keeps its
-   aria-selected affordance. */
-.seg.has-copy > .seg__labels .seg__opt[aria-selected='true'] {
-  color: var(--muted);
 }
 
 /* ── Gecko only: its compositor ships a live canvas square — border-radius AND

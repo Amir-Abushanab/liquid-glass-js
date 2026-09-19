@@ -9,6 +9,8 @@
  * inlined rather than pulled in as a dependency: four paths do not need a package, and
  * a build-time import cannot go stale on a CDN.
  */
+import { renderPackageManagerTabs } from './glass-tabs.tsx';
+
 const PKG = '@liquidglassjs/core';
 const STORAGE_KEY = 'preferred-pm'; // same key the registry's usePackageManager reads
 
@@ -43,34 +45,12 @@ const read = () => {
   return 'pnpm';
 };
 
-const mark = (path) =>
-  `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${path}"></path></svg>`;
-
 document.querySelectorAll('[data-install]').forEach((root) => {
-  // The site's own segmented control, markup and all: `[data-seg]` makes showcase.js
-  // mount a real glass lens over the labels and drive the pill from script, so the
-  // selector refracts its own brand marks instead of imitating glass with a tint, and
-  // it inherits the fix for Safari's leftover strip for free. `--i` is set from the
-  // stored choice up front because that mount reads the resting index from it.
-  //
-  // No `data-glasslens`: that opts an element into the render-path overlay, and this is
-  // hero chrome rather than one of the demos the overlay is annotating — its badge lands
-  // on top of the first tab.
+  // The registry's Glass Tabs (scripts/glass-tabs.tsx): a real glass lens over the
+  // labels, refracting the brand marks as the pill slides, and tuned with the rest of
+  // the page's segmented controls from the Glass Tuner.
   const tabs = document.createElement('div');
-  tabs.className = 'seg pm__seg';
-  tabs.dataset.seg = '';
-  tabs.setAttribute('role', 'tablist');
-  tabs.setAttribute('aria-label', 'Package manager');
-  tabs.style.setProperty('--n', String(ORDER.length));
-  tabs.style.setProperty('--i', String(Math.max(0, ORDER.indexOf(read()))));
-  tabs.innerHTML =
-    '<div class="seg__labels">' +
-    ORDER.map(
-      (m) =>
-        `<button class="seg__opt pm__tab" type="button" role="tab" data-pm="${m}" aria-selected="false">` +
-        `${mark(MANAGERS[m].path)}<span>${m}</span></button>`,
-    ).join('') +
-    '</div><div class="seg__glass"></div>';
+  tabs.className = 'pm__seg';
 
   const line = document.createElement('div');
   line.className = 'pm__line';
@@ -87,36 +67,30 @@ document.querySelectorAll('[data-install]').forEach((root) => {
   const text = line.querySelector('.pm__text');
   const copy = line.querySelector('.pm__copy');
 
-  const opts = Array.from(tabs.querySelectorAll('.seg__opt'));
-  let current = 'pnpm';
-  let syncing = false;
+  let current = read();
 
-  // `aria-selected` and the pill's position belong to the segmented control now, so
-  // painting only writes the command. When the choice changes somewhere else — another
-  // tab, or a React command block on the same page — replay it as a click so the pill
-  // animates over on the same path a real click would take, rather than teleporting.
+  // The pill belongs to the tabs, which follow a choice made elsewhere (another tab, a
+  // command block) on their own; this only writes the command.
   const paint = () => {
     current = read();
     text.textContent = `${MANAGERS[current].cmd} ${PKG}`;
-    const want = Math.max(0, ORDER.indexOf(current));
-    if ((parseInt(tabs.style.getPropertyValue('--i'), 10) || 0) === want) return;
-    syncing = true;
-    opts[want]?.click();
-    syncing = false;
   };
 
-  tabs.addEventListener('click', (e) => {
-    const tab = e.target.closest('.pm__tab');
-    if (!tab || syncing) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, tab.dataset.pm);
-    } catch {
-      /* ignore; paint() falls back to the default */
-    }
-    // Same event the React blocks listen for, so every command on the site follows.
-    window.dispatchEvent(new Event('pm-change'));
-    paint();
-  });
+  renderPackageManagerTabs(
+    tabs,
+    ORDER.map((id) => ({ id, path: MANAGERS[id].path })),
+    read,
+    (id) => {
+      try {
+        localStorage.setItem(STORAGE_KEY, id);
+      } catch {
+        /* ignore; paint() falls back to the default */
+      }
+      // Same event the React blocks listen for, so every command on the site follows.
+      window.dispatchEvent(new Event('pm-change'));
+      paint();
+    },
+  );
 
   let reset = 0;
   copy.addEventListener('click', async () => {

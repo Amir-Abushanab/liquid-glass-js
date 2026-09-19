@@ -22,6 +22,7 @@ import { SPLASH_COLORS, hexToRgb } from './color';
 import { applyGlassFilter, clearGlassFilter, refreshGlassFilter } from './filter-origin';
 import { preBlurStd } from './blur-quantize';
 import { prefersReducedMotion } from './dynamics';
+import { layoutBox } from './layout';
 
 // Live-tunable ripple params (the Glass Tuner mutates these via reconfigure()).
 export interface SvgRippleParams {
@@ -142,9 +143,10 @@ export function mountSvgRipple(o: SvgRippleOptions) {
       // motion drops it whole rather than snapping to its end (an empty frame
       // anyway: the ripple ends faded out).
       if (prefersReducedMotion()) return;
-      const r = o.target.getBoundingClientRect();
-      bw = r.width;
-      bh = r.height;
+      // The filter works in the target's own px (layout.ts), whatever it's scaled by.
+      const box = layoutBox(o.target);
+      bw = box.width;
+      bh = box.height;
       cx = nx * bw;
       cy = ny * bh;
       col = hexToRgb(SPLASH_COLORS[colorIndex]);

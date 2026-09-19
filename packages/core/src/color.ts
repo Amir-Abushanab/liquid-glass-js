@@ -4,15 +4,23 @@
 // not depend on the qr subpackage). Used by the glint tint (item 6).
 
 export function parseCssColor(css: string): [number, number, number] {
+  const [r, g, b] = parseCssRgba(css);
+  return [r, g, b];
+}
+
+// The same read with alpha kept: filled over a cleared canvas, getImageData hands
+// back the unpremultiplied colour and its coverage. The frost stand-in rim uses it
+// for how much light the frost wash and tint let through.
+export function parseCssRgba(css: string): [number, number, number, number] {
   const cv = document.createElement('canvas');
   cv.width = 1;
   cv.height = 1;
   const ctx = cv.getContext('2d');
-  if (!ctx) return [1, 1, 1];
+  if (!ctx) return [1, 1, 1, 1];
   ctx.fillStyle = css;
   ctx.fillRect(0, 0, 1, 1);
   const d = ctx.getImageData(0, 0, 1, 1).data;
-  return [d[0] / 255, d[1] / 255, d[2] / 255];
+  return [d[0] / 255, d[1] / 255, d[2] / 255, d[3] / 255];
 }
 
 // ── Shared palette + hex helpers (DOM-free) ──────────────────────────────────

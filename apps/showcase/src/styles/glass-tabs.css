@@ -1,0 +1,12 @@
+/* Tailwind for the GlassTabs on the main page, which is otherwise plain CSS with its own
+   reset. Three choices keep the two out of each other's way:
+   - No preflight: the page's reset stays the only one.
+   - Unlayered utilities. The page's element rules (reset.css's `button`) are unlayered,
+     and an unlayered rule beats a layered one whatever the specificity, so layered
+     utilities would lose the tabs' padding and colours to them.
+   - Scanning only the files that use these classes (source(none) plus @source), so none
+     of the page's own class names ever turn into utility rules. */
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' source(none);
+@source '../components/liquid-glass/glass-tabs.tsx';
+@source '../scripts/glass-tabs.tsx';

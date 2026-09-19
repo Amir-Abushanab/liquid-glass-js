@@ -3,6 +3,8 @@ import type { LucideIcon } from 'lucide-react';
 import {
   AppWindow,
   Aperture,
+  CalendarDays,
+  CalendarRange,
   Droplets,
   Menu,
   MousePointerClick,
@@ -12,6 +14,7 @@ import {
   Square,
   SquareStack,
   Star,
+  Sun,
   ToggleRight,
   Type,
   Waves,
@@ -34,6 +37,7 @@ import {
   GlassTabsList,
   GlassTabsTab,
   GlassTabsPanel,
+  GlassTabsPanels,
 } from '@/components/liquid-glass/glass-tabs';
 import { GlassSwitch } from '@/components/liquid-glass/glass-switch';
 import { GlassSlider } from '@/components/liquid-glass/glass-slider';
@@ -222,6 +226,12 @@ export interface RegistryItem {
   Demo: FC<{ values?: Record<string, number>; options?: TuneOptions }>;
   /** When set, the preview shows a live parameter tuner and shareable URL state. */
   tune?: TuneConfig;
+  /**
+   * The preview's background, in place of the busy scene. For glass that bends its
+   * own content rather than what's behind it, where the scene only competes with
+   * the content (Glass Tabs' coloured icons).
+   */
+  backdrop?: string;
 }
 
 const triggerClass =
@@ -793,17 +803,27 @@ const TABS_TUNE: TuneConfig = {
   params: FROST_PARAMS,
   controls: [profileControl],
   code: (v, o) => `import {
-  GlassTabs, GlassTabsList, GlassTabsTab, GlassTabsPanel,
+  GlassTabs, GlassTabsList, GlassTabsTab, GlassTabsPanels, GlassTabsPanel,
 } from "@/components/liquid-glass/glass-tabs"
 
+import { CalendarDays, CalendarRange, Sun } from "lucide-react"
+
+// \`color\` tints a tab's icon, and the glass while it's over that tab.
+// Drag the pill to slide it; it snaps to a tab.
+// GlassTabsPanels sizes the panels to the largest, so switching moves nothing.
 export function Example() {
   return (
-    <GlassTabs defaultValue="overview">
+    <GlassTabs defaultValue="daily">
       <GlassTabsList strength={${v.strength}} chroma={${v.chroma}} dome={${v.dome}} depth={${v.depth}} edge={${v.edge}} glow={${v.glow}}${profileAttrInline(o)}>
-        <GlassTabsTab value="overview">Overview</GlassTabsTab>
-        <GlassTabsTab value="activity">Activity</GlassTabsTab>
-        <GlassTabsTab value="settings">Settings</GlassTabsTab>
+        <GlassTabsTab value="daily" icon={<Sun />} color="#f5b041">Daily</GlassTabsTab>
+        <GlassTabsTab value="weekly" icon={<CalendarDays />} color="#5dade2">Weekly</GlassTabsTab>
+        <GlassTabsTab value="monthly" icon={<CalendarRange />} color="#bb8fce">Monthly</GlassTabsTab>
       </GlassTabsList>
+      <GlassTabsPanels>
+        <GlassTabsPanel value="daily">…</GlassTabsPanel>
+        <GlassTabsPanel value="weekly">…</GlassTabsPanel>
+        <GlassTabsPanel value="monthly">…</GlassTabsPanel>
+      </GlassTabsPanels>
     </GlassTabs>
   )
 }`,
@@ -993,8 +1013,9 @@ export const registry: RegistryItem[] = [
     category: 'Components',
     icon: PanelTop,
     description:
-      'A segmented control: Base UI Tabs with a glass pill that slides under the active label and refracts it.',
+      'A segmented control: Base UI Tabs with a glass pill that slides to the active tab, bending the labels as it goes. Drag the pill and it lands on the nearest tab, or flick it to the next. Tabs take an icon and an accent colour, which the glass picks up.',
     tune: TABS_TUNE,
+    backdrop: '#000',
     code: TABS_TUNE.code(tuneDefaults(TABS_TUNE)),
     Demo: ({ values: v = tuneDefaults(TABS_TUNE), options: o = controlDefaults(TABS_TUNE) }) => (
       <GlassTabs defaultValue="daily">
@@ -1007,19 +1028,27 @@ export const registry: RegistryItem[] = [
           glow={v.glow}
           profile={profileOf(o)}
         >
-          <GlassTabsTab value="daily">Daily</GlassTabsTab>
-          <GlassTabsTab value="weekly">Weekly</GlassTabsTab>
-          <GlassTabsTab value="monthly">Monthly</GlassTabsTab>
+          <GlassTabsTab value="daily" icon={<Sun />} color="#f5b041">
+            Daily
+          </GlassTabsTab>
+          <GlassTabsTab value="weekly" icon={<CalendarDays />} color="#5dade2">
+            Weekly
+          </GlassTabsTab>
+          <GlassTabsTab value="monthly" icon={<CalendarRange />} color="#bb8fce">
+            Monthly
+          </GlassTabsTab>
         </GlassTabsList>
-        <GlassTabsPanel value="daily" className="text-center text-sm text-white/80">
-          A glass pill marks the active range.
-        </GlassTabsPanel>
-        <GlassTabsPanel value="weekly" className="text-center text-sm text-white/80">
-          …and refracts the label beneath it.
-        </GlassTabsPanel>
-        <GlassTabsPanel value="monthly" className="text-center text-sm text-white/80">
-          Base UI drives roving focus + arrow keys.
-        </GlassTabsPanel>
+        <GlassTabsPanels className="max-w-[24rem] text-center text-sm text-white/80">
+          <GlassTabsPanel value="daily">
+            Drag the pill and it lands on the nearest tab, or flick it to the next.
+          </GlassTabsPanel>
+          <GlassTabsPanel value="weekly">
+            The labels bend only while it moves, so at rest they stay crisp.
+          </GlassTabsPanel>
+          <GlassTabsPanel value="monthly">
+            Base UI drives roving focus and the arrow keys.
+          </GlassTabsPanel>
+        </GlassTabsPanels>
       </GlassTabs>
     ),
   },

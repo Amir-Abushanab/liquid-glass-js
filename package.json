@@ -19,7 +19,7 @@
     "format": "oxfmt packages apps",
     "knip": "knip",
     "depcruise": "depcruise packages apps",
-    "check": "oxfmt --check packages apps && oxlint packages apps && pnpm -r typecheck && knip && depcruise packages apps && pnpm skill:validate",
+    "check": "oxfmt --check packages apps && oxlint packages apps && pnpm -r typecheck && knip && depcruise packages apps && pnpm skill:validate && pnpm --filter registry check",
     "check:fix": "oxfmt packages apps && oxlint --fix packages apps",
     "changeset": "changeset",
     "ncu": "pnpm dlx npm-check-updates",
