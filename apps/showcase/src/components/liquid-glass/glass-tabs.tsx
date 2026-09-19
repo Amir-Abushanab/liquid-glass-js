@@ -27,8 +27,8 @@ import '@liquidglassjs/core/css';
  *   gives a little past either end, and when let go carries on at the pointer's speed
  *   into the spring that lands it on a tab, which it selects. A slow release lands on
  *   the nearest tab, a flick on the next one along.
- * - A tab can carry an icon and an accent (`color`) for it. The pill stays neutral,
- *   so a coloured icon reads the same under it as beside it.
+ * - A tab can carry an icon and an accent (`color`). The icon wears the accent in
+ *   every state, and the glass takes a wash of it while it's over that tab.
  * - `fit="equal"` splits the width evenly (labels of a kind); `fit="auto"` sizes each
  *   tab to its label, and the pill and lens take the new tab's width as they go. A
  *   list wider than its container scrolls inside its own frame.
@@ -178,6 +178,20 @@ function GlassTabsList({
       bend = v;
       lens?.setDisplScale(v);
     };
+    // The glass takes a wash of the accent of the tab it's over, faded by the pill's
+    // transition as it moves; a placement (the first paint, a resize) takes it at
+    // once. A tab without one leaves the plain fill.
+    let tinted: HTMLElement | null = null;
+    const tint = (tab: HTMLElement | undefined, instant = false) => {
+      if (!tab || tab === tinted) return;
+      tinted = tab;
+      const accent = getComputedStyle(tab).getPropertyValue('--glass-tab-accent').trim();
+      if (instant) pill.style.transition = 'none';
+      pill.style.setProperty('--glass-tabs-on', accent);
+      if (!instant) return;
+      void getComputedStyle(pill).backgroundColor; // commit it before the fade is back
+      pill.style.transition = '';
+    };
 
     // The enabled tabs by centre, and where the row sits in the list. Read at the top
     // of a frame, before the pill is written, so moving it never forces a layout.
@@ -274,6 +288,7 @@ function GlassTabsList({
       pos = shown = b.x + b.w / 2;
       vel = 0;
       place(b);
+      tint(tab, true);
       setBend(0);
       placed = true;
       list.dataset.measured = '';
@@ -308,6 +323,7 @@ function GlassTabsList({
       const sized = drag?.moved ? (stops[nearest(c)]?.box ?? goal) : goal;
       sizeLens(sized.w, sized.h);
       place(boxAt(c));
+      tint(stops[nearest(c)]?.tab);
       const speed = Math.abs(c - shown) / dt;
       shown = c;
       const want = reduced.matches
@@ -319,6 +335,7 @@ function GlassTabsList({
         pos = shown = home;
         vel = 0;
         place(goal);
+        tint(tab);
         setBend(0);
         return;
       }
@@ -496,16 +513,17 @@ function GlassTabsList({
       >
         {children}
       </div>
-      {/* Chrome only: rim, shadow and a neutral fill (--glass-tabs-pill to restyle).
-          The refraction is the filter on the row above, so this sits over the label,
-          not behind it. Held back until the script has placed it on a measured box. */}
+      {/* Chrome only: rim, shadow and a wash of the accent of the tab it's over, or a
+          faint white where there's none (--glass-tabs-pill restyles the fill). The
+          refraction is the filter on the row above, so this sits over the label, not
+          behind it. Held back until the script has placed it on a measured box. */}
       <div
         ref={pillRef}
         aria-hidden="true"
         className={cn(
           'pointer-events-none absolute top-0 left-0 z-10 rounded-full opacity-0',
           'group-data-[measured]/tabs:opacity-100',
-          'bg-[var(--glass-tabs-pill,rgb(255_255_255/7%))]',
+          'bg-[var(--glass-tabs-pill,color-mix(in_oklab,var(--glass-tabs-on,rgb(255_255_255/47%))_15%,transparent))] transition-[background-color] duration-200 motion-reduce:transition-none',
           'shadow-[inset_0_1px_0_rgb(255_255_255/40%),inset_0_0_0_1px_rgb(255_255_255/14%),0_2px_10px_-2px_rgb(0_0_0/35%)]',
         )}
       />

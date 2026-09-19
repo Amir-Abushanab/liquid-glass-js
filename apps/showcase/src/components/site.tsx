@@ -135,14 +135,16 @@ export function InstallCommand({ item }: { item: RegistryItem }) {
 export function PreviewBackdrop({
   children,
   className,
+  background = SCENE,
 }: {
   children: React.ReactNode;
   className?: string;
+  background?: string;
 }) {
   return (
     <div
       className={cn('grid min-h-[360px] place-items-center overflow-hidden p-10', className)}
-      style={{ background: SCENE }}
+      style={{ background }}
     >
       {children}
     </div>
@@ -327,7 +329,7 @@ export function ComponentPreview({ item }: { item: RegistryItem }) {
       </div>
       {tab === 'preview' ? (
         <>
-          <PreviewBackdrop>
+          <PreviewBackdrop background={item.backdrop}>
             {/* A demo that throws must cost us the demo, not the page. The Glass QR
                 is the one that can: it's a WebGL2 shader and has no context to fall
                 back to, so on a browser without WebGL2 it throws on mount — and an

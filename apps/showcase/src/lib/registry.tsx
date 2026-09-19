@@ -226,6 +226,12 @@ export interface RegistryItem {
   Demo: FC<{ values?: Record<string, number>; options?: TuneOptions }>;
   /** When set, the preview shows a live parameter tuner and shareable URL state. */
   tune?: TuneConfig;
+  /**
+   * The preview's background, in place of the busy scene. For glass that bends its
+   * own content rather than what's behind it, where the scene only competes with
+   * the content (Glass Tabs' coloured icons).
+   */
+  backdrop?: string;
 }
 
 const triggerClass =
@@ -802,7 +808,8 @@ const TABS_TUNE: TuneConfig = {
 
 import { CalendarDays, CalendarRange, Sun } from "lucide-react"
 
-// \`color\` tints a tab's icon. Drag the pill to slide it; it snaps to a tab.
+// \`color\` tints a tab's icon, and the glass while it's over that tab.
+// Drag the pill to slide it; it snaps to a tab.
 // GlassTabsPanels sizes the panels to the largest, so switching moves nothing.
 export function Example() {
   return (
@@ -1006,8 +1013,9 @@ export const registry: RegistryItem[] = [
     category: 'Components',
     icon: PanelTop,
     description:
-      'A segmented control: Base UI Tabs with a glass pill that slides to the active tab, bending the labels as it goes. Drag the pill and it lands on the nearest tab, or flick it to the next. Tabs take an icon and an accent colour.',
+      'A segmented control: Base UI Tabs with a glass pill that slides to the active tab, bending the labels as it goes. Drag the pill and it lands on the nearest tab, or flick it to the next. Tabs take an icon and an accent colour, which the glass picks up.',
     tune: TABS_TUNE,
+    backdrop: '#000',
     code: TABS_TUNE.code(tuneDefaults(TABS_TUNE)),
     Demo: ({ values: v = tuneDefaults(TABS_TUNE), options: o = controlDefaults(TABS_TUNE) }) => (
       <GlassTabs defaultValue="daily">
