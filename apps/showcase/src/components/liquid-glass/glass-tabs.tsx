@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { Tabs as BaseTabs } from '@base-ui/react/tabs';
-import { cubicBezier, mountGlassLens, type MapProfile } from '@liquidglassjs/core';
+import { mountGlassLens, type MapProfile } from '@liquidglassjs/core';
 import { cn } from '@/lib/utils';
 import '@liquidglassjs/core/css';
 
@@ -15,18 +15,18 @@ import '@liquidglassjs/core/css';
  * a panel with nothing behind it to filter falls back to a blur, which outside
  * Chromium is a plain white wash.
  *
- * - The labels bend only while the pill moves. The displacement swells from zero and
- *   back over a slide, so at rest they're geometrically untouched and read as crisp
- *   as the rest of the page. The filter stays mounted the whole time: taking it off
- *   and on would change how the row is rasterised, and the labels would look bolder
- *   for the length of every switch.
- * - The pill and the lens move on one clock, a single tween, rather than a CSS
- *   transition followed frame by frame. The two start a frame apart otherwise, and
- *   on an overshooting curve the lens ran ~18px ahead of the pill early in a slide.
- * - The pill can be dragged: press the active tab and slide. It follows the pointer
- *   with the glass bending what passes under it, gives a little past either end, and
- *   on release snaps to the nearest tab (a flick carries it a little further) and
- *   selects it.
+ * - The labels bend only while the pill moves, and with its speed. The displacement
+ *   swells from zero and back over a slide, so at rest they're geometrically untouched
+ *   and read as crisp as the rest of the page. The filter stays mounted the whole
+ *   time: taking it off and on would change how the row is rasterised, and the labels
+ *   would look bolder for the length of every switch.
+ * - The pill and the lens move on one clock, a spring stepped each frame, rather than
+ *   a CSS transition followed frame by frame. The two start a frame apart otherwise,
+ *   and on an overshooting curve the lens ran ~18px ahead of the pill early in a slide.
+ * - The pill can be dragged: press the active tab and slide. It follows the pointer,
+ *   gives a little past either end, and when let go carries on at the pointer's speed
+ *   into the spring that lands it on a tab, which it selects. A slow release lands on
+ *   the nearest tab, a flick on the next one along.
  * - A tab can carry an icon and an accent (`color`) for it. The pill stays neutral,
  *   so a coloured icon reads the same under it as beside it.
  * - `fit="equal"` splits the width evenly (labels of a kind); `fit="auto"` sizes each
@@ -49,18 +49,31 @@ import '@liquidglassjs/core/css';
 
 const GlassTabs = BaseTabs.Root;
 
-// Settles with a slight overshoot, the way a physical switch lands.
-const SLIDE_EASE = cubicBezier(0.34, 1.35, 0.5, 1);
-const SLIDE_MS = 300;
+// The pill's spring (stiffness and damping per unit mass). From rest it arrives in
+// ~130ms, overshoots 4% and settles by ~260ms, the way a physical switch lands.
+const SPRING_K = 625;
+const SPRING_C = 35;
 // Pointer travel before a press on the active tab becomes a drag, so a click stays a click.
 const DRAG_SLOP = 4;
-// How far past either end the pill follows the pointer: this share of the overshoot.
-const EDGE_GIVE = 0.3;
-// A flick lands where the pill would be this many ms later at its release speed,
-// measured over the last FLICK_WINDOW ms of the drag and capped at FLICK_CAP of a tab.
-const FLICK_MS = 120;
-const FLICK_WINDOW = 100;
-const FLICK_CAP = 0.6;
+// Past either end the pill gives half the pointer's travel at first, stiffening until
+// it's EDGE_GIVE px out, about where the frame's rounded end starts to cover it.
+const EDGE_GIVE = 8;
+// Let go, the pill lands on the tab nearest where it would coast to, slowing at
+// FRICTION px/s², but at most one tab past where the throw began: a flick moves one
+// tab, however hard. The throw is the pointer's last SPEED_WINDOW ms, its speed a
+// straight-line fit to them, and none if the pointer stopped STOPPED_MS before letting
+// go. The spring takes on as much of that speed as carries the pill no more than
+// CARRY of a tab past where it lands.
+const FRICTION = 3000;
+const SPEED_WINDOW = 50;
+const STOPPED_MS = 40;
+const CARRY = 0.1;
+// The labels bend fully from BEND_SPEED tabs/s, and by HELD_BEND while a pointer holds
+// the pill still. The bend follows over ~BEND_EASE s, so over a switch it swells and
+// ebbs, and a jittery pointer doesn't flicker the glass.
+const BEND_SPEED = 6;
+const HELD_BEND = 0.3;
+const BEND_EASE = 0.05;
 
 type Box = { x: number; y: number; w: number; h: number };
 
@@ -120,11 +133,8 @@ function GlassTabsList({
     let lens: ReturnType<typeof mountGlassLens> | null = null;
     let lensW = 0;
     let lensH = 0;
-    let at: Box | null = null;
-    // How far the labels are bent right now, 0–1, so a snap can take it down from
-    // wherever a drag left it.
+    // How far the labels are bent right now, 0–1.
     let bend = 0;
-    let raf = 0;
 
     // The refraction is decoration; the control is not. If the lens can't be mounted
     // (or has no box yet, inside something still hidden) the pill still moves, and a
@@ -169,136 +179,215 @@ function GlassTabsList({
       lens?.setDisplScale(v);
     };
 
+    // The enabled tabs by centre, and where the row sits in the list. Read at the top
+    // of a frame, before the pill is written, so moving it never forces a layout.
+    let stops: { tab: HTMLElement; box: Box; c: number }[] = [];
+    let rowX = 0;
+    let rowY = 0;
+    const measure = () => {
+      stops = tabs().map((tab) => {
+        const box = boxOf(tab);
+        return { tab, box, c: box.x + box.w / 2 };
+      });
+      rowX = labels.offsetLeft;
+      rowY = labels.offsetTop;
+    };
+    // Tab to tab, in px.
+    const pitch = () => {
+      const a = stops[0];
+      const z = stops[stops.length - 1];
+      if (!a || !z) return 1;
+      return stops.length > 1 ? (z.c - a.c) / (stops.length - 1) : a.box.w || 1;
+    };
+    const nearest = (c: number) => {
+      let best = 0;
+      stops.forEach((s, j) => {
+        if (Math.abs(s.c - c) < Math.abs((stops[best]?.c ?? 0) - c)) best = j;
+      });
+      return best;
+    };
+    // Past the first or last tab, the give (EDGE_GIVE).
+    const give = (c: number) => {
+      const lo = stops[0]?.c ?? c;
+      const hi = stops[stops.length - 1]?.c ?? c;
+      const past = (over: number) => (EDGE_GIVE * over) / (2 * EDGE_GIVE + over);
+      return c < lo ? lo - past(lo - c) : c > hi ? hi + past(c - hi) : c;
+    };
+    // The pill's box for a centre. Between two tabs it takes a width between theirs,
+    // so under `fit="auto"` it grows and shrinks as it crosses the row.
+    const boxAt = (c: number): Box => {
+      let i = 0;
+      while (i < stops.length - 2 && c > (stops[i + 1]?.c ?? 0)) i += 1;
+      const a = stops[i]!;
+      const b = stops[Math.min(i + 1, stops.length - 1)] ?? a;
+      const t = b.c === a.c ? 0 : Math.min(1, Math.max(0, (c - a.c) / (b.c - a.c)));
+      const w = a.box.w + (b.box.w - a.box.w) * t;
+      return {
+        x: c - w / 2,
+        y: a.box.y + (b.box.y - a.box.y) * t,
+        w,
+        h: a.box.h + (b.box.h - a.box.h) * t,
+      };
+    };
+
     // One writer for the pill and the lens, from the same numbers. The pill sits in
     // the list; the lens and the tabs in the row, which the list's padding offsets.
     const place = (b: Box) => {
-      at = b;
       pill.style.width = `${b.w}px`;
       pill.style.height = `${b.h}px`;
-      pill.style.transform = `translate(${labels.offsetLeft + b.x}px, ${labels.offsetTop + b.y}px)`;
+      pill.style.transform = `translate(${rowX + b.x}px, ${rowY + b.y}px)`;
       lens?.setPos(b.x + (b.w - lensW) / 2, b.y);
     };
 
-    const jump = (tab: HTMLElement) => {
-      cancelAnimationFrame(raf);
-      const b = boxOf(tab);
-      ensureLens(b);
-      sizeLens(b.w, b.h);
-      place(b);
-      setBend(0);
-      list.dataset.measured = '';
-    };
-
-    const slide = (tab: HTMLElement) => {
-      const to = boxOf(tab);
-      if (!at || reduced.matches) return jump(tab);
-      cancelAnimationFrame(raf);
-      ensureLens(to);
-      // The lens takes the destination width up front: the only frames where the
-      // difference could show are the ones where the displacement is bending the
-      // labels anyway.
-      sizeLens(to.w, to.h);
-      const from = at;
-      const bentFrom = bend;
-      const t0 = performance.now();
-      const step = (now: number) => {
-        const k = Math.min(1, (now - t0) / SLIDE_MS);
-        const e = SLIDE_EASE(k);
-        place({
-          x: from.x + (to.x - from.x) * e,
-          y: from.y + (to.y - from.y) * e,
-          w: from.w + (to.w - from.w) * e,
-          h: to.h,
-        });
-        // Zero at both ends and full in the middle, so the glass has no edge to be
-        // caught at; out of a drag it starts from the drag's bend and eases off.
-        setBend(k < 1 ? Math.max(Math.sin(Math.PI * k), bentFrom * (1 - e)) : 0);
-        if (k < 1) raf = requestAnimationFrame(step);
-        else place(to);
-      };
-      raf = requestAnimationFrame(step);
-    };
-
-    // ---- Dragging the pill ----
+    // ---- Motion ----
     //
-    // The pill is placed by its centre: between two tabs it takes a width between
-    // theirs, so under `fit="auto"` it grows and shrinks as it crosses the row.
+    // One loop moves the pill, from one state: its centre on the row (`pos`, before the
+    // give at the ends) and its speed (`vel`, px/s). While a pointer holds the pill it
+    // sets the centre; otherwise the spring takes the pill to the active tab from
+    // whatever speed it has. So a drag's throw carries on into the landing, and a
+    // switch made mid-slide bends the slide rather than starting it over.
+    let placed = false;
+    let pos = 0;
+    let vel = 0;
+    let shown = 0; // the centre drawn last frame
+    let last = 0;
+    let raf = 0;
     let drag: {
       id: number;
       x0: number;
-      from: number;
       scale: number;
       moved: boolean;
-      /** Recent pointer positions, for the release speed. */
+      from: number;
+      /** Where the pointer puts the pill's centre, before the give at the ends. */
+      to: number;
+      /** The pointer's travel from where it went down, in row px, for its speed. */
       trail: { t: number; x: number }[];
     } | null = null;
 
-    const boxAtCentre = (cx: number): { box: Box; nearest: HTMLElement } | null => {
-      const all = tabs();
-      if (!all.length) return null;
-      const boxes = all.map(boxOf);
-      const centres = boxes.map((b) => b.x + b.w / 2);
-      const first = centres[0] ?? 0;
-      const last = centres[centres.length - 1] ?? 0;
-      // Some give past the ends, then it holds.
-      const c =
-        cx < first
-          ? first - (first - cx) * EDGE_GIVE
-          : cx > last
-            ? last + (cx - last) * EDGE_GIVE
-            : cx;
-      let i = 0;
-      while (i < centres.length - 2 && c > (centres[i + 1] ?? 0)) i += 1;
-      const a = boxes[i] ?? boxes[0]!;
-      const b = boxes[Math.min(i + 1, boxes.length - 1)] ?? a;
-      const ca = centres[i] ?? first;
-      const cb = centres[Math.min(i + 1, centres.length - 1)] ?? ca;
-      const t = cb === ca ? 0 : Math.min(1, Math.max(0, (c - ca) / (cb - ca)));
-      const w = a.w + (b.w - a.w) * t;
-      let nearest = 0;
-      centres.forEach((centre, j) => {
-        if (Math.abs(centre - c) < Math.abs((centres[nearest] ?? 0) - c)) nearest = j;
-      });
-      return {
-        box: { x: c - w / 2, y: a.y + (b.y - a.y) * t, w, h: a.h + (b.h - a.h) * t },
-        nearest: all[nearest]!,
-      };
+    const jump = (tab: HTMLElement) => {
+      cancelAnimationFrame(raf);
+      raf = 0;
+      measure();
+      const b = boxOf(tab);
+      ensureLens(b);
+      sizeLens(b.w, b.h);
+      pos = shown = b.x + b.w / 2;
+      vel = 0;
+      place(b);
+      setBend(0);
+      placed = true;
+      list.dataset.measured = '';
+    };
+
+    const tick = (now: number) => {
+      raf = 0;
+      measure();
+      const tab = activeTab();
+      if (!tab || !stops.length) return;
+      // Seconds since the last frame; a frame's worth on the first. A long gap (a tab in
+      // the background) counts as a short one, rather than flinging the pill.
+      const dt = last ? Math.min(0.05, Math.max(0.001, (now - last) / 1000)) : 1 / 60;
+      last = now;
+      const goal = boxOf(tab);
+      const home = goal.x + goal.w / 2;
+      if (drag?.moved) pos = drag.to;
+      else if (reduced.matches) {
+        pos = home;
+        vel = 0;
+      } else {
+        // Semi-implicit Euler in 2ms steps: steady at this stiffness at any frame rate.
+        for (let left = dt; left > 0; left -= 0.002) {
+          const h = Math.min(0.002, left);
+          vel += (SPRING_K * (home - pos) - SPRING_C * vel) * h;
+          pos += vel * h;
+        }
+      }
+      const c = give(pos);
+      // The lens takes the width of the tab under a held pill, and of the tab a free
+      // one is heading for, so it re-bakes only as those change.
+      const sized = drag?.moved ? (stops[nearest(c)]?.box ?? goal) : goal;
+      sizeLens(sized.w, sized.h);
+      place(boxAt(c));
+      const speed = Math.abs(c - shown) / dt;
+      shown = c;
+      const want = reduced.matches
+        ? 0
+        : Math.max(drag?.moved ? HELD_BEND : 0, Math.min(1, speed / (BEND_SPEED * pitch())));
+      setBend(bend + (want - bend) * (1 - Math.exp(-dt / BEND_EASE)));
+      // At rest: on the tab, still, and the labels crisp again.
+      if (!drag?.moved && Math.abs(home - pos) < 0.05 && Math.abs(vel) < 3 && bend < 0.002) {
+        pos = shown = home;
+        vel = 0;
+        place(goal);
+        setBend(0);
+        return;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+
+    const start = () => {
+      if (raf) return;
+      const tab = activeTab();
+      if (tab) ensureLens(boxOf(tab));
+      last = 0;
+      raf = requestAnimationFrame(tick);
+    };
+
+    // ---- Dragging the pill ----
+
+    // The throw as the pointer let go: its speed in row px/s, a straight-line fit to its
+    // last SPEED_WINDOW ms, and its travel where that began. No speed if it had stopped
+    // STOPPED_MS before letting go, or if the samples span less than a frame (synthetic
+    // input can send a drag in one burst).
+    const throwOf = (trail: { t: number; x: number }[], t: number) => {
+      const recent = trail.filter((s) => t - s.t <= SPEED_WINDOW);
+      const a = recent[0];
+      const z = recent[recent.length - 1];
+      if (!a || !z || t - z.t > STOPPED_MS || z.t - a.t < 8) return { v: 0, from: z?.x ?? 0 };
+      const mt = recent.reduce((sum, s) => sum + s.t, 0) / recent.length;
+      const mx = recent.reduce((sum, s) => sum + s.x, 0) / recent.length;
+      let num = 0;
+      let den = 0;
+      for (const s of recent) {
+        num += (s.t - mt) * (s.x - mx);
+        den += (s.t - mt) ** 2;
+      }
+      return { v: den ? (num / den) * 1000 : 0, from: a.x };
     };
 
     const onDown = (e: PointerEvent) => {
-      if (e.button !== 0 || !at) return;
+      if (e.button !== 0 || !placed) return;
       const tab = e.target instanceof Element ? e.target.closest('[role="tab"]') : null;
       if (!tab || tab !== activeTab()) return;
       const rect = labels.getBoundingClientRect();
       drag = {
         id: e.pointerId,
         x0: e.clientX,
-        from: at.x + at.w / 2,
         // Screen px per row px, so the pill tracks the pointer under a transform too.
         scale: labels.offsetWidth ? rect.width / labels.offsetWidth : 1,
         moved: false,
-        trail: [{ t: e.timeStamp, x: e.clientX }],
+        from: 0,
+        to: 0,
+        trail: [{ t: e.timeStamp, x: 0 }],
       };
     };
 
     const onMove = (e: PointerEvent) => {
       if (!drag || e.pointerId !== drag.id) return;
       const dx = (e.clientX - drag.x0) / drag.scale;
+      drag.trail.push({ t: e.timeStamp, x: dx });
+      while (drag.trail.length > 2 && e.timeStamp - (drag.trail[0]?.t ?? 0) > SPEED_WINDOW)
+        drag.trail.shift();
       if (!drag.moved) {
         if (Math.abs(dx) < DRAG_SLOP) return;
         drag.moved = true;
         labels.setPointerCapture(e.pointerId);
-        cancelAnimationFrame(raf);
         list.dataset.dragging = '';
+        // Taken up from wherever it is, mid-slide or not, as if held since the press.
+        drag.from = pos;
+        start();
       }
-      drag.trail.push({ t: e.timeStamp, x: e.clientX });
-      while (drag.trail.length > 2 && e.timeStamp - (drag.trail[0]?.t ?? 0) > FLICK_WINDOW)
-        drag.trail.shift();
-      const hit = boxAtCentre(drag.from + dx);
-      if (!hit) return;
-      sizeLens(Math.round(boxOf(hit.nearest).w), Math.round(hit.box.h));
-      place(hit.box);
-      if (!reduced.matches) setBend(Math.min(1, bend + 0.2));
+      drag.to = drag.from + dx;
     };
 
     const onUp = (e: PointerEvent) => {
@@ -308,26 +397,35 @@ function GlassTabsList({
       if (!done.moved) return; // a plain press: Base UI takes the click
       delete list.dataset.dragging;
       if (labels.hasPointerCapture(e.pointerId)) labels.releasePointerCapture(e.pointerId);
-      // The release speed, over the drag's last moments. A pointer that stopped before
-      // letting go isn't flicking. The span is floored at a frame, so two events a
-      // hair apart can't read as a flick, and the throw is capped short of a tab.
-      const trail = done.trail.filter((p) => e.timeStamp - p.t <= FLICK_WINDOW);
-      const a = trail[0];
-      const b = trail[trail.length - 1];
-      let throwX = 0;
-      if (a && b && b !== a && e.timeStamp - b.t < 50) {
-        const v = (b.x - a.x) / done.scale / Math.max(16, b.t - a.t);
-        const all = tabs();
-        const cap = all.length ? (FLICK_CAP * labels.offsetWidth) / all.length : 0;
-        throwX = Math.max(-cap, Math.min(cap, v * FLICK_MS));
+      measure();
+      pos = done.to;
+      vel = 0;
+      // A cancelled drag (the browser took the pointer back) just goes home.
+      if (e.type === 'pointerup' && stops.length) {
+        const { v, from } = throwOf(done.trail, e.timeStamp);
+        const c = give(pos);
+        const here = nearest(c);
+        const began = nearest(give(done.from + from));
+        const aim = nearest(c + (Math.sign(v) * v * v) / (2 * FRICTION));
+        // One past where the throw began at most, and never back behind where it got to.
+        const land =
+          stops[
+            v > 0
+              ? Math.min(aim, Math.max(here, began + 1))
+              : v < 0
+                ? Math.max(aim, Math.min(here, began - 1))
+                : here
+          ];
+        // The spring overshoots by about v/√K·0.45 from on the tab, less the further it
+        // still has to go: so this much of the throw lands within CARRY of a tab.
+        const ahead = land ? Math.max(0, (land.c - pos) * Math.sign(v)) : 0;
+        const most = Math.sqrt(SPRING_K) * (2.25 * CARRY * pitch() + ahead);
+        vel = Math.max(-most, Math.min(most, v));
+        // A new tab goes through Base UI like any click. The spring heads for whatever
+        // is active next frame, so a controlled value that refuses it sends the pill home.
+        if (land && land.tab !== activeTab()) land.tab.click();
       }
-      const cx = (at ? at.x + at.w / 2 : done.from) + throwX;
-      const target = boxAtCentre(cx)?.nearest;
-      if (!target) return;
-      // A new tab goes through Base UI like any click, and the mark it moves brings
-      // the pill home (the observer below); the same tab snaps back from here.
-      if (target === activeTab()) slide(target);
-      else target.click();
+      start();
     };
 
     labels.addEventListener('pointerdown', onDown);
@@ -344,7 +442,8 @@ function GlassTabsList({
       const next = activeTab();
       if (!next || next === current) return;
       current = next;
-      slide(next);
+      if (placed) start();
+      else jump(next);
       // Where the list has outgrown its frame, keep the selection in view.
       // `nearest` on both axes, so this never scrolls a page the control fits in.
       next.scrollIntoView({ block: 'nearest', inline: 'nearest' });

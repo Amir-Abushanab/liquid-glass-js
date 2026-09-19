@@ -1006,7 +1006,7 @@ export const registry: RegistryItem[] = [
     category: 'Components',
     icon: PanelTop,
     description:
-      'A segmented control: Base UI Tabs with a glass pill that slides to the active tab, bending the labels as it goes. Drag the pill and it snaps to the nearest tab. Tabs take an icon and an accent colour.',
+      'A segmented control: Base UI Tabs with a glass pill that slides to the active tab, bending the labels as it goes. Drag the pill and it lands on the nearest tab, or flick it to the next. Tabs take an icon and an accent colour.',
     tune: TABS_TUNE,
     code: TABS_TUNE.code(tuneDefaults(TABS_TUNE)),
     Demo: ({ values: v = tuneDefaults(TABS_TUNE), options: o = controlDefaults(TABS_TUNE) }) => (
@@ -1032,7 +1032,7 @@ export const registry: RegistryItem[] = [
         </GlassTabsList>
         <GlassTabsPanels className="max-w-[24rem] text-center text-sm text-white/80">
           <GlassTabsPanel value="daily">
-            Drag the pill and it snaps to the nearest tab.
+            Drag the pill and it lands on the nearest tab, or flick it to the next.
           </GlassTabsPanel>
           <GlassTabsPanel value="weekly">
             The labels bend only while it moves, so at rest they stay crisp.
