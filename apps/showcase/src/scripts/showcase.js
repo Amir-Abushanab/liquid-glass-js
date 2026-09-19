@@ -2,6 +2,7 @@ import { mountGlassLens, mountGlassLoupe, mountGlassGroup } from '@liquidglassjs
 import { reconfigureAllGlassText } from '@liquidglassjs/core';
 import { cubicBezier } from '@liquidglassjs/core';
 import { presetControls, presetDefaults } from '../lib/glass-presets';
+import { GLASS_TABS_DEFAULTS, tuneGlassTabs } from './glass-tabs.tsx';
 
 // The typeface section's one non-numeric control. Declared up here because the
 // section object is built long before the switcher it drives; `apply` is only ever
@@ -118,120 +119,19 @@ if (document.querySelector('.lgf')) {
     apply: (patch) => reconfigureAllGlassText(patch),
   });
 }
-const SEG_OPTS = {
-  radius: 999,
-  depth: 10,
-  dome: 12,
-  edge: 0.8,
-  glow: 0.28,
-  strength: 1,
-  chroma: 0.22,
-  blur: 0,
-  shade: 0,
-};
-const segLenses = [];
-document.querySelectorAll('[data-seg]').forEach((seg) => {
-  const labels = seg.querySelector('.seg__labels');
-  const opts = Array.from(seg.querySelectorAll('.seg__opt'));
-  const pill = seg.querySelector('.seg__glass');
-  if (!labels || !opts.length) return;
-  const n = opts.length;
-  // Aave's segmented trick ("Building Glass for the Web"): the pill refracts a
-  // highlighted COPY of the label row, clipped to a pill-sized window, so the
-  // selected label reads bright THROUGH the glass while the live track stays
-  // dim. The copy translates by −x inside a window translated by +x, so the
-  // text never visually moves — only the clip does. The copy is inert and
-  // aria-hidden; the live buttons keep every behaviour.
-  seg.querySelector('.seg__win')?.remove(); // a re-captured snapshot may bake one in
-  const win = document.createElement('div');
-  win.className = 'seg__win';
-  const copy = labels.cloneNode(true);
-  copy.classList.add('seg__copy');
-  copy.removeAttribute('id');
-  copy.setAttribute('aria-hidden', 'true');
-  copy.inert = true;
-  win.appendChild(copy);
-  seg.appendChild(win);
-  seg.classList.add('has-copy');
-  // The clone is absolutely positioned, so an inline-grid collapses to content
-  // width — but a seg may stretch its live row (the hero's package-manager one
-  // does), and a content-width copy lands its columns off the live ones. Pin
-  // the copy to the live row's box, and keep it pinned on resize.
-  const sizeCopy = () => {
-    copy.style.width = `${labels.offsetWidth}px`;
-    copy.style.height = `${labels.offsetHeight}px`;
-  };
-  sizeCopy();
-  const geom = () => {
-    const r = seg.getBoundingClientRect();
-    return { pillW: (r.width - 8) / n, pillH: r.height - 8 };
-  };
-  let g = geom();
-  const lens = mountGlassLens({
-    target: copy,
-    host: seg,
-    lensW: g.pillW,
-    lensH: g.pillH,
-    ...SEG_OPTS,
-  });
-  segLenses.push(lens);
-  let lensX = 0,
-    tweenRaf = 0;
-  const segEase = cubicBezier(0.34, 1.35, 0.5, 1);
-  // One writer for all four: pill chrome, clip window, counter-translated copy
-  // and the lens move on the same frame, from the same number.
-  const place = (x) => {
-    lens.setPos(x, 0);
-    if (pill) pill.style.transform = `translateX(${x}px)`;
-    win.style.transform = `translateX(${x}px)`;
-    copy.style.transform = `translateX(${-x}px)`;
-  };
-  const moveLensTo = (targetX) => {
-    cancelAnimationFrame(tweenRaf);
-    const from = lensX,
-      t0 = performance.now(),
-      dur = 300;
-    const step = (now) => {
-      const k = Math.min(1, (now - t0) / dur);
-      lensX = from + (targetX - from) * segEase(k);
-      place(lensX);
-      if (k < 1) tweenRaf = requestAnimationFrame(step);
-      else {
-        lensX = targetX;
-        place(lensX);
-      }
-    };
-    tweenRaf = requestAnimationFrame(step);
-  };
-  const setActive = (i, animate = true) => {
-    seg.style.setProperty('--i', String(i));
-    opts.forEach((b, j) => b.setAttribute('aria-selected', String(i === j)));
-    g = geom();
-    const targetX = i * g.pillW;
-    if (animate) moveLensTo(targetX);
-    else {
-      lensX = targetX;
-      place(lensX);
-    }
-  };
-  opts.forEach((o, i) => o.addEventListener('click', () => setActive(i)));
-  setActive(parseInt(seg.style.getPropertyValue('--i'), 10) || 0, false);
-  new ResizeObserver(() => {
-    g = geom();
-    sizeCopy();
-    lens.setSize(g.pillW, g.pillH);
-    setActive(parseInt(seg.style.getPropertyValue('--i'), 10) || 0, false);
-  }).observe(seg);
-});
-if (segLenses.length) {
+// The page's segmented controls are the registry's Glass Tabs (scripts/glass-tabs.tsx),
+// rendered as React into the static page; this section retunes all of them at once.
+// No radius: a tab's pill is always half its height.
+if (document.querySelector('[data-glass-tabs], [data-install]')) {
+  const params = LENS_PARAMS.filter((c) => c.key !== 'radius');
   cfgSections.push({
     id: 'segmented',
     label: 'Segmented',
     icon: CFG_ICONS.segmented,
-    params: LENS_PARAMS,
-    opts: { ...SEG_OPTS },
-    apply: (patch) => segLenses.forEach((l) => l.reconfigure(patch)),
-    picker: profilePicker((v) => segLenses.forEach((l) => l.reconfigure({ profile: v }))),
+    params,
+    opts: { ...GLASS_TABS_DEFAULTS },
+    apply: (patch) => tuneGlassTabs(patch),
+    picker: profilePicker((v) => tuneGlassTabs({ profile: v })),
   });
 }
 const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;

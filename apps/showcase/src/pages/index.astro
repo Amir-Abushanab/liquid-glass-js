@@ -40,6 +40,18 @@ const faviconHref =
 // The Registry nav link now points at the in-site registry docs (/components) —
 // the marketing page and docs share one build/deploy. base-aware for GitHub Pages.
 const registryUrl = import.meta.env.BASE_URL.replace(/\/$/, '') + '/components';
+// React Fast Refresh's preamble, in dev. This page renders React from plain scripts (the
+// Glass Tabs, scripts/glass-tabs.tsx) rather than through Astro islands, so Astro never
+// adds the preamble itself, and every React module then throws on import
+// ("$RefreshSig$ is not defined"). This is @vitejs/plugin-react's own preamble for pages
+// it doesn't serve (Vite's backend-integration recipe). Builds don't use Fast Refresh.
+const refreshPreamble = import.meta.env.DEV
+  ? `import { injectIntoGlobalHook } from "${import.meta.env.BASE_URL.replace(/\/?$/, '/')}@react-refresh";
+injectIntoGlobalHook(window);
+window.$RefreshReg$ = () => {};
+window.$RefreshSig$ = () => (type) => type;`
+  : '';
+
 const body = bodyHtml.replaceAll(
   '<a href="https://registry.liquidglassjs.dev" target="_blank" rel="noreferrer">Registry</a>',
   `<a href="${registryUrl}">Registry</a>`,
@@ -48,6 +60,7 @@ const body = bodyHtml.replaceAll(
 
 <html lang="en" data-theme="dark">
   <head>
+    {refreshPreamble && <script is:inline type="module" set:html={refreshPreamble} />}
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark light" />
@@ -74,9 +87,8 @@ const body = bodyHtml.replaceAll(
   import '../scripts/theme-toggle.js';
   import '../scripts/liquid-glass.js';
   import '../scripts/liquid-glass-font.js';
-  // Ahead of showcase.js on purpose: it builds the hero's package-manager selector as a
-  // [data-seg] control, and showcase.js only mounts the glass on the ones already in the
-  // DOM when it runs.
+  // The hero's install command. Its package-manager picker, and the segmented-control
+  // demo, are the registry's Glass Tabs (scripts/glass-tabs.tsx, which both import).
   import '../scripts/install-command.js';
   import '../scripts/showcase.js';
   import '../scripts/agent-copy.js';
