@@ -1,5 +1,12 @@
 # @liquidglassjs/element
 
+## 0.5.3
+
+### Patch Changes
+
+- Updated dependencies [[`e3ab197`](https://github.com/Amir-Abushanab/liquid-glass-js/commit/e3ab1975fcc7d6f07bfed66aaf2ace64d39d09cb), [`9051563`](https://github.com/Amir-Abushanab/liquid-glass-js/commit/9051563cc840f23abab08d95d9df88cf904c7d39)]:
+  - @liquidglassjs/core@0.5.3
+
 ## 0.5.2
 
 ### Patch Changes

@@ -1,5 +1,54 @@
 # @liquidglassjs/core
 
+## 0.5.3
+
+### Patch Changes
+
+- [#14](https://github.com/Amir-Abushanab/liquid-glass-js/pull/14) [`e3ab197`](https://github.com/Amir-Abushanab/liquid-glass-js/commit/e3ab1975fcc7d6f07bfed66aaf2ace64d39d09cb) Thanks [@Amir-Abushanab](https://github.com/Amir-Abushanab)! - Frost: keep the outline, at the same brightness, while the box is resizing, and stop building a lens on the first frame of a resize
+
+  While a frosted surface resizes, frost swaps its refraction for the plain blur
+  (the raster is the whole cost of a resize animation). The lens took its specular
+  rim with it, and that light edge is what reads as the glass's outline: a menu
+  opening inside a glass navbar looked like it lost its border for the length of
+  the animation, then had it snap back.
+
+  The root now carries `data-glass-motion` while the blur stands in, and the tint
+  layer redraws the lens's own rim for exactly that window. It isn't a generic light
+  ring, since the lens's rim is directional and soft: a glow about 14px deep at the
+  lit corners, next to nothing at the other two. A ring there left the outline
+  brighter at both ends of the animation than in the middle. The new `frost-glint`
+  module turns the map's specular channel into inset shadows under a mask along
+  the light axis, and weighs it by the light the frost wash and tint let through
+  and the headroom the paper leaves. Measured against the lens on a glass navbar,
+  it matches the rim's light within about 5% on a dark theme and follows the
+  clipped haze on a light one. It switches in the same frame the lens drops out
+  and the frame it returns, so the handoff neither stacks two rims nor shows none,
+  and frame times are unchanged at 4× CPU throttle.
+
+  Every resize now degrades straight away and rebuilds once the size has held for
+  120ms. Before, the first frame of a run built a full lens that the next frame
+  threw away, which dropped a frame at the very start of a menu opening (33ms at
+  4× CPU throttle on a Pixel 7; a steady 17ms now). A surface that has never had
+  a lens (sized 0 at mount) still builds the moment it first gets a box.
+
+- [#14](https://github.com/Amir-Abushanab/liquid-glass-js/pull/14) [`9051563`](https://github.com/Amir-Abushanab/liquid-glass-js/commit/9051563cc840f23abab08d95d9df88cf904c7d39) Thanks [@Amir-Abushanab](https://github.com/Amir-Abushanab)! - Size every glass from its own layout box, so a transform above it can't bake a wrong map
+
+  A displacement map is drawn in the filtered element's own coordinates, but
+  `mountGlassGroup`, `mountGlassShape`, `mountGlassText`, `mountGlassButton`,
+  `mountGlassDropdown`'s menu and the SVG ripple measured it with
+  `getBoundingClientRect()`, which includes every transform above the element.
+  Mounted inside a panel scaling in from 0.95 (a dialog, a menu, a popover) or
+  a card being revealed at a tilt, each baked its map a few percent small. The
+  transform then settles without the layout box changing, so no
+  ResizeObserver fired and the map was never rebuilt: the rim stayed traced
+  inside the glass it belongs to.
+
+  They now size from the layout box, as the root `mountGlass` already did, and
+  convert what they must still read off rects (a group item mid-slide, a
+  text's baseline, a label's width) back into the element's own pixels.
+  Measured inside a `scale(0.9)` container, every one of them now bakes the
+  same map as the same glass unscaled; before, each came out at 90%.
+
 ## 0.5.2
 
 ### Patch Changes
