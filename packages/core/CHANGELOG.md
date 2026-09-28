@@ -1,5 +1,41 @@
 # @liquidglassjs/core
 
+## 0.6.0
+
+### Minor Changes
+
+- [#16](https://github.com/Amir-Abushanab/liquid-glass-js/pull/16) [`3c3619c`](https://github.com/Amir-Abushanab/liquid-glass-js/commit/3c3619c933d0924320c70393f1ac4ba6e352f866) Thanks [@Amir-Abushanab](https://github.com/Amir-Abushanab)! - `mountGlassGroup` takes `mapScale`, to build a smaller map
+
+  A group rebuilds its whole map on every move, so items that drift every frame pay
+  for it every frame. `mapScale` (default 1, clamped 0.25–1, set at mount) builds the
+  map at that many pixels per CSS pixel and lets the feImage stretch it back. The
+  geometry, blend, depth and specular band scale with it, so the rim keeps its width.
+  With the group drifting on a 570×520 pane, the page's main thread went from 35% busy
+  to 25% at 0.75 and about 21% at 0.5; with the CPU throttled 4×, 78% to 60% and about
+  57%.
+
+  The rim pays for it. The offsets are interpolated across the silhouette, so at 0.5 a
+  faint second edge shows along it and grid-like content hooks where it crosses it;
+  0.75 is milder. The default is unchanged.
+
+### Patch Changes
+
+- [#16](https://github.com/Amir-Abushanab/liquid-glass-js/pull/16) [`e9acf56`](https://github.com/Amir-Abushanab/liquid-glass-js/commit/e9acf56eb0bf02439cab6cbb9c1ec199b71696d1) Thanks [@Amir-Abushanab](https://github.com/Amir-Abushanab)! - Build displacement maps on CPU-backed canvases
+
+  Every map is written with `putImageData` and read back once by `toDataURL`. On
+  Chromium's default GPU-backed 2D canvas that read-back is a synchronous round trip
+  to the GPU process, so each encode stalled for ~11ms whatever the map's size (a map a
+  quarter the size encoded no faster). The single-surface and group generators now ask
+  for `willReadFrequently`, as the glyph map already did, and the same encode takes
+  1.4ms at 300k px.
+
+  Nothing renders differently. The maps are byte-identical, and every registry
+  component page screenshots pixel-identical before and after, dialog and dropdown
+  open included. Measured in Chromium, encodes got cheaper everywhere a map rebuilds:
+  Glass Card 4.45ms → 0.55ms (worst 14.6 → 0.7), Glass Surface 3.95 → 0.48, Glass
+  Group 1.76 → 0.44 (worst 11.0 → 0.6), Glass Lens 2.24 → 0.87. A group drifting on a
+  570×520 pane at ~20 rebuilds a second went from 20–23 frames over 25ms per 5s to 1–3.
+
 ## 0.5.3
 
 ### Patch Changes

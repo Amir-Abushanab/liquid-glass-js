@@ -1,5 +1,12 @@
 # @liquidglassjs/qr
 
+## 0.6.0
+
+### Patch Changes
+
+- Updated dependencies [[`e9acf56`](https://github.com/Amir-Abushanab/liquid-glass-js/commit/e9acf56eb0bf02439cab6cbb9c1ec199b71696d1), [`3c3619c`](https://github.com/Amir-Abushanab/liquid-glass-js/commit/3c3619c933d0924320c70393f1ac4ba6e352f866)]:
+  - @liquidglassjs/core@0.6.0
+
 ## 0.5.3
 
 ### Patch Changes
