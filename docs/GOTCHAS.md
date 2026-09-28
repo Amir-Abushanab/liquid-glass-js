@@ -18,11 +18,18 @@ pixels, not a spec. Extracted from the README when the list outgrew it.
 - **Only three params are cheap to animate.** `strength`, `chroma` and `blur` land on
   a filter attribute, so driving them per frame costs about a `setAttribute` (~0.01ms).
   Everything else — `bevel`, `dome`, `depth`, `edge`, `glow`, `shade`, `radius`, and
-  any resize — is an input to the displacement map, so each change re-encodes a PNG
-  (~1.8ms on a lens, a third of a 60fps frame). Sweeping `strength` is a liquid pulse
-  for free; sweeping `dome` the same way drops frames. `glassTween(instance).to({…})`
-  eases the cheap ones for you and applies the rest in one go, so it can't be held
-  wrong.
+  any resize — is an input to the displacement map, so each change rebuilds the map and
+  re-encodes it as a PNG, at a cost that grows with the glass's area: under 1ms to encode
+  on the registry's lens, ~11ms for the whole change on a 570×520 group pane. Sweeping
+  `strength` is a liquid pulse for free; sweeping `dome` the same way can drop frames on
+  a large surface. `glassTween(instance).to({…})` eases the cheap ones for you and
+  applies the rest in one go, so it can't be held wrong.
+- **Map canvases must be CPU-backed.** A map is written with `putImageData` and read
+  back once by `toDataURL`. On Chromium's default, GPU-backed 2D canvas that read-back
+  is a synchronous round trip to the GPU process, ~11ms per encode at any map size (a
+  map a quarter the size encoded no faster). `getContext('2d', { willReadFrequently:
+true })` keeps the canvas on the CPU: 1.4ms at 300k px, byte-identical output. Every
+  generator here passes it; a new one should too.
 - **`blur` is quantised, and Safari can't blur below ~1.4px.** No engine applies a real
   Gaussian: all three approximate one with three integer-width box blurs, so the only
   radii that exist are `sqrt(d² - 1) / 2` — 1.41, 2.45, 3.46 and up. Chromium will use

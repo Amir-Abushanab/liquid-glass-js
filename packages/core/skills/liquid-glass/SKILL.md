@@ -153,7 +153,7 @@ import { mountGlassGroup } from '@liquidglassjs/core';
 
 const group = mountGlassGroup({
   target: scene, // the live DOM that bends — ONE pane under every item
-  host: wrap,
+  host: wrap, // + mapScale: 0.75 if items drift every frame (softer rim)
   items: [pillA, pillB], // chrome ABOVE the pane; measured, never filtered
   blend: 28, // silhouettes bridge at a gap of about blend / 2
 });

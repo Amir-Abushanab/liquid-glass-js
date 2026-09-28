@@ -66,6 +66,17 @@ export interface GlassGroupOptions extends Partial<GlassGroupParams> {
    */
   items: HTMLElement[] | (() => GroupShape[]);
   active?: boolean;
+  /**
+   * Map pixels per CSS pixel (default 1, clamped to 0.25–1). Every move
+   * rebuilds the whole map on the main thread, so a group whose items move
+   * every frame pays for it every frame. Below 1 the map is built smaller and
+   * the filter stretches it back: 0.75 builds ~56% of the pixels, 0.5 a
+   * quarter. The rim pays for it. The offsets are interpolated across the
+   * silhouette, so at 0.5 a faint second edge shows along it and grid-like
+   * content hooks where it crosses; 0.75 is milder. Mount-time only. See
+   * group-map's `pxScale` for what scales.
+   */
+  mapScale?: number;
 }
 
 export interface GlassGroup {
@@ -137,6 +148,8 @@ export function mountGlassGroup(o: GlassGroupOptions): GlassGroup {
     specularRotation: o.specularRotation ?? 45,
   };
 
+  const mapScale = Math.min(1, Math.max(0.25, o.mapScale ?? 1));
+
   const surface: GlassSurface = createGlassSurface({
     host: o.host,
     target: o.target,
@@ -165,6 +178,7 @@ export function mountGlassGroup(o: GlassGroupOptions): GlassGroup {
         glow: mapP.glow,
         shade: mapP.shade,
         specularRotation: mapP.specularRotation,
+        pxScale: mapScale,
       }),
   });
 
