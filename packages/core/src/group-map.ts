@@ -80,7 +80,9 @@ export function renderGroupDisplacementMap(o: GroupMapOptions): HTMLCanvasElemen
   const cv = document.createElement('canvas');
   cv.width = cw;
   cv.height = chh;
-  const ctx = cv.getContext('2d');
+  // CPU-backed, like displacement.ts: toDataURL off a GPU canvas is a
+  // synchronous read-back, and this map is re-encoded on every move.
+  const ctx = cv.getContext('2d', { willReadFrequently: true });
   if (!ctx) return cv;
   const img = ctx.createImageData(cw, chh);
   new Uint32Array(img.data.buffer).fill(NEUTRAL_PX);
