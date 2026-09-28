@@ -146,6 +146,19 @@ apron, so control-sized drags stay in the low milliseconds. Because the items
 sit above the filtered pane rather than inside it, sliding one with a
 transform is safe in Safari (the composited-child rule never triggers).
 
+Items that move every frame (a drift, say) pay that rebuild every frame, and on a
+big pane it adds up. `mapScale` builds the map smaller and lets the filter
+stretch it back:
+
+```ts
+mountGlassGroup({ target: scene, host: wrap, items, mapScale: 0.75 });
+```
+
+`0.75` builds ~56% of the pixels and `0.5` a quarter. The rim is what softens:
+at `0.5` a faint second edge shows along the silhouette on a Retina screen, and
+`0.75` is milder. Leave it at the default `1` for anything that only moves
+under a finger.
+
 ## Glass from any shape
 
 `mountGlassText` turns letterforms into glass; `mountGlassShape` does the same
@@ -295,7 +308,6 @@ nothing app-specific. Override per surface or globally:
 
 Everything that bites when an SVG filter meets live DOM — measured, grouped, and
 kept in **[docs/GOTCHAS.md](./docs/GOTCHAS.md)**.
-
 
 ## Credits
 

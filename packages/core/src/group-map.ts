@@ -45,6 +45,15 @@ export interface GroupMapOptions {
   glow?: number; // axial sheen strength
   shade?: number; // dark occlusion rim opposite the glint
   specularRotation?: number; // degrees, default 45
+  /**
+   * Map pixels per CSS pixel (default 1). Below 1 the map is built smaller and
+   * the feImage stretches it back over the pane (`preserveAspectRatio="none"`):
+   * 0.5 evaluates and encodes a quarter of the pixels. Everything above stays
+   * in CSS px; the geometry and the px-wide specular band are scaled here, so
+   * the rim keeps its apparent width. The 1px coverage feather is in MAP px,
+   * so it widens to 1/pxScale CSS px.
+   */
+  pxScale?: number;
 }
 
 // RGBA(128,128,128,255) as one little-endian u32 write — the neutral fill.
@@ -69,14 +78,19 @@ function smin(a: number, b: number, k: number): number {
 
 export function renderGroupDisplacementMap(o: GroupMapOptions): HTMLCanvasElement {
   const profile = o.profile ?? 'erf';
-  const depth = o.depth;
-  const blend = Math.max(0, o.blend);
+  const k = o.pxScale ?? 1;
+  const depth = o.depth * k;
+  const blend = Math.max(0, o.blend) * k;
   const edge = o.edge ?? 0;
   const glow = o.glow ?? 0;
   const shade = o.shade ?? 0;
+  const shapes =
+    k === 1
+      ? o.shapes
+      : o.shapes.map((s) => ({ x: s.x * k, y: s.y * k, w: s.w * k, h: s.h * k, r: s.r * k }));
 
-  const cw = Math.max(1, Math.round(o.width));
-  const chh = Math.max(1, Math.round(o.height));
+  const cw = Math.max(1, Math.round(o.width * k));
+  const chh = Math.max(1, Math.round(o.height * k));
   const cv = document.createElement('canvas');
   cv.width = cw;
   cv.height = chh;
@@ -103,7 +117,7 @@ export function renderGroupDisplacementMap(o: GroupMapOptions): HTMLCanvasElemen
     y1: number;
     shapes: GroupShape[];
   }
-  const clusters: Cluster[] = o.shapes.map((s) => ({
+  const clusters: Cluster[] = shapes.map((s) => ({
     x0: Math.max(0, Math.floor(s.x - pad)),
     y0: Math.max(0, Math.floor(s.y - pad)),
     x1: Math.min(cw, Math.ceil(s.x + s.w + pad)),
@@ -135,7 +149,7 @@ export function renderGroupDisplacementMap(o: GroupMapOptions): HTMLCanvasElemen
   const ck = Math.cos(rot);
   const sk = Math.sin(rot);
   const specOn = edge > 0 || glow > 0 || shade > 0;
-  const edgeW = 3;
+  const edgeW = 3 * k; // constant apparent width at any pxScale
   const edgeExp = 1.5;
   const glowExp = 1.5;
   const GT = Math.SQRT2; // glowSpread 1, as the single-shape generator ships
