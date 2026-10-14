@@ -16,6 +16,7 @@
 // It refracts the target's OWN content (a grid/gradient pane inside the button).
 // Bending the real page behind it would need backdrop-filter:url() (Chromium-only).
 
+import { recombineRgb } from './rgb-recombine';
 import { buildDisplacementMap } from './displacement';
 import { NEUTRAL } from './map-encode';
 import { SPLASH_COLORS, hexToRgb } from './color';
@@ -80,8 +81,7 @@ export function mountSvgRipple(o: SvgRippleOptions) {
     `<feColorMatrix type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispG"></feColorMatrix>` +
     `<feDisplacementMap in="blurred" in2="map" scale="0" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
     `<feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="dispB"></feColorMatrix>` +
-    `<feComposite in="dispR" in2="dispG" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite>` +
-    `<feComposite in2="dispB" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="lensResult"></feComposite>` +
+    recombineRgb() +
     `<feColorMatrix in="map" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 ${cfg.spec} 0 ${-NEUTRAL * cfg.spec}" result="specMask"></feColorMatrix>` +
     `<feComposite in="specMask" in2="lensResult" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite>` +
     `</filter></svg>`;

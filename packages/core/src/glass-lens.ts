@@ -16,6 +16,7 @@
 // filter-origin.ts. applyGlassFilter pins it; without that the lens refracts
 // wherever the target happens to sit in the document instead of under the pointer.
 
+import { recombineRgb } from './rgb-recombine';
 import { buildDisplacementMap, type MapProfile } from './displacement';
 import { specMaskValues, darkMaskValues } from './map-encode';
 import { parseCssColor } from './color';
@@ -181,8 +182,7 @@ export function mountGlassLens(o: GlassLensOptions): GlassLens {
       `<feColorMatrix type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispG"></feColorMatrix>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s3}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
       `<feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="dispB"></feColorMatrix>` +
-      `<feComposite in="dispR" in2="dispG" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite>` +
-      `<feComposite in2="dispB" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="lensResult"></feComposite>` +
+      recombineRgb() +
       `<feColorMatrix in="map" x="${lx - 1}" y="${ly - 1}" width="${lensW + 2}" height="${lensH + 2}" type="matrix" values="${specMaskValues(glintRgb)}" result="specMask"></feColorMatrix>` +
       `<feComposite in="specMask" in2="lensResult" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="lit"></feComposite>` +
       // dark occlusion rim (item 2): multiplicative darkening on the map's r < 0 pixels

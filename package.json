@@ -15,17 +15,18 @@
     "pack:all": "pnpm -r --filter \"@liquidglassjs/*\" exec pnpm pack",
     "release": "pnpm build:packages && changeset publish",
     "typecheck": "pnpm -r typecheck",
-    "lint": "oxlint packages apps",
-    "format": "oxfmt packages apps",
+    "lint": "oxlint packages apps tests playwright.config.ts",
+    "format": "oxfmt packages apps tests playwright.config.ts",
     "knip": "knip",
     "depcruise": "depcruise packages apps",
-    "check": "oxfmt --check packages apps && oxlint packages apps && pnpm -r typecheck && knip && depcruise packages apps && pnpm skill:validate && pnpm --filter registry check",
-    "check:fix": "oxfmt packages apps && oxlint --fix packages apps",
+    "check": "oxfmt --check packages apps tests playwright.config.ts && oxlint packages apps tests playwright.config.ts && pnpm -r typecheck && knip && depcruise packages apps && pnpm skill:validate && pnpm --filter registry check",
+    "check:fix": "oxfmt packages apps tests playwright.config.ts && oxlint --fix packages apps tests playwright.config.ts",
     "changeset": "changeset",
     "ncu": "pnpm dlx npm-check-updates",
     "prepare": "simple-git-hooks",
     "skill:validate": "pnpm --filter @liquidglassjs/core skill:validate",
-    "skill:stale": "pnpm --filter @liquidglassjs/core skill:stale"
+    "skill:stale": "pnpm --filter @liquidglassjs/core skill:stale",
+    "test": "playwright test"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm check"
@@ -33,6 +34,7 @@
   "devDependencies": {
     "@changesets/changelog-github": "^1.0.0",
     "@changesets/cli": "^3.0.1",
+    "@playwright/test": "^1.63.0",
     "dependency-cruiser": "^18.2.0",
     "knip": "^6.33.0",
     "oxfmt": "^0.65.0",

@@ -40,3 +40,9 @@ jobs:
       # depcruise all read the sources directly.
       - name: Check
         run: pnpm check
+
+      - name: Install browser engines
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+
+      - name: Test SVG rendering
+        run: pnpm test
