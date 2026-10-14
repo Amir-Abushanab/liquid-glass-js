@@ -1,5 +1,11 @@
 # @liquidglassjs/core
 
+## 0.6.1
+
+### Patch Changes
+
+- [#18](https://github.com/Amir-Abushanab/liquid-glass-js/pull/18) [`2acc33e`](https://github.com/Amir-Abushanab/liquid-glass-js/commit/2acc33efaba92dfaedf4ffbccef845541e4a20ce) Thanks [@Amir-Abushanab](https://github.com/Amir-Abushanab)! - Preserve transparency when SVG glass filters recombine their displaced RGB channels. Antialiased icons, text and translucent content retain their original edge coverage at zero displacement, while chromatic fringes keep their displaced coverage during refraction.
+
 ## 0.6.0
 
 ### Minor Changes
