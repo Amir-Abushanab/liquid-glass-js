@@ -28,6 +28,7 @@
 // be. A navbar over a sibling <main> — the case this exists for — has no
 // cycle.
 
+import { recombineRgb } from './rgb-recombine';
 import { buildDisplacementMap, type MapProfile } from './displacement';
 import { specMaskValues } from './map-encode';
 import { preBlurStd } from './blur-quantize';
@@ -103,8 +104,7 @@ export function mountMozBackdrop(
       `<feColorMatrix type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispG"></feColorMatrix>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s3}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
       `<feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="dispB"></feColorMatrix>` +
-      `<feComposite in="dispR" in2="dispG" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite>` +
-      `<feComposite in2="dispB" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="lensResult"></feComposite>` +
+      recombineRgb() +
       `<feColorMatrix in="map" type="matrix" values="${specMaskValues()}" result="specMask"></feColorMatrix>` +
       `<feComposite in="specMask" in2="lensResult" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite>` +
       `</filter></svg>`;

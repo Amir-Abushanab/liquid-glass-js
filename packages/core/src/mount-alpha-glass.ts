@@ -6,6 +6,7 @@
 // (Safari), attribute-only fast path, rAF+timeout-coalesced regen, and the
 // ResizeObserver. glass-text was rebased onto it with byte-identical output.
 
+import { recombineRgb } from './rgb-recombine';
 import { type GlyphMap, type GlyphMapCache } from './glyph-map';
 import { specMaskValues, darkMaskValues } from './map-encode';
 import { parseCssColor } from './color';
@@ -164,8 +165,7 @@ export function mountAlphaGlass<M extends AlphaGlassMeasured>(core: AlphaGlassCo
       `<feColorMatrix type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dispG"></feColorMatrix>` +
       `<feDisplacementMap in="blurred" in2="map" scale="${s3}" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>` +
       `<feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="dispB"></feColorMatrix>` +
-      `<feComposite in="dispR" in2="dispG" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"></feComposite>` +
-      `<feComposite in2="dispB" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="refr"></feComposite>` +
+      recombineRgb('refr') +
       `<feColorMatrix in="map" type="matrix" values="${specMaskValues(glintRgb)}" result="specMask"></feColorMatrix>` +
       `<feComposite in="specMask" in2="refr" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="lit"></feComposite>` +
       // dark occlusion rim (item 2): multiplicative darkening on the map's r < 0 pixels
