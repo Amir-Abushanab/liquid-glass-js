@@ -1,5 +1,12 @@
 # @liquidglassjs/react
 
+## 0.6.1
+
+### Patch Changes
+
+- Updated dependencies [[`2acc33e`](https://github.com/Amir-Abushanab/liquid-glass-js/commit/2acc33efaba92dfaedf4ffbccef845541e4a20ce)]:
+  - @liquidglassjs/core@0.6.1
+
 ## 0.6.0
 
 ### Patch Changes
