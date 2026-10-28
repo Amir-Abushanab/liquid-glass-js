@@ -1,5 +1,11 @@
 # @liquidglassjs/core
 
+## 0.6.2
+
+### Patch Changes
+
+- [#20](https://github.com/Amir-Abushanab/liquid-glass-js/pull/20) [`1324b40`](https://github.com/Amir-Abushanab/liquid-glass-js/commit/1324b404f4617dd47003cc59c5d04df1f278ca6a) Thanks [@Amir-Abushanab](https://github.com/Amir-Abushanab)! - `glassTween` accepts every renderer in TypeScript without a cast. `GlassTweenTarget.getOptions()` was typed `Record<string, number>`, which no renderer's params interface matched, so `glassTween(mountGlassText(...))` failed to type-check; it is now `object`. Runtime behaviour is unchanged.
+
 ## 0.6.1
 
 ### Patch Changes
