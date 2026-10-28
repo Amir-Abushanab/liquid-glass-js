@@ -91,8 +91,8 @@ Astro `<script>` is fine, React needs `useEffect`, never during SSR.
 ```js
 import { mountGlass } from '@liquidglassjs/core';
 
-const glass = mountGlass(document.querySelector('.panel'), {
-  refract: document.querySelector('.page-content'), // what to bend
+const glass = mountGlass(panel, {
+  refract: pageContent, // what to bend
   radius: 22,
   strength: 16, // refraction reach in px
   chroma: 0.3, // per-channel split (the rainbow rim)

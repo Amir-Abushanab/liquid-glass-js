@@ -22,10 +22,15 @@ const LIVE = new Set(['strength', 'chroma', 'blur', 'spec']);
 const DEFAULT_EASING = cubicBezier(0.22, 1, 0.36, 1);
 const DEFAULT_DURATION = 260;
 
-/** Anything with the standard reconfigure/getOptions pair — every renderer here. */
+/**
+ * Anything with the standard reconfigure/getOptions pair — every renderer here.
+ * `getOptions` returns `object` rather than `Record<string, number>`: each renderer's
+ * params type is an interface, which has no index signature and so never matched,
+ * leaving TypeScript callers to cast.
+ */
 export interface GlassTweenTarget {
   reconfigure(patch: Record<string, number>): void;
-  getOptions(): Record<string, number>;
+  getOptions(): object;
 }
 
 export interface GlassTweenOptions {
@@ -84,7 +89,7 @@ export function glassTween(target: GlassTweenTarget, base: GlassTweenOptions = {
   return {
     to(params, opts) {
       stop();
-      const cur = target.getOptions();
+      const cur = target.getOptions() as Record<string, unknown>;
       // Map params are applied once, now — see the note at the top of the file.
       const snap: Record<string, number> = {};
       from = {};
@@ -92,8 +97,9 @@ export function glassTween(target: GlassTweenTarget, base: GlassTweenOptions = {
       for (const key in params) {
         const v = params[key];
         if (typeof v !== 'number' || Number.isNaN(v)) continue;
-        if (LIVE.has(key) && typeof cur[key] === 'number') {
-          from[key] = cur[key];
+        const at = cur[key];
+        if (LIVE.has(key) && typeof at === 'number') {
+          from[key] = at;
           to[key] = v;
         } else {
           snap[key] = v;
