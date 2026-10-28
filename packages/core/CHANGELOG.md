@@ -524,7 +524,7 @@
   letters it was meant to be shaped like, and the glass slid off them.
 
   Padding on the target is not exotic: it is the ordinary way to stop `background-clip:
-text` cutting the descenders off gradient-filled letterforms. Two places had to learn
+  text` cutting the descenders off gradient-filled letterforms. Two places had to learn
   about it.
 
   `buildGlyphDisplacementMap` now draws at `margin + padLeft`, and measures ink overflow
@@ -670,7 +670,7 @@ text` cutting the descenders off gradient-filled letterforms. Two places had to 
   ancestor's filter and the two things that promote one, the canvas gradient that greys
   out colour emoji; Firefox's square WebGL corners inside a rounded box and its washed
   out `repeating-linear-gradient` hairlines; the box-quantised blur, `background-clip:
-text` refusing to paint the parts of a glyph that reach outside the padding box (so
+  text` refusing to paint the parts of a glyph that reach outside the padding box (so
   gradient-filled letterforms lose their descenders and it looks like the filter did it),
   the filter bending rather than scaling, needing bleed outside the target, the
   ink-vs-border bbox in `objectBoundingBox` units, `feImage` needing an explicit
